@@ -55,17 +55,8 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
     return null
   }
 
-  const [dbgEvent, setDbgEvent] = useState<string>('idle')
-
   function handleSave() {
-    setDbgEvent('click')
-    try {
-      const utc = fromDateTimeLocal(timestamp)
-      setDbgEvent(`ok:${utc.slice(11, 16)}`)
-      onSave(utc, buildMetadata())
-    } catch (e) {
-      setDbgEvent(`ERR:${String(e).slice(0, 40)}`)
-    }
+    onSave(fromDateTimeLocal(timestamp), buildMetadata())
   }
 
   return (
@@ -176,24 +167,11 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
         </div>
 
         <DrawerFooter className="pt-2" data-vaul-no-drag>
-          <div className="text-xs text-center text-muted-foreground mb-1">ts: "{timestamp}"</div>
           <button
-            onTouchStart={() => setDbgEvent('touchstart')}
-            onTouchEnd={() => setDbgEvent('touchend')}
-            onPointerDown={() => setDbgEvent('pointerdown')}
-            onPointerUp={() => setDbgEvent('pointerup')}
             onClick={handleSave}
-            className={`w-full h-12 rounded-md font-medium text-sm text-white ${
-              dbgEvent === 'idle' ? 'bg-red-500' :
-              dbgEvent === 'touchstart' ? 'bg-orange-500' :
-              dbgEvent === 'touchend' ? 'bg-yellow-500' :
-              dbgEvent === 'pointerdown' ? 'bg-blue-500' :
-              dbgEvent === 'pointerup' ? 'bg-purple-500' :
-              dbgEvent.startsWith('ERR') ? 'bg-red-800' :
-              'bg-green-500'
-            }`}
+            className="w-full h-12 rounded-md bg-primary text-primary-foreground font-medium text-sm"
           >
-            Save [{dbgEvent}]
+            Save
           </button>
           <button
             onClick={onDismiss}
