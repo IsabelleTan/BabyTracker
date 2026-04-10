@@ -4,6 +4,12 @@ tasks.md
 
 # Claude
 .claude/
+memory/
+
+# Coverage
+backend/.coverage
+backend/coverage.xml
+frontend/coverage/
 
 # Python
 __pycache__/
