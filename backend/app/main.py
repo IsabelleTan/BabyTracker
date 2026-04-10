@@ -4,6 +4,7 @@ from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.database import engine, Base
 from app.models import *  # noqa: ensure all models are registered
+from app.routers.auth import router as auth_router
 from app.routers.events import router as events_router
 
 
@@ -24,6 +25,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth_router)
 app.include_router(events_router)
 
 

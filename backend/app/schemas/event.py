@@ -8,7 +8,6 @@ class EventCreate(BaseModel):
     id: str  # UUID generated client-side
     type: EventType
     timestamp: datetime
-    logged_by: str  # user ID — will be derived from JWT in Milestone 3
     metadata: Any = None
 
 
