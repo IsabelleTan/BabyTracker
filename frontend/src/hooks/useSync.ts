@@ -72,25 +72,21 @@ export function useSync() {
   }, [sync])
 
   async function log(payload: LogEventPayload): Promise<void> {
-    const entry = {
-      id: payload.id,
-      type: payload.type,
-      timestamp: payload.timestamp,
-      metadata: payload.metadata ?? null,
-    }
-
-    // Persist locally without blocking — IndexedDB failure must not
-    // prevent the API call or UI update from happening
-    addPending(entry)
-      .then(() => setPendingCount((c) => c + 1))
-      .catch(() => {})
-
     let event: BabyEvent
     try {
       event = await apiLogEvent(payload)
-      removePending(payload.id).catch(() => {})
     } catch {
-      // Offline — build a local stand-in for optimistic UI
+      // Offline — queue for later and build a local stand-in for optimistic UI
+      const entry = {
+        id: payload.id,
+        type: payload.type,
+        timestamp: payload.timestamp,
+        metadata: payload.metadata ?? null,
+      }
+      addPending(entry)
+        .then(() => setPendingCount((c) => c + 1))
+        .catch(() => {})
+
       const user = getUser()
       event = {
         id: payload.id,
