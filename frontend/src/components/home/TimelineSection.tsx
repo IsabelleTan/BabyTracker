@@ -61,7 +61,7 @@ export default function TimelineSection({ events, onDeleted }: Props) {
         {sorted.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">No events yet today</p>
         ) : (
-          <div className="rounded-xl border border-border overflow-hidden">
+          <div className="rounded-xl border border-primary/35 overflow-hidden">
             {sorted.map((event, i) => (
               <TimelineRow
                 key={event.id}
@@ -144,7 +144,7 @@ function TimelineRow({
   const subtext = buildSubtext(event)
 
   return (
-    <div className={`relative overflow-hidden bg-card ${!isLast ? 'border-b border-border' : ''}`}>
+    <div className={`relative overflow-hidden bg-surface ${!isLast ? 'border-b border-primary/20' : ''}`}>
       {/* Delete background */}
       <div
         className="absolute right-0 top-0 bottom-0 flex items-center justify-end bg-destructive px-5"
@@ -156,7 +156,7 @@ function TimelineRow({
 
       {/* Row content */}
       <div
-        className="relative bg-card flex items-center gap-3 px-4 py-3 transition-transform"
+        className="relative bg-surface flex items-center gap-3 px-4 py-3 transition-transform"
         style={{
           transform: `translateX(-${offsetX}px)`,
           transitionDuration: startXRef.current ? '0ms' : '200ms',

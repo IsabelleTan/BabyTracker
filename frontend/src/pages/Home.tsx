@@ -172,10 +172,10 @@ export default function Home() {
             onClick={() => setSheetType('feed')}
             stats={[
               lastFeedDate
-                ? { label: 'Last feed', lines: [fmt(lastFeedDate), ago(lastFeedDate)] }
+                ? { label: 'Last feed', lines: [ago(lastFeedDate), fmt(lastFeedDate)] }
                 : null,
               nextFeed
-                ? { label: 'Est. next feed', lines: [`~${fmt(nextFeed)}`, until(nextFeed)] }
+                ? { label: 'Est. next feed', lines: [until(nextFeed), `~${fmt(nextFeed)}`] }
                 : null,
             ]}
           />
@@ -187,7 +187,7 @@ export default function Home() {
               sleepStatus
                 ? {
                     label: isSleeping ? 'Asleep since' : 'Awake since',
-                    lines: [fmt(sleepStatus.since), duration(sleepStatus.since)],
+                    lines: [duration(sleepStatus.since), fmt(sleepStatus.since)],
                   }
                 : null,
             ]}
@@ -198,7 +198,7 @@ export default function Home() {
             onClick={() => setSheetType('diaper')}
             stats={[
               lastDiaperDate
-                ? { label: 'Last diaper', lines: [fmt(lastDiaperDate), ago(lastDiaperDate)] }
+                ? { label: 'Last diaper', lines: [ago(lastDiaperDate), fmt(lastDiaperDate)] }
                 : null,
             ]}
           />
@@ -239,26 +239,32 @@ function ActionCard({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-background active:bg-muted transition-colors px-2 py-3 text-center w-full"
+      className="flex flex-col items-center rounded-xl border border-primary/20 bg-card active:brightness-95 transition-all px-2 py-3 text-center w-full"
     >
-      <Icon className="w-8 h-8 text-primary" />
-      <span className="text-sm font-medium">{label}</span>
-      {visibleStats.length > 0 && (
-        <div className="w-full border-t border-border mt-0.5 pt-2 flex flex-col gap-2">
-          {visibleStats.map((s, i) => (
-            <div key={i} className="flex flex-col gap-0.5">
-              <span className="text-[10px] uppercase tracking-wide text-muted-foreground/60">
-                {s.label}
+      <div className="flex-1 w-full flex flex-col gap-2 pb-2">
+        {visibleStats.map((s, i) => (
+          <div key={i} className="flex flex-col gap-0.5">
+            <span className="text-[10px] uppercase tracking-wide text-muted-foreground/60">
+              {s.label}
+            </span>
+            {s.lines.map((line, j) => (
+              <span
+                key={j}
+                className={j === 0
+                  ? 'text-base leading-tight font-semibold'
+                  : 'text-xs text-muted-foreground leading-tight'
+                }
+              >
+                {line}
               </span>
-              {s.lines.map((line, j) => (
-                <span key={j} className="text-base leading-tight font-medium">
-                  {line}
-                </span>
-              ))}
-            </div>
-          ))}
-        </div>
-      )}
+            ))}
+          </div>
+        ))}
+      </div>
+      <div className={`w-full pt-2 flex flex-col items-center gap-1.5 ${visibleStats.length > 0 ? 'border-t border-primary/15' : ''}`}>
+        <Icon className="w-8 h-8 text-primary" />
+        <span className="text-sm font-medium">{label}</span>
+      </div>
     </button>
   )
 }

@@ -11,14 +11,16 @@ export default function SummarySection({ events }: Props) {
   const stats = useMemo(() => computeStats(events), [events])
 
   return (
-    <div className="rounded-xl border border-border bg-card p-4 flex flex-col gap-3">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+    <div className="flex flex-col gap-1">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
         Today
       </h2>
-      <div className="grid grid-cols-3 gap-2 text-center">
-        <StatCell icon={Milk} value={String(stats.feedCount)} label="feeds" />
-        <StatCell icon={Moon} value={stats.totalSleep} label="sleep" />
-        <StatCell icon={Droplets} value={String(stats.diaperCount)} label="diapers" />
+      <div className="rounded-xl border border-primary/35 bg-surface p-4">
+        <div className="grid grid-cols-3 gap-2 text-center">
+          <StatCell icon={Milk} value={String(stats.feedCount)} label="feeds" />
+          <StatCell icon={Moon} value={stats.totalSleep} label="sleep" />
+          <StatCell icon={Droplets} value={String(stats.diaperCount)} label="diapers" />
+        </div>
       </div>
     </div>
   )

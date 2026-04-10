@@ -46,6 +46,7 @@
   --color-chart-3: var(--chart-3);
   --color-chart-2: var(--chart-2);
   --color-chart-1: var(--chart-1);
+  --color-surface: var(--surface);
   --color-ring: var(--ring);
   --color-input: var(--input);
   --color-border: var(--border);
@@ -74,12 +75,13 @@
 }
 
 :root {
-  --background: oklch(0.985 0.008 25);
+  --background: oklch(0.87 0.045 27);
   --foreground: oklch(0.18 0.025 25);
-  --card: oklch(0.99 0.005 25);
+  --card: oklch(0.98 0.008 25);
   --card-foreground: oklch(0.18 0.025 25);
-  --popover: oklch(0.99 0.005 25);
+  --popover: oklch(0.98 0.008 25);
   --popover-foreground: oklch(0.18 0.025 25);
+  --surface: oklch(0.93 0.028 27);
   --primary: oklch(0.52 0.16 18);
   --primary-foreground: oklch(0.99 0.005 25);
   --secondary: oklch(0.94 0.018 25);
@@ -123,6 +125,7 @@
   --muted-foreground: oklch(0.65 0.03 25);
   --accent: oklch(0.26 0.025 25);
   --accent-foreground: oklch(0.95 0.008 25);
+  --surface: oklch(0.24 0.025 27);
   --destructive: oklch(0.65 0.20 18);
   --border: oklch(0.95 0.008 25 / 12%);
   --input: oklch(0.95 0.008 25 / 15%);
