@@ -10,7 +10,7 @@ const Leaderboards = lazy(() => import('@/pages/Leaderboards'))
 
 function AppLayout() {
   return (
-    <div className="flex flex-col min-h-svh max-w-lg mx-auto">
+    <div className="w-full flex flex-col min-h-svh max-w-lg mx-auto">
       <main className="flex-1 pb-16">
         <Routes>
           <Route path="/" element={<Home />} />
