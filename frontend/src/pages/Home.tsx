@@ -14,6 +14,10 @@ export default function Home() {
     useSync()
   const [sheetType, setSheetType] = useState<EventType | null>(null)
   const [toast, setToast] = useState<string | null>(null)
+  const [dbgLog, setDbgLog] = useState<string[]>([])
+  function dbg(msg: string) {
+    setDbgLog((prev) => [...prev.slice(-6), `${new Date().toLocaleTimeString()}: ${msg}`])
+  }
 
   // Pull-to-refresh
   const touchStartY = useRef<number | null>(null)
@@ -52,13 +56,17 @@ export default function Home() {
   }
 
   async function handleSheetSave(timestamp: string, metadata: Record<string, unknown> | null) {
-    if (!sheetType) return
+    dbg(`handleSheetSave called, sheetType=${sheetType}`)
+    if (!sheetType) { dbg('EARLY RETURN: sheetType null'); return }
     const id = crypto.randomUUID()
     setSheetType(null)
+    dbg('calling log()...')
     try {
       await log({ id, type: sheetType, timestamp, metadata })
+      dbg('log() resolved OK')
       showToast('Logged ✓')
-    } catch {
+    } catch (e) {
+      dbg(`log() threw: ${e}`)
       showToast('Failed to save — try again')
     }
   }
@@ -106,6 +114,13 @@ export default function Home() {
       </div>
 
       <div className="flex flex-col gap-6 p-4">
+        {/* Debug log */}
+        {dbgLog.length > 0 && (
+          <div className="rounded border border-yellow-400 bg-yellow-50 p-2 text-xs font-mono space-y-0.5">
+            {dbgLog.map((line, i) => <div key={i}>{line}</div>)}
+          </div>
+        )}
+
         {/* Sync status bar */}
         <SyncBar pendingCount={pendingCount} lastSynced={lastSynced} isRefreshing={isRefreshing} />
 
