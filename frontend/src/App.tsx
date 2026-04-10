@@ -11,7 +11,7 @@ const Leaderboards = lazy(() => import('@/pages/Leaderboards'))
 function AppLayout() {
   return (
     <div className="w-full flex flex-col min-h-svh max-w-lg mx-auto">
-      <main className="flex-1 pb-16">
+      <main className="flex-1 pb-16 px-4">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/stats" element={<Suspense fallback={null}><Stats /></Suspense>} />
