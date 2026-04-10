@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
@@ -14,10 +14,13 @@ router = APIRouter(prefix="/events", tags=["events"])
 
 
 def _to_response(event: Event, display_name: str) -> EventResponse:
+    ts = event.timestamp
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
     return EventResponse(
         id=event.id,
         type=event.type,
-        timestamp=event.timestamp,
+        timestamp=ts,
         logged_by=event.logged_by,
         display_name=display_name,
         metadata=event.metadata_,
