@@ -1,12 +1,12 @@
 import { useState, useRef, useMemo } from 'react'
+import { Milk, Moon, Sun, Droplets, type LucideIcon } from 'lucide-react'
 import EventSheet from '@/components/home/EventSheet'
 import SummarySection from '@/components/home/SummarySection'
 import TimelineSection from '@/components/home/TimelineSection'
 import { useSync } from '@/hooks/useSync'
-import { useTick } from '@/hooks/useTimeSince'
+import { useTick, useTimeSince } from '@/hooks/useTimeSince'
 import { deleteEvent, type EventType, type BabyEvent } from '@/lib/events'
 import { generateId } from '@/lib/uuid'
-import { useTimeSince } from '@/hooks/useTimeSince'
 
 const PULL_THRESHOLD = 72
 
@@ -167,7 +167,7 @@ export default function Home() {
         {/* Action cards — break out of container padding for max width */}
         <div className="-mx-4 px-2 grid grid-cols-3 gap-2">
           <ActionCard
-            emoji="🍼"
+            icon={Milk}
             label="Feed"
             onClick={() => setSheetType('feed')}
             stats={[
@@ -180,7 +180,7 @@ export default function Home() {
             ]}
           />
           <ActionCard
-            emoji={isSleeping ? '☀️' : '🌙'}
+            icon={isSleeping ? Sun : Moon}
             label={isSleeping ? 'Wake' : 'Sleep'}
             onClick={() => setSheetType(isSleeping ? 'sleep_end' : 'sleep_start')}
             stats={[
@@ -193,7 +193,7 @@ export default function Home() {
             ]}
           />
           <ActionCard
-            emoji="💧"
+            icon={Droplets}
             label="Diaper"
             onClick={() => setSheetType('diaper')}
             stats={[
@@ -225,12 +225,12 @@ interface Stat {
 }
 
 function ActionCard({
-  emoji,
+  icon: Icon,
   label,
   onClick,
   stats,
 }: {
-  emoji: string
+  icon: LucideIcon
   label: string
   onClick: () => void
   stats: (Stat | null)[]
@@ -241,7 +241,7 @@ function ActionCard({
       onClick={onClick}
       className="flex flex-col items-center gap-1.5 rounded-xl border border-border bg-background active:bg-muted transition-colors px-2 py-3 text-center w-full"
     >
-      <span className="text-3xl">{emoji}</span>
+      <Icon className="w-8 h-8 text-primary" />
       <span className="text-sm font-medium">{label}</span>
       {visibleStats.length > 0 && (
         <div className="w-full border-t border-border mt-0.5 pt-2 flex flex-col gap-2">

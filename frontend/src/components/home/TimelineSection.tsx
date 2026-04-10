@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { Milk, Moon, Sun, Droplets, Trash2, type LucideIcon } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,11 +19,11 @@ const EVENT_LABELS: Record<string, string> = {
   diaper: 'Diaper',
 }
 
-const EVENT_EMOJI: Record<string, string> = {
-  feed: '🍼',
-  sleep_start: '🌙',
-  sleep_end: '☀️',
-  diaper: '💧',
+const EVENT_ICON: Record<string, LucideIcon> = {
+  feed: Milk,
+  sleep_start: Moon,
+  sleep_end: Sun,
+  diaper: Droplets,
 }
 
 const SWIPE_THRESHOLD = 80
@@ -139,7 +140,7 @@ function TimelineRow({
   }
 
   const label = EVENT_LABELS[event.type] ?? event.type
-  const emoji = EVENT_EMOJI[event.type] ?? '•'
+  const Icon = EVENT_ICON[event.type] ?? Milk
   const subtext = buildSubtext(event)
 
   return (
@@ -150,7 +151,7 @@ function TimelineRow({
         style={{ width: SWIPE_THRESHOLD }}
         onClick={snapped ? onTapDelete : undefined}
       >
-        <span className="text-xl text-white">🗑</span>
+        <Trash2 className="w-5 h-5 text-white" />
       </div>
 
       {/* Row content */}
@@ -164,7 +165,7 @@ function TimelineRow({
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
-        <span className="text-xl w-8 text-center">{emoji}</span>
+        <Icon className="w-5 h-5 text-primary shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium">{label}</div>
           {subtext && <div className="text-xs text-muted-foreground truncate">{subtext}</div>}
