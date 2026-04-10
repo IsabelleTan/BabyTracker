@@ -53,6 +53,8 @@ async def get_events(
     from_: datetime | None = None,
     to: datetime | None = None,
     since: datetime | None = None,
+    type: str | None = None,
+    limit: int | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -64,10 +66,18 @@ async def get_events(
             .where(Event.timestamp >= from_, Event.timestamp < to)
             .order_by(Event.timestamp)
         )
+    elif limit is not None:
+        # Return last N events (optionally filtered by type), no date range required
+        stmt = select(Event).order_by(Event.timestamp.desc())
     else:
         raise HTTPException(
-            status_code=422, detail="Provide either 'since' or both 'from' and 'to'"
+            status_code=422, detail="Provide either 'since', 'from'+'to', or 'limit'"
         )
+
+    if type is not None:
+        stmt = stmt.where(Event.type == type)
+    if limit is not None:
+        stmt = stmt.limit(limit)
 
     result = await db.execute(stmt)
     events = result.scalars().all()
