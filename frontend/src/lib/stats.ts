@@ -17,3 +17,8 @@ export async function getDailyStats(from: Date, to: Date): Promise<DailyStat[]> 
   })
   return data
 }
+
+export async function getEarliestEventDate(): Promise<Date | null> {
+  const { data } = await api.get<{ earliest: string | null }>('/stats/range')
+  return data.earliest ? new Date(data.earliest) : null
+}

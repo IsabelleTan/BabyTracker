@@ -3,7 +3,7 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import select
+from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
@@ -23,6 +23,22 @@ class DailyStat(BaseModel):
     avg_sleep_session_min: float | None
     avg_wake_min: float | None
     diaper_count: int
+
+
+class StatsRange(BaseModel):
+    earliest: datetime | None
+
+
+@router.get("/range", response_model=StatsRange)
+async def get_stats_range(
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    result = await db.execute(select(func.min(Event.timestamp)))
+    earliest = result.scalar()
+    if earliest and earliest.tzinfo is None:
+        earliest = earliest.replace(tzinfo=timezone.utc)
+    return StatsRange(earliest=earliest)
 
 
 def _utc(ts: datetime) -> datetime:

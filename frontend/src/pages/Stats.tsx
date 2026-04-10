@@ -8,7 +8,7 @@ import {
   ResponsiveContainer,
   CartesianGrid,
 } from 'recharts'
-import { getDailyStats, type DailyStat } from '@/lib/stats'
+import { getDailyStats, getEarliestEventDate, type DailyStat } from '@/lib/stats'
 
 type Range = '7d' | '30d' | 'all'
 
@@ -18,12 +18,11 @@ const RANGES: { label: string; value: Range }[] = [
   { label: 'All time', value: 'all' },
 ]
 
-function getRangeDates(range: Range): { from: Date; to: Date } {
+function getFixedRangeDates(range: '7d' | '30d'): { from: Date; to: Date } {
   const to = new Date()
   const from = new Date()
   if (range === '7d') from.setDate(to.getDate() - 6)
-  else if (range === '30d') from.setDate(to.getDate() - 29)
-  else from.setFullYear(2020, 0, 1)
+  else from.setDate(to.getDate() - 29)
   from.setHours(0, 0, 0, 0)
   to.setHours(23, 59, 59, 999)
   return { from, to }
@@ -51,11 +50,22 @@ export default function Stats() {
   useEffect(() => {
     setLoading(true)
     setError(false)
-    const { from, to } = getRangeDates(range)
-    getDailyStats(from, to)
-      .then(setData)
-      .catch(() => setError(true))
-      .finally(() => setLoading(false))
+    const to = new Date()
+    to.setHours(23, 59, 59, 999)
+
+    const run = async () => {
+      let from: Date
+      if (range === 'all') {
+        const earliest = await getEarliestEventDate()
+        from = earliest ?? new Date()
+        from.setHours(0, 0, 0, 0)
+      } else {
+        from = getFixedRangeDates(range).from
+      }
+      return getDailyStats(from, to)
+    }
+
+    run().then(setData).catch(() => setError(true)).finally(() => setLoading(false))
   }, [range])
 
   const chartData = data.map((d) => ({ ...d, date: fmtDate(d.date) }))
