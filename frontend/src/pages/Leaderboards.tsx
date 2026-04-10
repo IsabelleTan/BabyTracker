@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { Moon, Trophy, Baby } from 'lucide-react'
+import { Moon, Trophy, Baby, Sparkles } from 'lucide-react'
 import { getLeaderboards, type LeaderboardData, type ParentStat } from '@/lib/leaderboards'
 
 function fmtMins(mins: number | null | undefined): string {
@@ -35,42 +35,75 @@ export default function Leaderboards() {
     return <p className="text-sm text-destructive text-center py-16">Failed to load leaderboards</p>
   }
 
+  const notifications: string[] = []
+  if (data.longest_sleep_new) notifications.push('New longest sleep record!')
+  if (data.best_night_new) notifications.push('New best night record!')
+  if (data.most_feeds_new) notifications.push('New most feeds in a day record!')
+  if (data.most_poop_new) notifications.push('New most poop diapers record!')
+  if (data.night_shift_claimed_today) notifications.push('Night Shift Ninja title changed hands!')
+  if (data.chief_log_claimed_today) notifications.push('Chief Log Officer title changed hands!')
+  if (data.poop_award_claimed_today) notifications.push('Number One at Number Two title changed hands!')
+
   return (
     <div className="flex flex-col gap-6 py-4">
+      {notifications.length > 0 && (
+        <div className="rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5 text-primary">
+            <Sparkles className="w-4 h-4 shrink-0" />
+            <span className="text-sm font-semibold">New today</span>
+          </div>
+          {notifications.map((n) => (
+            <p key={n} className="text-xs text-foreground pl-5">{n}</p>
+          ))}
+        </div>
+      )}
       <RecordsSection data={data} />
-      <AwardsSection parents={data.parents} />
+      <AwardsSection data={data} />
     </div>
   )
 }
 
 // ── Records ──────────────────────────────────────────────────────────────────
 
+function NewBadge() {
+  return (
+    <span className="text-xs font-medium text-primary bg-primary/15 rounded-full px-2 py-0.5 ml-1.5">
+      New!
+    </span>
+  )
+}
+
 function RecordsSection({ data }: { data: LeaderboardData }) {
-  const rows: { label: string; value: string; sub: string }[] = [
+  const rows: { label: string; value: string; sub: string; isNew: boolean }[] = [
     {
       label: 'Longest sleep',
       value: fmtMins(data.longest_sleep_min),
       sub: fmtDate(data.longest_sleep_date),
+      isNew: data.longest_sleep_new,
     },
     {
       label: 'Best night',
       value: fmtMins(data.best_night_min),
       sub: fmtDate(data.best_night_date),
+      isNew: data.best_night_new,
     },
     {
       label: 'Worst night',
       value: fmtMins(data.worst_night_min),
       sub: fmtDate(data.worst_night_date),
+      isNew: false,
     },
     {
       label: 'Most feeds in a day',
       value: data.most_feeds_count != null ? String(data.most_feeds_count) : '—',
       sub: fmtDate(data.most_feeds_date),
+      isNew: data.most_feeds_new,
     },
     {
       label: 'Most poop diapers in a day',
       value: data.most_poop_count != null ? String(data.most_poop_count) : '—',
       sub: fmtDate(data.most_poop_date),
+      isNew: data.most_poop_new,
     },
   ]
 
@@ -82,7 +115,10 @@ function RecordsSection({ data }: { data: LeaderboardData }) {
       <div className="rounded-xl border border-primary/35 bg-surface divide-y divide-primary/15">
         {rows.map((row) => (
           <div key={row.label} className="flex items-center justify-between px-4 py-3">
-            <span className="text-sm">{row.label}</span>
+            <div className="flex items-center">
+              <span className="text-sm">{row.label}</span>
+              {row.isNew && <NewBadge />}
+            </div>
             <div className="flex items-baseline gap-2">
               <span className="text-sm font-semibold">{row.value}</span>
               {row.sub && (
@@ -104,69 +140,87 @@ interface Award {
   subtitle: string
   getValue: (p: ParentStat) => number
   formatValue: (n: number) => string
-  higherIsBetter: boolean
+  claimedToday: boolean
 }
 
-const AWARDS: Award[] = [
-  {
-    icon: <Moon className="w-5 h-5" />,
-    title: 'Night Shift Ninja',
-    subtitle: 'Most events logged between 9 pm – 7 am',
-    getValue: (p) => p.night_shifts,
-    formatValue: (n) => `${n} logs`,
-    higherIsBetter: true,
-  },
-  {
-    icon: <Trophy className="w-5 h-5" />,
-    title: 'Chief Log Officer',
-    subtitle: 'Most events logged overall',
-    getValue: (p) => p.total_logs,
-    formatValue: (n) => `${n} logs`,
-    higherIsBetter: true,
-  },
-  {
-    icon: <Baby className="w-5 h-5" />,
-    title: 'Number One at Number Two',
-    subtitle: 'Most poop diapers changed',
-    getValue: (p) => p.poop_changes,
-    formatValue: (n) => `${n} changes`,
-    higherIsBetter: true,
-  },
-]
+function AwardsSection({ data }: { data: LeaderboardData }) {
+  const awards: Award[] = [
+    {
+      icon: <Moon className="w-5 h-5" />,
+      title: 'Night Shift Ninja',
+      subtitle: 'Most events logged between 9 pm – 7 am',
+      getValue: (p) => p.night_shifts,
+      formatValue: (n) => `${n} logs`,
+      claimedToday: data.night_shift_claimed_today,
+    },
+    {
+      icon: <Trophy className="w-5 h-5" />,
+      title: 'Chief Log Officer',
+      subtitle: 'Most events logged overall',
+      getValue: (p) => p.total_logs,
+      formatValue: (n) => `${n} logs`,
+      claimedToday: data.chief_log_claimed_today,
+    },
+    {
+      icon: <Baby className="w-5 h-5" />,
+      title: 'Number One at Number Two',
+      subtitle: 'Most poop diapers changed',
+      getValue: (p) => p.poop_changes,
+      formatValue: (n) => `${n} changes`,
+      claimedToday: data.poop_award_claimed_today,
+    },
+  ]
 
-function AwardsSection({ parents }: { parents: ParentStat[] }) {
   return (
     <section className="flex flex-col gap-3">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
         Awards
       </h2>
+      {!data.has_enough_data && (
+        <p className="text-xs text-muted-foreground px-1">
+          Awards are unlocked after 7 days of tracking — check back soon!
+        </p>
+      )}
       <div className="flex flex-col gap-3">
-        {AWARDS.map((award) => (
-          <AwardCard key={award.title} award={award} parents={parents} />
+        {awards.map((award) => (
+          <AwardCard key={award.title} award={award} parents={data.parents} showWinner={data.has_enough_data} />
         ))}
       </div>
     </section>
   )
 }
 
-function AwardCard({ award, parents }: { award: Award; parents: ParentStat[] }) {
+function AwardCard({
+  award,
+  parents,
+  showWinner,
+}: {
+  award: Award
+  parents: ParentStat[]
+  showWinner: boolean
+}) {
   const values = parents.map((p) => award.getValue(p))
-  const winnerIdx = award.higherIsBetter
-    ? values.indexOf(Math.max(...values))
-    : values.indexOf(Math.min(...values))
+  const winnerIdx = values.indexOf(Math.max(...values))
 
   return (
-    <div className="rounded-xl border border-primary/35 bg-surface px-4 py-3 flex flex-col gap-3">
-      <div className="flex items-center gap-2 text-primary">
-        {award.icon}
-        <div>
-          <p className="text-sm font-semibold leading-tight">{award.title}</p>
-          <p className="text-xs text-muted-foreground">{award.subtitle}</p>
+    <div
+      className={`rounded-xl border bg-surface px-4 py-3 flex flex-col gap-3 ${
+        award.claimedToday ? 'border-primary/60' : 'border-primary/35'
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-primary">
+          {award.icon}
+          <div>
+            <p className="text-sm font-semibold leading-tight">{award.title}</p>
+            <p className="text-xs text-muted-foreground">{award.subtitle}</p>
+          </div>
         </div>
+        {award.claimedToday && <NewBadge />}
       </div>
       <div className="flex gap-3">
         {parents.map((p, i) => {
-          const isWinner = i === winnerIdx
+          const isWinner = showWinner && i === winnerIdx
           return (
             <div
               key={p.display_name}

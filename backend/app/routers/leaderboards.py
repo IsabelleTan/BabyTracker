@@ -22,21 +22,51 @@ class ParentStat(BaseModel):
 
 
 class LeaderboardData(BaseModel):
+    has_enough_data: bool  # True once earliest event is >= 7 days ago
     longest_sleep_min: float | None
     longest_sleep_date: str | None
+    longest_sleep_new: bool
     best_night_min: float | None
     best_night_date: str | None
+    best_night_new: bool
     worst_night_min: float | None
     worst_night_date: str | None
     most_feeds_count: int | None
     most_feeds_date: str | None
+    most_feeds_new: bool
     most_poop_count: int | None
     most_poop_date: str | None
+    most_poop_new: bool
+    night_shift_claimed_today: bool
+    chief_log_claimed_today: bool
+    poop_award_claimed_today: bool
     parents: list[ParentStat]
 
 
 def _utc(ts: datetime) -> datetime:
     return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
+
+
+def _compute_parent_stats(evts: list, users: dict[str, str]) -> dict[str, dict]:
+    s = {uid: {"night_shifts": 0, "total_logs": 0, "poop_changes": 0} for uid in users}
+    for e in evts:
+        uid = e.logged_by
+        if uid not in s:
+            continue
+        ts = _utc(e.timestamp)
+        s[uid]["total_logs"] += 1
+        if ts.hour >= 21 or ts.hour < 7:
+            s[uid]["night_shifts"] += 1
+        if e.type == "diaper":
+            meta = e.metadata_ or {}
+            if meta.get("diaper_type") in ("dirty", "both"):
+                s[uid]["poop_changes"] += 1
+    return s
+
+
+def _winner_uid(stats: dict[str, dict], key: str) -> str | None:
+    candidates = {uid: v[key] for uid, v in stats.items() if v[key] > 0}
+    return max(candidates, key=lambda uid: candidates[uid]) if candidates else None
 
 
 @router.get("", response_model=LeaderboardData)
@@ -50,8 +80,18 @@ async def get_leaderboards(
     users_result = await db.execute(select(User))
     users = {u.id: u.display_name for u in users_result.scalars().all()}
 
+    today_utc = datetime.now(timezone.utc)
+    today_start = today_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_str = today_utc.date().isoformat()
+
+    # Require at least 7 days of data before surfacing notifications/awards
+    earliest_ts = min((_utc(e.timestamp) for e in events), default=None)
+    has_enough_data = (
+        earliest_ts is not None and (today_utc - earliest_ts).days >= 7
+    )
+
     # ── Sleep sessions ────────────────────────────────────────────────────────
-    sleep_events: list[tuple[str, datetime]] = [
+    sleep_events = [
         (e.type, _utc(e.timestamp))
         for e in events
         if e.type in ("sleep_start", "sleep_end")
@@ -66,7 +106,6 @@ async def get_leaderboards(
             sleep_sessions.append((open_start, ts))
             open_start = None
 
-    # Longest single session
     longest_sleep_min: float | None = None
     longest_sleep_date: str | None = None
     if sleep_sessions:
@@ -74,7 +113,6 @@ async def get_leaderboards(
         longest_sleep_min = round((longest[1] - longest[0]).total_seconds() / 60, 1)
         longest_sleep_date = longest[0].date().isoformat()
 
-    # Night sleep totals — night of date D = D 21:00 UTC to D+1 07:00 UTC (10 h window)
     night_sleep: dict[str, float] = defaultdict(float)
     for start, end in sleep_sessions:
         for offset in range(-1, 2):
@@ -99,7 +137,7 @@ async def get_leaderboards(
         worst_night_date = min(night_sleep, key=lambda k: night_sleep[k])
         worst_night_min = round(night_sleep[worst_night_date], 1)
 
-    # ── Feeds per day ────────────────────────────────────────────────────────
+    # ── Feeds per day ─────────────────────────────────────────────────────────
     feeds_by_day: dict[str, int] = defaultdict(int)
     for e in events:
         if e.type == "feed":
@@ -111,7 +149,7 @@ async def get_leaderboards(
         most_feeds_date = max(feeds_by_day, key=lambda k: feeds_by_day[k])
         most_feeds_count = feeds_by_day[most_feeds_date]
 
-    # ── Poop diapers per day ─────────────────────────────────────────────────
+    # ── Poop diapers per day ──────────────────────────────────────────────────
     poop_by_day: dict[str, int] = defaultdict(int)
     for e in events:
         if e.type == "diaper":
@@ -125,45 +163,58 @@ async def get_leaderboards(
         most_poop_date = max(poop_by_day, key=lambda k: poop_by_day[k])
         most_poop_count = poop_by_day[most_poop_date]
 
-    # ── Parent stats ─────────────────────────────────────────────────────────
-    stats: dict[str, dict] = {
-        uid: {"display_name": name, "night_shifts": 0, "total_logs": 0, "poop_changes": 0}
-        for uid, name in users.items()
-    }
+    # ── Record broken today flags (suppressed until enough data) ─────────────
+    longest_sleep_new = has_enough_data and longest_sleep_date == today_str
+    best_night_new = has_enough_data and best_night_date == today_str
+    most_feeds_new = has_enough_data and most_feeds_date == today_str
+    most_poop_new = has_enough_data and most_poop_date == today_str
 
-    for e in events:
-        uid = e.logged_by
-        if uid not in stats:
-            continue
-        ts = _utc(e.timestamp)
-        stats[uid]["total_logs"] += 1
-        if ts.hour >= 21 or ts.hour < 7:
-            stats[uid]["night_shifts"] += 1
-        if e.type == "diaper":
-            meta = e.metadata_ or {}
-            if meta.get("diaper_type") in ("dirty", "both"):
-                stats[uid]["poop_changes"] += 1
+    # ── Award claimed today (suppressed until enough data) ────────────────────
+    curr_stats = _compute_parent_stats(events, users)
+    prev_events = [e for e in events if _utc(e.timestamp) < today_start]
+    prev_stats = _compute_parent_stats(prev_events, users)
 
+    def award_claimed(key: str) -> bool:
+        if not has_enough_data:
+            return False
+        curr = _winner_uid(curr_stats, key)
+        prev = _winner_uid(prev_stats, key)
+        return curr is not None and curr != prev
+
+    night_shift_claimed_today = award_claimed("night_shifts")
+    chief_log_claimed_today = award_claimed("total_logs")
+    poop_award_claimed_today = award_claimed("poop_changes")
+
+    # ── Parent stats for display ──────────────────────────────────────────────
     parents = [
         ParentStat(
-            display_name=v["display_name"],
+            display_name=users[uid],
             night_shifts=v["night_shifts"],
             total_logs=v["total_logs"],
             poop_changes=v["poop_changes"],
         )
-        for v in stats.values()
+        for uid, v in curr_stats.items()
+        if uid in users
     ]
 
     return LeaderboardData(
+        has_enough_data=has_enough_data,
         longest_sleep_min=longest_sleep_min,
         longest_sleep_date=longest_sleep_date,
+        longest_sleep_new=longest_sleep_new,
         best_night_min=best_night_min,
         best_night_date=best_night_date,
+        best_night_new=best_night_new,
         worst_night_min=worst_night_min,
         worst_night_date=worst_night_date,
         most_feeds_count=most_feeds_count,
         most_feeds_date=most_feeds_date,
+        most_feeds_new=most_feeds_new,
         most_poop_count=most_poop_count,
         most_poop_date=most_poop_date,
+        most_poop_new=most_poop_new,
+        night_shift_claimed_today=night_shift_claimed_today,
+        chief_log_claimed_today=chief_log_claimed_today,
+        poop_award_claimed_today=poop_award_claimed_today,
         parents=parents,
     )
