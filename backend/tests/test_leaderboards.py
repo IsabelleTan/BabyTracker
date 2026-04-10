@@ -140,3 +140,53 @@ async def test_leaderboards_night_shift_counted(client_with_family):
     parents = {p["display_name"]: p for p in r.json()["parents"]}
     assert parents["Parent 1"]["total_logs"] == 2
     assert parents["Parent 1"]["night_shifts"] == 1
+
+
+@pytest.mark.asyncio
+async def test_leaderboards_sleep_records(client_with_family):
+    """Longest sleep, best night, and worst night are computed from completed sessions."""
+    client, headers = client_with_family
+    # One 3-hour sleep session, entirely within the night window (21:00–07:00)
+    await client.post("/events", json={"id": "sl-s", "type": "sleep_start", "timestamp": "2024-01-15T22:00:00Z"}, headers=headers)
+    await client.post("/events", json={"id": "sl-e", "type": "sleep_end",   "timestamp": "2024-01-16T01:00:00Z"}, headers=headers)
+
+    r = await client.get("/leaderboards", headers=headers)
+    data = r.json()
+    assert data["longest_sleep_min"] == 180.0
+    assert data["longest_sleep_date"] == "2024-01-15"
+    assert data["best_night_min"] is not None
+    assert data["best_night_min"] > 0
+
+
+@pytest.mark.asyncio
+async def test_leaderboards_most_feeds_record(client_with_family):
+    client, headers = client_with_family
+    # 3 feeds on one day
+    for i in range(3):
+        await client.post("/events", json={
+            "id": f"rec-feed-{i}", "type": "feed",
+            "timestamp": f"2024-01-15T{8 + i * 2:02d}:00:00Z",
+            "metadata": {"feed_type": "bottle", "amount_ml": 100},
+        }, headers=headers)
+
+    r = await client.get("/leaderboards", headers=headers)
+    data = r.json()
+    assert data["most_feeds_count"] == 3
+    assert data["most_feeds_date"] == "2024-01-15"
+
+
+@pytest.mark.asyncio
+async def test_leaderboards_most_poop_record(client_with_family):
+    client, headers = client_with_family
+    for i, dtype in enumerate(["dirty", "both", "wet"]):
+        await client.post("/events", json={
+            "id": f"poop-{i}", "type": "diaper",
+            "timestamp": f"2024-01-15T{8 + i:02d}:00:00Z",
+            "metadata": {"diaper_type": dtype},
+        }, headers=headers)
+
+    r = await client.get("/leaderboards", headers=headers)
+    data = r.json()
+    # "dirty" and "both" count; "wet" does not
+    assert data["most_poop_count"] == 2
+    assert data["most_poop_date"] == "2024-01-15"
