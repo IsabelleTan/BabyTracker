@@ -273,6 +273,7 @@ function ChartCard({
             width={48}
             ticks={yConfig.ticks}
             domain={yConfig.domain}
+            interval={0}
           />
           <Tooltip
             formatter={(value) =>
