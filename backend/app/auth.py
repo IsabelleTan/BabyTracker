@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
+import os
 import bcrypt
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
@@ -9,7 +10,11 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.db.database import get_db
 from app.models.user import User
 
-SECRET_KEY = "change-me-in-production"
+_secret = os.environ.get("SECRET_KEY", "")
+if not _secret:
+    raise RuntimeError("SECRET_KEY environment variable must be set")
+SECRET_KEY: str = _secret
+
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 30
 
