@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import EventSheet from '@/components/home/EventSheet'
-import { logEvent, deleteEvent, getTodayEvents, type EventType, type BabyEvent } from '@/lib/events'
+import { logEvent, getTodayEvents, type EventType, type BabyEvent } from '@/lib/events'
 
 function currentSleepState(events: BabyEvent[]): 'sleeping' | 'awake' {
   const last = [...events]
@@ -12,7 +12,6 @@ function currentSleepState(events: BabyEvent[]): 'sleeping' | 'awake' {
 export default function Home() {
   const [events, setEvents] = useState<BabyEvent[]>([])
   const [sheetType, setSheetType] = useState<EventType | null>(null)
-  const [lastEventId, setLastEventId] = useState<string | null>(null)
   const [toast, setToast] = useState<string | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -34,7 +33,6 @@ export default function Home() {
     try {
       const event = await logEvent({ id, type: sheetType, timestamp, metadata })
       setEvents((prev) => [...prev, event].sort((a, b) => a.timestamp.localeCompare(b.timestamp)))
-      setLastEventId(id)
       showToast('Logged ✓')
     } catch {
       showToast('Failed to save — try again')
@@ -45,20 +43,7 @@ export default function Home() {
     setSheetType(null)
   }
 
-  async function handleUndo() {
-    if (!lastEventId) return
-    try {
-      await deleteEvent(lastEventId)
-      setEvents((prev) => prev.filter((e) => e.id !== lastEventId))
-      setLastEventId(null)
-      showToast('Undone')
-    } catch {
-      showToast('Failed to undo')
-    }
-  }
-
-  const sleepState = currentSleepState(events)
-  const isSleeping = sleepState === 'sleeping'
+  const isSleeping = currentSleepState(events) === 'sleeping'
 
   return (
     <div className="flex flex-col min-h-[calc(100svh-4rem)] p-4 gap-6">
@@ -75,31 +60,14 @@ export default function Home() {
         </h2>
 
         <div className="grid grid-cols-3 gap-3">
-          <ActionButton
-            emoji="🍼"
-            label="Feed"
-            onClick={() => setSheetType('feed')}
-          />
+          <ActionButton emoji="🍼" label="Feed" onClick={() => setSheetType('feed')} />
           <ActionButton
             emoji={isSleeping ? '☀️' : '🌙'}
             label={isSleeping ? 'Wake' : 'Sleep'}
             onClick={() => setSheetType(isSleeping ? 'sleep_end' : 'sleep_start')}
           />
-          <ActionButton
-            emoji="💧"
-            label="Diaper"
-            onClick={() => setSheetType('diaper')}
-          />
+          <ActionButton emoji="💧" label="Diaper" onClick={() => setSheetType('diaper')} />
         </div>
-
-        {lastEventId && (
-          <button
-            onClick={handleUndo}
-            className="w-full h-11 rounded-lg border border-input text-sm font-medium text-muted-foreground flex items-center justify-center gap-2"
-          >
-            ↩ Undo last entry
-          </button>
-        )}
       </div>
 
       {/* Today summary placeholder */}
@@ -116,11 +84,7 @@ export default function Home() {
         </div>
       )}
 
-      <EventSheet
-        type={sheetType}
-        onSave={handleSheetSave}
-        onDismiss={handleSheetDismiss}
-      />
+      <EventSheet type={sheetType} onSave={handleSheetSave} onDismiss={handleSheetDismiss} />
     </div>
   )
 }
