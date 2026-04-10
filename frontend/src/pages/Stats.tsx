@@ -181,22 +181,34 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
+function niceStep(max: number): number {
+  if (max === 0) return 1
+  if (max <= 5) return 1
+  if (max <= 10) return 2
+  const rough = max / 4
+  const exp = Math.floor(Math.log10(rough))
+  const pow = Math.pow(10, exp)
+  const n = rough / pow
+  if (n < 1.5) return pow
+  if (n < 3.5) return 2 * pow
+  if (n < 7.5) return 5 * pow
+  return 10 * pow
+}
+
 function computeYTicks(
   data: Record<string, unknown>[],
   dataKey: string,
-  step: number,
+  tickStep?: number,
 ): { ticks: number[]; domain: [number, number] } {
   const values = data
     .map((d) => d[dataKey] as number | null | undefined)
     .filter((v): v is number => v != null && !isNaN(v))
-  if (values.length === 0) return { ticks: [0, step], domain: [0, step] }
-  const max = Math.max(...values)
-  const min = Math.min(...values)
-  const domainMin = min > step ? Math.floor(min / step) * step : 0
+  const max = values.length > 0 ? Math.max(...values) : 0
+  const step = tickStep ?? niceStep(max)
   const domainMax = Math.ceil(max / step) * step || step
   const ticks: number[] = []
-  for (let t = domainMin; t <= domainMax; t += step) ticks.push(t)
-  return { ticks, domain: [domainMin, domainMax] }
+  for (let t = 0; t <= domainMax; t += step) ticks.push(t)
+  return { ticks, domain: [0, domainMax] }
 }
 
 function ChartCard({
@@ -216,7 +228,7 @@ function ChartCard({
   tickStep?: number
 }) {
   const yConfig = useMemo(
-    () => (tickStep ? computeYTicks(data, dataKey, tickStep) : null),
+    () => computeYTicks(data, dataKey, tickStep),
     [data, dataKey, tickStep],
   )
   // Compute explicit x tick positions so grid lines align exactly with labels
@@ -247,8 +259,8 @@ function ChartCard({
             axisLine={false}
             tickFormatter={formatTick ?? String}
             width={48}
-            ticks={yConfig?.ticks}
-            domain={yConfig?.domain}
+            ticks={yConfig.ticks}
+            domain={yConfig.domain}
           />
           <Tooltip
             formatter={(value) =>
