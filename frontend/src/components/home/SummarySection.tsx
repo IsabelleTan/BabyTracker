@@ -1,7 +1,8 @@
-import { useMemo } from 'react'
-import { Milk, Moon, Droplets, type LucideIcon } from 'lucide-react'
+import { useMemo, useEffect, useState } from 'react'
+import { Milk, Moon, Droplets, Sparkles, type LucideIcon } from 'lucide-react'
 import { formatDuration } from '@/hooks/useTimeSince'
 import type { BabyEvent } from '@/lib/events'
+import { getLeaderboards, buildNotifications } from '@/lib/leaderboards'
 
 interface Props {
   events: BabyEvent[]
@@ -9,18 +10,36 @@ interface Props {
 
 export default function SummarySection({ events }: Props) {
   const stats = useMemo(() => computeStats(events), [events])
+  const [notifications, setNotifications] = useState<string[]>([])
+
+  useEffect(() => {
+    getLeaderboards()
+      .then((data) => setNotifications(buildNotifications(data)))
+      .catch(() => {/* silent — notifications are non-critical */})
+  }, [])
 
   return (
     <div className="flex flex-col gap-1">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
         Today
       </h2>
-      <div className="rounded-xl border border-primary/35 bg-surface p-4">
+      <div className="rounded-xl border border-primary/35 bg-surface p-4 flex flex-col gap-3">
         <div className="grid grid-cols-3 gap-2 text-center">
           <StatCell icon={Milk} value={String(stats.feedCount)} label="feeds" />
           <StatCell icon={Moon} value={stats.totalSleep} label="sleep" />
           <StatCell icon={Droplets} value={String(stats.diaperCount)} label="diapers" />
         </div>
+        {notifications.length > 0 && (
+          <div className="border-t border-primary/15 pt-3 flex flex-col gap-1.5">
+            <div className="flex items-center gap-1.5 text-primary">
+              <Sparkles className="w-3.5 h-3.5 shrink-0" />
+              <span className="text-xs font-semibold">New today</span>
+            </div>
+            {notifications.map((n) => (
+              <p key={n} className="text-xs text-foreground pl-5">{n}</p>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   )
