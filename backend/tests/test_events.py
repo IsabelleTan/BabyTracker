@@ -105,3 +105,45 @@ async def test_delete_event(client, auth_headers):
 async def test_delete_event_not_found(client, auth_headers):
     r = await client.delete("/events/nonexistent", headers=auth_headers)
     assert r.status_code == 404
+
+
+async def test_feed_breast_metadata_round_trip(client, auth_headers):
+    payload = {
+        "id": "evt-breast",
+        "type": "feed",
+        "timestamp": "2024-01-15T10:00:00Z",
+        "metadata": {"feed_type": "breast", "left_duration_min": 8, "right_duration_min": 5},
+    }
+    r = await client.post("/events", json=payload, headers=auth_headers)
+    assert r.status_code == 201
+    data = r.json()
+    assert data["metadata"]["feed_type"] == "breast"
+    assert data["metadata"]["left_duration_min"] == 8
+    assert data["metadata"]["right_duration_min"] == 5
+
+
+async def test_feed_bottle_metadata_round_trip(client, auth_headers):
+    payload = {
+        "id": "evt-bottle",
+        "type": "feed",
+        "timestamp": "2024-01-15T11:00:00Z",
+        "metadata": {"feed_type": "bottle", "amount_ml": 120},
+    }
+    r = await client.post("/events", json=payload, headers=auth_headers)
+    assert r.status_code == 201
+    data = r.json()
+    assert data["metadata"]["feed_type"] == "bottle"
+    assert data["metadata"]["amount_ml"] == 120
+
+
+async def test_diaper_metadata_round_trip(client, auth_headers):
+    for diaper_type in ("wet", "dirty", "both"):
+        payload = {
+            "id": f"evt-diaper-{diaper_type}",
+            "type": "diaper",
+            "timestamp": "2024-01-15T12:00:00Z",
+            "metadata": {"diaper_type": diaper_type},
+        }
+        r = await client.post("/events", json=payload, headers=auth_headers)
+        assert r.status_code == 201
+        assert r.json()["metadata"]["diaper_type"] == diaper_type
