@@ -74,6 +74,6 @@ jobs:
       - name: Upload frontend coverage
         uses: codecov/codecov-action@v4
         with:
-          files: frontend/coverage/coverage.xml
+          files: frontend/coverage/lcov.info
           flags: frontend
           token: ${{ secrets.CODECOV_TOKEN }}
