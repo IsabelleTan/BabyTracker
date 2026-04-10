@@ -8,6 +8,7 @@ from app.db.database import get_db
 from app.models.event import Event
 from app.models.user import User
 from app.schemas.event import EventCreate, EventResponse
+from app.auth import get_current_user
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -24,18 +25,18 @@ def _to_response(event: Event, display_name: str) -> EventResponse:
 
 
 @router.post("", status_code=201, response_model=EventResponse)
-async def create_event(payload: EventCreate, db: AsyncSession = Depends(get_db)):
-    user = await db.get(User, payload.logged_by)
-    if user is None:
-        raise HTTPException(status_code=404, detail="User not found")
-
+async def create_event(
+    payload: EventCreate,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     stmt = (
         insert(Event)
         .values(
             id=payload.id,
             type=payload.type,
             timestamp=payload.timestamp,
-            logged_by=payload.logged_by,
+            logged_by=current_user.id,
             metadata_=payload.metadata,
         )
         .on_conflict_do_nothing(index_elements=["id"])
@@ -44,7 +45,7 @@ async def create_event(payload: EventCreate, db: AsyncSession = Depends(get_db))
     await db.commit()
 
     event = await db.get(Event, payload.id)
-    return _to_response(event, user.display_name)
+    return _to_response(event, current_user.display_name)
 
 
 @router.get("", response_model=list[EventResponse])
@@ -52,6 +53,7 @@ async def get_events(
     from_: datetime | None = None,
     to: datetime | None = None,
     since: datetime | None = None,
+    current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     if since is not None:
@@ -81,7 +83,11 @@ async def get_events(
 
 
 @router.delete("/{event_id}", status_code=204)
-async def delete_event(event_id: str, db: AsyncSession = Depends(get_db)):
+async def delete_event(
+    event_id: str,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
     event = await db.get(Event, event_id)
     if event is None:
         raise HTTPException(status_code=404, detail="Event not found")
