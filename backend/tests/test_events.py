@@ -147,3 +147,22 @@ async def test_diaper_metadata_round_trip(client, auth_headers):
         r = await client.post("/events", json=payload, headers=auth_headers)
         assert r.status_code == 201
         assert r.json()["metadata"]["diaper_type"] == diaper_type
+
+
+async def test_invalid_token_returns_401(client):
+    bad_headers = {"Authorization": "Bearer not-a-valid-token"}
+    r = await client.post("/events", json=EVENT_PAYLOAD, headers=bad_headers)
+    assert r.status_code == 401
+
+
+async def test_events_outside_range_excluded(client, auth_headers):
+    # Event on Jan 15
+    await client.post("/events", json=EVENT_PAYLOAD, headers=auth_headers)
+    # Query Jan 16 — should return nothing
+    r = await client.get(
+        "/events",
+        params={"from_": "2024-01-16T00:00:00Z", "to": "2024-01-17T00:00:00Z"},
+        headers=auth_headers,
+    )
+    assert r.status_code == 200
+    assert r.json() == []

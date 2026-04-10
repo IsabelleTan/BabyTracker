@@ -34,9 +34,16 @@ jobs:
         working-directory: backend
         run: poetry install
 
-      - name: Run tests
+      - name: Run tests with coverage
         working-directory: backend
-        run: poetry run pytest -q
+        run: poetry run pytest
+
+      - name: Upload backend coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: backend/coverage.xml
+          flags: backend
+          token: ${{ secrets.CODECOV_TOKEN }}
 
   frontend:
     name: Frontend (build & test)
@@ -60,6 +67,13 @@ jobs:
         working-directory: frontend
         run: npm run build
 
-      - name: Run tests
+      - name: Run tests with coverage
         working-directory: frontend
-        run: npm test
+        run: npm run test -- --coverage
+
+      - name: Upload frontend coverage
+        uses: codecov/codecov-action@v4
+        with:
+          files: frontend/coverage/coverage.xml
+          flags: frontend
+          token: ${{ secrets.CODECOV_TOKEN }}
