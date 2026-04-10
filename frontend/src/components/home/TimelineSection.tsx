@@ -10,7 +10,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
-import { deleteEvent, type BabyEvent } from '@/lib/events'
+import { type BabyEvent } from '@/lib/events'
 
 const EVENT_LABELS: Record<string, string> = {
   feed: 'Feed',
@@ -30,7 +30,7 @@ const SWIPE_THRESHOLD = 80
 
 interface Props {
   events: BabyEvent[]
-  onDeleted: (id: string) => void
+  onDeleted: (id: string) => Promise<void>
 }
 
 export default function TimelineSection({ events, onDeleted }: Props) {
@@ -44,8 +44,7 @@ export default function TimelineSection({ events, onDeleted }: Props) {
     if (!pendingDelete) return
     setDeleting(true)
     try {
-      await deleteEvent(pendingDelete.id)
-      onDeleted(pendingDelete.id)
+      await onDeleted(pendingDelete.id)
     } finally {
       setDeleting(false)
       setPendingDelete(null)
