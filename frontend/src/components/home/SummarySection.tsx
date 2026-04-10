@@ -2,7 +2,7 @@ import { useMemo, useEffect, useState } from 'react'
 import { Milk, Moon, Droplets, Sparkles, type LucideIcon } from 'lucide-react'
 import { formatDuration } from '@/hooks/useTimeSince'
 import type { BabyEvent } from '@/lib/events'
-import { getLeaderboards } from '@/lib/leaderboards'
+import { getLeaderboards, buildNotifications } from '@/lib/leaderboards'
 
 interface Props {
   events: BabyEvent[]
@@ -13,18 +13,9 @@ export default function SummarySection({ events }: Props) {
   const [notifications, setNotifications] = useState<string[]>([])
 
   useEffect(() => {
-    getLeaderboards().then((data) => {
-      if (!data.has_enough_data) return
-      const msgs: string[] = []
-      if (data.longest_sleep_new) msgs.push('New longest sleep record!')
-      if (data.best_night_new) msgs.push('New best night record!')
-      if (data.most_feeds_new) msgs.push('New most feeds in a day record!')
-      if (data.most_poop_new) msgs.push('New most poop diapers record!')
-      if (data.night_shift_claimed_today) msgs.push('Night Shift Ninja title changed hands!')
-      if (data.chief_log_claimed_today) msgs.push('Chief Log Officer title changed hands!')
-      if (data.poop_award_claimed_today) msgs.push('Number One at Number Two title changed hands!')
-      setNotifications(msgs)
-    }).catch(() => {/* silent — notifications are non-critical */})
+    getLeaderboards()
+      .then((data) => setNotifications(buildNotifications(data)))
+      .catch(() => {/* silent — notifications are non-critical */})
   }, [])
 
   return (

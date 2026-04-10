@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { Moon, Trophy, Baby, Sparkles } from 'lucide-react'
-import { getLeaderboards, type LeaderboardData, type ParentStat } from '@/lib/leaderboards'
+import { getLeaderboards, buildNotifications, type LeaderboardData, type ParentStat } from '@/lib/leaderboards'
 
 function fmtMins(mins: number | null | undefined): string {
   if (mins == null) return '—'
@@ -35,14 +35,7 @@ export default function Leaderboards() {
     return <p className="text-sm text-destructive text-center py-16">Failed to load leaderboards</p>
   }
 
-  const notifications: string[] = []
-  if (data.longest_sleep_new) notifications.push('New longest sleep record!')
-  if (data.best_night_new) notifications.push('New best night record!')
-  if (data.most_feeds_new) notifications.push('New most feeds in a day record!')
-  if (data.most_poop_new) notifications.push('New most poop diapers record!')
-  if (data.night_shift_claimed_today) notifications.push('Night Shift Ninja title changed hands!')
-  if (data.chief_log_claimed_today) notifications.push('Chief Log Officer title changed hands!')
-  if (data.poop_award_claimed_today) notifications.push('Number One at Number Two title changed hands!')
+  const notifications = buildNotifications(data)
 
   return (
     <div className="flex flex-col gap-6 py-4">
