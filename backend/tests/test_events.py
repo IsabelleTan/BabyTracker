@@ -7,6 +7,7 @@ from app.main import app
 from app.db.database import Base, get_db
 from app.models.user import User
 from app.models.baby import Baby
+from app.models.user_baby import UserBaby
 from app.auth import hash_password, create_access_token
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
@@ -26,7 +27,14 @@ async def client():
 
     async with session_factory() as session:
         session.add(User(id="user-1", email="p1@test.com", hashed_password=hash_password("pass"), display_name="Parent 1"))
+        session.add(User(id="user-2", email="p2@test.com", hashed_password=hash_password("pass"), display_name="Parent 2"))
+        session.add(User(id="user-3", email="p3@test.com", hashed_password=hash_password("pass"), display_name="Other Family"))
         session.add(Baby(id="baby-1", name="Baby"))
+        session.add(Baby(id="baby-2", name="Other Baby"))
+        # user-1 and user-2 share baby-1; user-3 is linked to a separate baby
+        session.add(UserBaby(user_id="user-1", baby_id="baby-1"))
+        session.add(UserBaby(user_id="user-2", baby_id="baby-1"))
+        session.add(UserBaby(user_id="user-3", baby_id="baby-2"))
         await session.commit()
 
     async def override_get_db():
@@ -206,3 +214,19 @@ async def test_limit_with_type_filter(client, auth_headers):
     data = r.json()
     assert len(data) == 2
     assert all(e["type"] == "feed" for e in data)
+
+
+async def test_delete_event_by_co_parent_is_allowed(client, auth_headers):
+    # user-1 logs an event; user-2 shares the same baby → should be allowed to delete
+    await client.post("/events", json=EVENT_PAYLOAD, headers=auth_headers)
+    user2_headers = {"Authorization": f"Bearer {create_access_token('user-2')}"}
+    r = await client.delete("/events/evt-001", headers=user2_headers)
+    assert r.status_code == 204
+
+
+async def test_delete_event_by_unrelated_user_is_forbidden(client, auth_headers):
+    # user-1 logs an event; user-3 is on a different baby → should be forbidden
+    await client.post("/events", json=EVENT_PAYLOAD, headers=auth_headers)
+    user3_headers = {"Authorization": f"Bearer {create_access_token('user-3')}"}
+    r = await client.delete("/events/evt-001", headers=user3_headers)
+    assert r.status_code == 403

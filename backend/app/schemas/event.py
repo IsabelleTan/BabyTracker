@@ -17,6 +17,7 @@ class EventResponse(BaseModel):
     timestamp: datetime
     logged_by: str
     display_name: str
+    baby_id: str
     metadata: Any = None
 
     model_config = {"from_attributes": True}

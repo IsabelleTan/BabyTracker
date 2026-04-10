@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from app.db.database import get_db
 from app.models.user import User
+from app.models.user_baby import UserBaby
 from app.auth import verify_password, create_access_token
 
 router = APIRouter(prefix="/auth", tags=["auth"])
@@ -16,6 +17,7 @@ class TokenResponse(BaseModel):
     token_type: str
     user_id: str
     display_name: str
+    baby_id: str | None  # None if the user is not yet linked to any baby
 
 
 @router.post("/login", response_model=TokenResponse)
@@ -32,9 +34,14 @@ async def login(
             detail="Incorrect email or password",
         )
 
+    baby_id = await db.scalar(
+        select(UserBaby.baby_id).where(UserBaby.user_id == user.id).limit(1)
+    )
+
     return TokenResponse(
         access_token=create_access_token(user.id),
         token_type="bearer",
         user_id=user.id,
         display_name=user.display_name,
+        baby_id=baby_id,
     )

@@ -1,12 +1,13 @@
 from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, delete
+from sqlalchemy import select, delete, exists
 from sqlalchemy.dialects.sqlite import insert
 
 from app.db.database import get_db
 from app.models.event import Event
 from app.models.user import User
+from app.models.user_baby import UserBaby
 from app.schemas.event import EventCreate, EventResponse
 from app.auth import get_current_user
 
@@ -23,6 +24,7 @@ def _to_response(event: Event, display_name: str) -> EventResponse:
         timestamp=ts,
         logged_by=event.logged_by,
         display_name=display_name,
+        baby_id=event.baby_id,
         metadata=event.metadata_,
     )
 
@@ -33,6 +35,12 @@ async def create_event(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    baby_id = await db.scalar(
+        select(UserBaby.baby_id).where(UserBaby.user_id == current_user.id).limit(1)
+    )
+    if baby_id is None:
+        raise HTTPException(status_code=400, detail="User is not linked to any baby")
+
     stmt = (
         insert(Event)
         .values(
@@ -40,6 +48,7 @@ async def create_event(
             type=payload.type,
             timestamp=payload.timestamp,
             logged_by=current_user.id,
+            baby_id=baby_id,
             metadata_=payload.metadata,
         )
         .on_conflict_do_nothing(index_elements=["id"])
@@ -61,6 +70,9 @@ async def get_events(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    # Only return events for babies the current user is linked to
+    user_baby_ids = select(UserBaby.baby_id).where(UserBaby.user_id == current_user.id)
+
     if since is not None:
         stmt = select(Event).where(Event.timestamp > since).order_by(Event.timestamp)
     elif from_ is not None and to is not None:
@@ -77,6 +89,7 @@ async def get_events(
             status_code=422, detail="Provide either 'since', 'from'+'to', or 'limit'"
         )
 
+    stmt = stmt.where(Event.baby_id.in_(user_baby_ids))
     if type is not None:
         stmt = stmt.where(Event.type == type)
     if limit is not None:
@@ -104,6 +117,16 @@ async def delete_event(
     event = await db.get(Event, event_id)
     if event is None:
         raise HTTPException(status_code=404, detail="Event not found")
+
+    # Allow delete if current user is linked to the same baby as the event
+    can_delete = await db.scalar(
+        select(exists().where(
+            UserBaby.user_id == current_user.id,
+            UserBaby.baby_id == event.baby_id,
+        ))
+    )
+    if not can_delete:
+        raise HTTPException(status_code=403, detail="Not your family's event")
 
     await db.execute(delete(Event).where(Event.id == event_id))
     await db.commit()
