@@ -10,6 +10,8 @@ from app.auth import get_current_user
 from app.db.database import get_db
 from app.models.event import Event
 from app.models.user import User
+from app.models.user_baby import UserBaby
+from app.utils import _utc, pair_sleep_sessions
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -29,20 +31,23 @@ class StatsRange(BaseModel):
     earliest: datetime | None
 
 
+def _baby_ids_subquery(current_user: User):
+    return select(UserBaby.baby_id).where(UserBaby.user_id == current_user.id)
+
+
 @router.get("/range", response_model=StatsRange)
 async def get_stats_range(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(func.min(Event.timestamp)))
+    baby_ids = _baby_ids_subquery(current_user)
+    result = await db.execute(
+        select(func.min(Event.timestamp)).where(Event.baby_id.in_(baby_ids))
+    )
     earliest = result.scalar()
     if earliest and earliest.tzinfo is None:
         earliest = earliest.replace(tzinfo=timezone.utc)
     return StatsRange(earliest=earliest)
-
-
-def _utc(ts: datetime) -> datetime:
-    return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
 
 
 @router.get("/daily", response_model=list[DailyStat])
@@ -52,10 +57,13 @@ async def get_daily_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    baby_ids = _baby_ids_subquery(current_user)
+
     # Fetch one extra day before/after to catch cross-day sleep sessions
     result = await db.execute(
         select(Event)
         .where(
+            Event.baby_id.in_(baby_ids),
             Event.timestamp >= _utc(from_) - timedelta(days=1),
             Event.timestamp < _utc(to) + timedelta(days=1),
         )
@@ -65,7 +73,7 @@ async def get_daily_stats(
 
     feeds_by_day: dict[str, list[datetime]] = defaultdict(list)
     diapers_by_day: dict[str, list[datetime]] = defaultdict(list)
-    sleep_events: list[tuple[str, datetime]] = []
+    raw_sleep_events: list[tuple[str, datetime]] = []
 
     for e in events:
         ts = _utc(e.timestamp)
@@ -75,17 +83,9 @@ async def get_daily_stats(
         elif e.type == "diaper":
             diapers_by_day[day].append(ts)
         elif e.type in ("sleep_start", "sleep_end"):
-            sleep_events.append((e.type, ts))
+            raw_sleep_events.append((e.type, ts))
 
-    # Pair sleep_start/sleep_end into completed sessions
-    sleep_sessions: list[tuple[datetime, datetime]] = []
-    open_start: datetime | None = None
-    for etype, ts in sleep_events:
-        if etype == "sleep_start":
-            open_start = ts
-        elif etype == "sleep_end" and open_start is not None:
-            sleep_sessions.append((open_start, ts))
-            open_start = None
+    sleep_sessions = pair_sleep_sessions(raw_sleep_events)
 
     from_utc = _utc(from_)
     to_utc = _utc(to)
