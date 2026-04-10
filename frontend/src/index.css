@@ -144,3 +144,34 @@
   --sidebar-border: oklch(0.95 0.008 25 / 12%);
   --sidebar-ring: oklch(0.70 0.14 18);
 }
+
+.night {
+  /* Very dark background with a faint warm tint */
+  --background: oklch(0.08 0.015 30);
+  --foreground: oklch(0.62 0.015 35);
+  --card: oklch(0.13 0.018 30);
+  --card-foreground: oklch(0.62 0.015 35);
+  --popover: oklch(0.13 0.018 30);
+  --popover-foreground: oklch(0.62 0.015 35);
+  --surface: oklch(0.11 0.016 30);
+  /* Amber primary — gentler on dark-adapted eyes than red */
+  --primary: oklch(0.50 0.10 42);
+  --primary-foreground: oklch(0.08 0.015 30);
+  --secondary: oklch(0.18 0.02 30);
+  --secondary-foreground: oklch(0.62 0.015 35);
+  --muted: oklch(0.16 0.015 30);
+  --muted-foreground: oklch(0.50 0.015 35);
+  --accent: oklch(0.18 0.02 30);
+  --accent-foreground: oklch(0.62 0.015 35);
+  --destructive: oklch(0.55 0.18 18);
+  --border: oklch(0.62 0.015 35 / 10%);
+  --input: oklch(0.62 0.015 35 / 12%);
+  --ring: oklch(0.50 0.10 42);
+}
+
+/* No animations in night mode — avoid bright flashes waking the baby */
+.night * {
+  animation-duration: 0.01ms !important;
+  animation-delay: 0.01ms !important;
+  transition-duration: 0.01ms !important;
+}

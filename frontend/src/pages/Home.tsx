@@ -1,5 +1,6 @@
 import { useState, useRef, useMemo } from 'react'
 import { Milk, Moon, Sun, Droplets, type LucideIcon } from 'lucide-react'
+import NightToggle from '@/components/NightToggle'
 import EventSheet from '@/components/home/EventSheet'
 import SummarySection from '@/components/home/SummarySection'
 import TimelineSection from '@/components/home/TimelineSection'
@@ -162,7 +163,7 @@ export default function Home() {
       </div>
 
       <div className="flex flex-col gap-6 p-4">
-        <SyncBar pendingCount={pendingCount} lastSynced={lastSynced} isRefreshing={isRefreshing} />
+        <TopBar pendingCount={pendingCount} lastSynced={lastSynced} isRefreshing={isRefreshing} />
 
         {/* Action cards — break out of container padding for max width */}
         <div className="-mx-4 px-2 grid grid-cols-3 gap-2">
@@ -269,7 +270,8 @@ function ActionCard({
   )
 }
 
-function SyncBar({
+
+function TopBar({
   pendingCount,
   lastSynced,
   isRefreshing,
@@ -279,8 +281,16 @@ function SyncBar({
   isRefreshing: boolean
 }) {
   const ago = useTimeSince(lastSynced)
-  if (isRefreshing) return <p className="text-xs text-muted-foreground text-center -mb-2">Syncing…</p>
-  if (pendingCount > 0) return <p className="text-xs text-amber-500 text-center -mb-2">{pendingCount} pending — will sync when online</p>
-  if (lastSynced) return <p className="text-xs text-muted-foreground text-center -mb-2">Synced {ago}</p>
-  return null
+
+  let syncText: { text: string; className: string } | null = null
+  if (isRefreshing) syncText = { text: 'Syncing…', className: 'text-muted-foreground' }
+  else if (pendingCount > 0) syncText = { text: `${pendingCount} pending — will sync when online`, className: 'text-amber-500' }
+  else if (lastSynced) syncText = { text: `Synced ${ago}`, className: 'text-muted-foreground' }
+
+  return (
+    <div className="flex items-center justify-between -mb-2">
+      <span className={`text-xs ${syncText?.className ?? ''}`}>{syncText?.text ?? ''}</span>
+      <NightToggle />
+    </div>
+  )
 }

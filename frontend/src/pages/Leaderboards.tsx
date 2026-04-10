@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Moon, Trophy, Baby, Sparkles } from 'lucide-react'
 import { getLeaderboards, buildNotifications, type LeaderboardData, type ParentStat } from '@/lib/leaderboards'
+import NightToggle from '@/components/NightToggle'
 
 function fmtMins(mins: number | null | undefined): string {
   if (mins == null) return '—'
@@ -102,9 +103,12 @@ function RecordsSection({ data }: { data: LeaderboardData }) {
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
-        Records
-      </h2>
+      <div className="flex items-center justify-between px-1">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Records
+        </h2>
+        <NightToggle />
+      </div>
       <div className="rounded-xl border border-primary/35 bg-surface divide-y divide-primary/15">
         {rows.map((row) => (
           <div key={row.label} className="flex items-center justify-between px-4 py-3">

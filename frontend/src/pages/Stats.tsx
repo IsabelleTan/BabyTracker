@@ -1,4 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
+import NightToggle from '@/components/NightToggle'
 import {
   LineChart,
   Line,
@@ -72,8 +73,8 @@ export default function Stats() {
 
   return (
     <div className="w-full flex flex-col gap-6 p-4">
-      {/* Range selector */}
-      <div className="flex gap-2">
+      {/* Range selector + night toggle */}
+      <div className="flex items-center gap-2">
         {RANGES.map((r) => (
           <button
             key={r.value}
@@ -87,6 +88,9 @@ export default function Stats() {
             {r.label}
           </button>
         ))}
+        <div className="ml-auto">
+          <NightToggle />
+        </div>
       </div>
 
       {loading && <p className="text-sm text-muted-foreground text-center py-8">Loading…</p>}
