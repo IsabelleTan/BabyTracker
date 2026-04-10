@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, createContext, useContext } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import BottomNav from '@/components/BottomNav'
 import RequireAuth from '@/components/RequireAuth'
+import InstallPrompt from '@/components/InstallPrompt'
 import Login from '@/pages/Login'
 import Home from '@/pages/Home'
 import { useNightMode } from '@/hooks/useNightMode'
@@ -25,6 +26,7 @@ function AppLayout() {
         </Routes>
       </main>
       <BottomNav />
+      <InstallPrompt />
     </div>
   )
 }
