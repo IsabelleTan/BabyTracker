@@ -164,43 +164,43 @@ export default function Home() {
       <div className="flex flex-col gap-6 p-4">
         <SyncBar pendingCount={pendingCount} lastSynced={lastSynced} isRefreshing={isRefreshing} />
 
-        {/* Action cards with inline stats */}
-        <div className="grid grid-cols-3 gap-3">
+        {/* Action cards — break out of container padding for max width */}
+        <div className="-mx-4 px-2 grid grid-cols-3 gap-2">
           <ActionCard
             emoji="🍼"
             label="Feed"
             onClick={() => setSheetType('feed')}
-            stats={
+            stats={[
               lastFeedDate
-                ? [
-                    `${fmt(lastFeedDate)} · ${ago(lastFeedDate)}`,
-                    nextFeed ? `~${fmt(nextFeed)} · ${until(nextFeed)}` : null,
-                  ]
-                : []
-            }
+                ? { label: 'Last feed', lines: [fmt(lastFeedDate), ago(lastFeedDate)] }
+                : null,
+              nextFeed
+                ? { label: 'Est. next feed', lines: [`~${fmt(nextFeed)}`, until(nextFeed)] }
+                : null,
+            ]}
           />
           <ActionCard
             emoji={isSleeping ? '☀️' : '🌙'}
             label={isSleeping ? 'Wake' : 'Sleep'}
             onClick={() => setSheetType(isSleeping ? 'sleep_end' : 'sleep_start')}
-            stats={
+            stats={[
               sleepStatus
-                ? [
-                    `${isSleeping ? 'Asleep' : 'Awake'} since ${fmt(sleepStatus.since)}`,
-                    duration(sleepStatus.since),
-                  ]
-                : []
-            }
+                ? {
+                    label: isSleeping ? 'Asleep since' : 'Awake since',
+                    lines: [fmt(sleepStatus.since), duration(sleepStatus.since)],
+                  }
+                : null,
+            ]}
           />
           <ActionCard
             emoji="💧"
             label="Diaper"
             onClick={() => setSheetType('diaper')}
-            stats={
+            stats={[
               lastDiaperDate
-                ? [`${fmt(lastDiaperDate)} · ${ago(lastDiaperDate)}`]
-                : []
-            }
+                ? { label: 'Last diaper', lines: [fmt(lastDiaperDate), ago(lastDiaperDate)] }
+                : null,
+            ]}
           />
         </div>
 
@@ -219,6 +219,11 @@ export default function Home() {
   )
 }
 
+interface Stat {
+  label: string
+  lines: string[]
+}
+
 function ActionCard({
   emoji,
   label,
@@ -228,9 +233,9 @@ function ActionCard({
   emoji: string
   label: string
   onClick: () => void
-  stats: (string | null)[]
+  stats: (Stat | null)[]
 }) {
-  const visibleStats = stats.filter(Boolean) as string[]
+  const visibleStats = stats.filter(Boolean) as Stat[]
   return (
     <button
       onClick={onClick}
@@ -239,11 +244,18 @@ function ActionCard({
       <span className="text-3xl">{emoji}</span>
       <span className="text-sm font-medium">{label}</span>
       {visibleStats.length > 0 && (
-        <div className="w-full border-t border-border mt-0.5 pt-1.5 flex flex-col gap-0.5">
+        <div className="w-full border-t border-border mt-0.5 pt-2 flex flex-col gap-2">
           {visibleStats.map((s, i) => (
-            <span key={i} className="text-[10px] leading-tight text-muted-foreground">
-              {s}
-            </span>
+            <div key={i} className="flex flex-col gap-0.5">
+              <span className="text-[10px] uppercase tracking-wide text-muted-foreground/60">
+                {s.label}
+              </span>
+              {s.lines.map((line, j) => (
+                <span key={j} className="text-base leading-tight font-medium">
+                  {line}
+                </span>
+              ))}
+            </div>
           ))}
         </div>
       )}
