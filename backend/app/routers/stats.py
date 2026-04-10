@@ -87,13 +87,16 @@ async def get_daily_stats(
             sleep_sessions.append((open_start, ts))
             open_start = None
 
-    # Group sessions by the day they started (only within requested range)
     from_utc = _utc(from_)
     to_utc = _utc(to)
+
+    # Group sessions by day, clamping sessions that started before the range
+    # to the first day so the first chart value isn't zero.
     sleep_by_day: dict[str, list[tuple[datetime, datetime]]] = defaultdict(list)
     for start, end in sleep_sessions:
-        if from_utc <= start < to_utc + timedelta(days=1):
-            sleep_by_day[start.date().isoformat()].append((start, end))
+        effective_day = max(start, from_utc).date()
+        if from_utc.date() <= effective_day <= to_utc.date():
+            sleep_by_day[effective_day.isoformat()].append((start, end))
 
     # Wake periods = gap between consecutive sessions
     wake_by_day: dict[str, list[float]] = defaultdict(list)

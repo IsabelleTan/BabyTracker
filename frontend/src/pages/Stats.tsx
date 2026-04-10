@@ -219,8 +219,14 @@ function ChartCard({
     () => (tickStep ? computeYTicks(data, dataKey, tickStep) : null),
     [data, dataKey, tickStep],
   )
-  // Even spacing: ~6 vertical grid lines regardless of range length
-  const xInterval = data.length <= 7 ? 0 : Math.round(data.length / 6) - 1
+  // Compute explicit x tick positions so grid lines align exactly with labels
+  const xTicks = useMemo(() => {
+    if (data.length === 0) return []
+    const step = data.length <= 7 ? 1 : Math.round(data.length / 6)
+    return data
+      .map((d) => d.date as string)
+      .filter((_, i) => i % step === 0 || i === data.length - 1)
+  }, [data])
 
   return (
     <div className="rounded-xl border border-primary/35 bg-surface p-4 flex flex-col gap-3">
@@ -233,7 +239,7 @@ function ChartCard({
             tick={{ fontSize: 10 }}
             tickLine={false}
             axisLine={false}
-            interval={xInterval}
+            ticks={xTicks}
           />
           <YAxis
             tick={{ fontSize: 10 }}
