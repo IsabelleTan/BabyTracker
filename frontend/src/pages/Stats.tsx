@@ -107,7 +107,6 @@ export default function Stats() {
               title="Total sleep"
               data={chartData}
               dataKey="total_sleep_min"
-              unit="min"
               color="oklch(0.55 0.15 250)"
               formatTick={fmtMins}
               tickStep={300}
@@ -116,7 +115,6 @@ export default function Stats() {
               title="Sleep sessions"
               data={chartData}
               dataKey="sleep_session_count"
-              unit=""
               color="oklch(0.55 0.15 250)"
               tickStep={2}
             />
@@ -124,7 +122,6 @@ export default function Stats() {
               title="Avg session length"
               data={chartData}
               dataKey="avg_sleep_session_min"
-              unit="min"
               color="oklch(0.55 0.15 250)"
               formatTick={fmtMins}
               tickStep={60}
@@ -133,7 +130,6 @@ export default function Stats() {
               title="Avg wake time between naps"
               data={chartData}
               dataKey="avg_wake_min"
-              unit="min"
               color="oklch(0.55 0.15 250)"
               formatTick={fmtMins}
               tickStep={60}
@@ -145,14 +141,12 @@ export default function Stats() {
               title="Feeds per day"
               data={chartData}
               dataKey="feed_count"
-              unit=""
               color="var(--color-primary)"
             />
             <ChartCard
               title="Avg feed interval"
               data={chartData}
               dataKey="avg_feed_interval_min"
-              unit="min"
               color="var(--color-primary)"
               formatTick={fmtMins}
               tickStep={60}
@@ -164,7 +158,6 @@ export default function Stats() {
               title="Diapers per day"
               data={chartData}
               dataKey="diaper_count"
-              unit=""
               color="oklch(0.65 0.15 85)"
             />
           </Section>
@@ -226,7 +219,6 @@ function ChartCard({
   title: string
   data: Record<string, unknown>[]
   dataKey: string
-  unit: string
   color: string
   formatTick?: (v: number | null) => string
   tickStep?: number

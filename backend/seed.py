@@ -55,7 +55,7 @@ async def seed():
     print("Seeded successfully.")
     print(f"Baby: {BABY_NAME}")
     for p in PARENTS:
-        print(f"  {p['display_name']}: {p['email']} / {p['password']}")
+        print(f"  {p['display_name']}: {p['email']}")
 
 
 if __name__ == "__main__":
