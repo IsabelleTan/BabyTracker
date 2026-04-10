@@ -1,4 +1,5 @@
 import { useState, useRef } from 'react'
+import { Milk, Moon, Sun, Droplets, Trash2, type LucideIcon } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,11 +19,11 @@ const EVENT_LABELS: Record<string, string> = {
   diaper: 'Diaper',
 }
 
-const EVENT_EMOJI: Record<string, string> = {
-  feed: '🍼',
-  sleep_start: '🌙',
-  sleep_end: '☀️',
-  diaper: '💧',
+const EVENT_ICON: Record<string, LucideIcon> = {
+  feed: Milk,
+  sleep_start: Moon,
+  sleep_end: Sun,
+  diaper: Droplets,
 }
 
 const SWIPE_THRESHOLD = 80
@@ -60,7 +61,7 @@ export default function TimelineSection({ events, onDeleted }: Props) {
         {sorted.length === 0 ? (
           <p className="text-sm text-muted-foreground text-center py-6">No events yet today</p>
         ) : (
-          <div className="rounded-xl border border-border overflow-hidden">
+          <div className="rounded-xl border border-primary/35 overflow-hidden">
             {sorted.map((event, i) => (
               <TimelineRow
                 key={event.id}
@@ -139,23 +140,23 @@ function TimelineRow({
   }
 
   const label = EVENT_LABELS[event.type] ?? event.type
-  const emoji = EVENT_EMOJI[event.type] ?? '•'
+  const Icon = EVENT_ICON[event.type] ?? Milk
   const subtext = buildSubtext(event)
 
   return (
-    <div className={`relative overflow-hidden bg-card ${!isLast ? 'border-b border-border' : ''}`}>
+    <div className={`relative overflow-hidden bg-surface ${!isLast ? 'border-b border-primary/20' : ''}`}>
       {/* Delete background */}
       <div
         className="absolute right-0 top-0 bottom-0 flex items-center justify-end bg-destructive px-5"
         style={{ width: SWIPE_THRESHOLD }}
         onClick={snapped ? onTapDelete : undefined}
       >
-        <span className="text-xl text-white">🗑</span>
+        <Trash2 className="w-5 h-5 text-white" />
       </div>
 
       {/* Row content */}
       <div
-        className="relative bg-card flex items-center gap-3 px-4 py-3 transition-transform"
+        className="relative bg-surface flex items-center gap-3 px-4 py-3 transition-transform"
         style={{
           transform: `translateX(-${offsetX}px)`,
           transitionDuration: startXRef.current ? '0ms' : '200ms',
@@ -164,7 +165,7 @@ function TimelineRow({
         onTouchMove={onTouchMove}
         onTouchEnd={onTouchEnd}
       >
-        <span className="text-xl w-8 text-center">{emoji}</span>
+        <Icon className="w-5 h-5 text-primary shrink-0" />
         <div className="flex-1 min-w-0">
           <div className="text-sm font-medium">{label}</div>
           {subtext && <div className="text-xs text-muted-foreground truncate">{subtext}</div>}
@@ -179,7 +180,7 @@ function TimelineRow({
 }
 
 function formatTime(date: Date): string {
-  return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
 }
 
 function buildSubtext(event: BabyEvent): string | null {

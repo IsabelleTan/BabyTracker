@@ -1,5 +1,19 @@
 import { useState, useEffect, useRef } from 'react'
 
+/** Causes the component to re-render every minute, pausing when the page is hidden. */
+export function useTick(): void {
+  const [, setTick] = useState(0)
+  useEffect(() => {
+    let interval: ReturnType<typeof setInterval> | null = null
+    function start() { interval = setInterval(() => setTick((t) => t + 1), 60_000) }
+    function stop() { if (interval) clearInterval(interval) }
+    function onVisibility() { document.hidden ? stop() : start() }
+    start()
+    document.addEventListener('visibilitychange', onVisibility)
+    return () => { stop(); document.removeEventListener('visibilitychange', onVisibility) }
+  }, [])
+}
+
 /** Returns a human-readable "X ago" string that updates every minute.
  *  Pauses ticking when the page is hidden (tab/app in background). */
 export function useTimeSince(date: Date | null): string {
