@@ -40,9 +40,6 @@ export default function Leaderboards() {
 
   return (
     <div className="flex flex-col gap-6 py-4">
-      <div className="flex justify-end">
-        <NightToggle />
-      </div>
       {notifications.length > 0 && (
         <div className="rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5 text-primary">
@@ -106,9 +103,12 @@ function RecordsSection({ data }: { data: LeaderboardData }) {
 
   return (
     <section className="flex flex-col gap-3">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
-        Records
-      </h2>
+      <div className="flex items-center justify-between px-1">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Records
+        </h2>
+        <NightToggle />
+      </div>
       <div className="rounded-xl border border-primary/35 bg-surface divide-y divide-primary/15">
         {rows.map((row) => (
           <div key={row.label} className="flex items-center justify-between px-4 py-3">
