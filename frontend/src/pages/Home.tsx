@@ -21,6 +21,7 @@ export default function Home() {
   const pulling = pullDistance > 0
 
   function onTouchStart(e: React.TouchEvent) {
+    if (sheetType !== null) return  // drawer open — don't interfere
     if (window.scrollY === 0) {
       touchStartY.current = e.touches[0].clientY
     }

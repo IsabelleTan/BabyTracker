@@ -166,7 +166,7 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
           )}
         </div>
 
-        <DrawerFooter className="pt-2">
+        <DrawerFooter className="pt-2" data-vaul-no-drag>
           <button
             onClick={handleSave}
             className="w-full h-12 rounded-md bg-primary text-primary-foreground font-medium text-sm"
