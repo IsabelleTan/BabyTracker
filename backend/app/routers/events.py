@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timezone
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete
@@ -14,10 +14,13 @@ router = APIRouter(prefix="/events", tags=["events"])
 
 
 def _to_response(event: Event, display_name: str) -> EventResponse:
+    ts = event.timestamp
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
     return EventResponse(
         id=event.id,
         type=event.type,
-        timestamp=event.timestamp,
+        timestamp=ts,
         logged_by=event.logged_by,
         display_name=display_name,
         metadata=event.metadata_,
@@ -53,6 +56,8 @@ async def get_events(
     from_: datetime | None = None,
     to: datetime | None = None,
     since: datetime | None = None,
+    type: str | None = None,
+    limit: int | None = None,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -64,10 +69,18 @@ async def get_events(
             .where(Event.timestamp >= from_, Event.timestamp < to)
             .order_by(Event.timestamp)
         )
+    elif limit is not None:
+        # Return last N events (optionally filtered by type), no date range required
+        stmt = select(Event).order_by(Event.timestamp.desc())
     else:
         raise HTTPException(
-            status_code=422, detail="Provide either 'since' or both 'from' and 'to'"
+            status_code=422, detail="Provide either 'since', 'from'+'to', or 'limit'"
         )
+
+    if type is not None:
+        stmt = stmt.where(Event.type == type)
+    if limit is not None:
+        stmt = stmt.limit(limit)
 
     result = await db.execute(stmt)
     events = result.scalars().all()

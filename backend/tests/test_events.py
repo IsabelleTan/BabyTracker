@@ -166,3 +166,43 @@ async def test_events_outside_range_excluded(client, auth_headers):
     )
     assert r.status_code == 200
     assert r.json() == []
+
+
+async def test_limit_returns_last_n_events(client, auth_headers):
+    # Log 3 feed events and 1 diaper
+    for i in range(3):
+        await client.post(
+            "/events",
+            json={"id": f"feed-{i}", "type": "feed", "timestamp": f"2024-01-15T0{i}:00:00Z"},
+            headers=auth_headers,
+        )
+    await client.post(
+        "/events",
+        json={"id": "diaper-1", "type": "diaper", "timestamp": "2024-01-15T10:00:00Z"},
+        headers=auth_headers,
+    )
+    # Fetch last 2 events overall
+    r = await client.get("/events", params={"limit": 2}, headers=auth_headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) == 2
+
+
+async def test_limit_with_type_filter(client, auth_headers):
+    for i in range(3):
+        await client.post(
+            "/events",
+            json={"id": f"feed-type-{i}", "type": "feed", "timestamp": f"2024-01-15T0{i}:00:00Z"},
+            headers=auth_headers,
+        )
+    await client.post(
+        "/events",
+        json={"id": "diaper-type-1", "type": "diaper", "timestamp": "2024-01-15T10:00:00Z"},
+        headers=auth_headers,
+    )
+    # Fetch last 2 feeds only
+    r = await client.get("/events", params={"type": "feed", "limit": 2}, headers=auth_headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) == 2
+    assert all(e["type"] == "feed" for e in data)
