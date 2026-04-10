@@ -18,6 +18,7 @@ export default function Home() {
   // Pull-to-refresh
   const touchStartY = useRef<number | null>(null)
   const [pullDistance, setPullDistance] = useState(0)
+  const [pullRefreshing, setPullRefreshing] = useState(false)
   const pulling = pullDistance > 0
 
   function onTouchStart(e: React.TouchEvent) {
@@ -33,10 +34,16 @@ export default function Home() {
     if (delta > 0) setPullDistance(Math.min(delta, PULL_THRESHOLD + 24))
   }
 
-  function onTouchEnd() {
+  async function onTouchEnd() {
     touchStartY.current = null
-    if (pullDistance >= PULL_THRESHOLD) sync()
-    setPullDistance(0)
+    if (pullDistance >= PULL_THRESHOLD) {
+      setPullDistance(0)
+      setPullRefreshing(true)
+      await sync()
+      setPullRefreshing(false)
+    } else {
+      setPullDistance(0)
+    }
   }
 
   function showToast(msg: string) {
@@ -82,9 +89,9 @@ export default function Home() {
       {/* Pull-to-refresh indicator */}
       <div
         className="flex items-center justify-center overflow-hidden transition-all duration-200"
-        style={{ height: pulling ? Math.min(pullDistance, PULL_THRESHOLD) : isRefreshing ? 32 : 0 }}
+        style={{ height: pulling ? Math.min(pullDistance, PULL_THRESHOLD) : pullRefreshing ? 32 : 0 }}
       >
-        {isRefreshing ? (
+        {pullRefreshing ? (
           <span className="text-xs text-muted-foreground animate-spin inline-block">↻</span>
         ) : (
           <span

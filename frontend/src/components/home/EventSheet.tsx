@@ -59,7 +59,13 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
 
   function handleSave() {
     setDbgEvent('click')
-    onSave(fromDateTimeLocal(timestamp), buildMetadata())
+    try {
+      const utc = fromDateTimeLocal(timestamp)
+      setDbgEvent(`ok:${utc.slice(11, 16)}`)
+      onSave(utc, buildMetadata())
+    } catch (e) {
+      setDbgEvent(`ERR:${String(e).slice(0, 40)}`)
+    }
   }
 
   return (
@@ -170,6 +176,7 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
         </div>
 
         <DrawerFooter className="pt-2" data-vaul-no-drag>
+          <div className="text-xs text-center text-muted-foreground mb-1">ts: "{timestamp}"</div>
           <button
             onTouchStart={() => setDbgEvent('touchstart')}
             onTouchEnd={() => setDbgEvent('touchend')}
@@ -182,6 +189,7 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
               dbgEvent === 'touchend' ? 'bg-yellow-500' :
               dbgEvent === 'pointerdown' ? 'bg-blue-500' :
               dbgEvent === 'pointerup' ? 'bg-purple-500' :
+              dbgEvent.startsWith('ERR') ? 'bg-red-800' :
               'bg-green-500'
             }`}
           >
