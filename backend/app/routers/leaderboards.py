@@ -10,6 +10,8 @@ from app.auth import get_current_user
 from app.db.database import get_db
 from app.models.event import Event
 from app.models.user import User
+from app.models.user_baby import UserBaby
+from app.utils import _utc, pair_sleep_sessions, NIGHT_SHIFT_START, NIGHT_SHIFT_END
 
 router = APIRouter(prefix="/leaderboards", tags=["leaderboards"])
 
@@ -43,10 +45,6 @@ class LeaderboardData(BaseModel):
     parents: list[ParentStat]
 
 
-def _utc(ts: datetime) -> datetime:
-    return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
-
-
 def _compute_parent_stats(evts: list, users: dict[str, str]) -> dict[str, dict]:
     s = {uid: {"night_shifts": 0, "total_logs": 0, "poop_changes": 0} for uid in users}
     for e in evts:
@@ -55,7 +53,7 @@ def _compute_parent_stats(evts: list, users: dict[str, str]) -> dict[str, dict]:
             continue
         ts = _utc(e.timestamp)
         s[uid]["total_logs"] += 1
-        if ts.hour >= 21 or ts.hour < 7:
+        if ts.hour >= NIGHT_SHIFT_START or ts.hour < NIGHT_SHIFT_END:
             s[uid]["night_shifts"] += 1
         if e.type == "diaper":
             meta = e.metadata_ or {}
@@ -74,10 +72,19 @@ async def get_leaderboards(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    events_result = await db.execute(select(Event).order_by(Event.timestamp))
+    baby_ids = select(UserBaby.baby_id).where(UserBaby.user_id == current_user.id)
+    family_user_ids = select(UserBaby.user_id).where(UserBaby.baby_id.in_(baby_ids))
+
+    events_result = await db.execute(
+        select(Event)
+        .where(Event.baby_id.in_(baby_ids))
+        .order_by(Event.timestamp)
+    )
     events = events_result.scalars().all()
 
-    users_result = await db.execute(select(User))
+    users_result = await db.execute(
+        select(User).where(User.id.in_(family_user_ids))
+    )
     users = {u.id: u.display_name for u in users_result.scalars().all()}
 
     today_utc = datetime.now(timezone.utc)
@@ -91,20 +98,12 @@ async def get_leaderboards(
     )
 
     # ── Sleep sessions ────────────────────────────────────────────────────────
-    sleep_events = [
+    raw_sleep_events = [
         (e.type, _utc(e.timestamp))
         for e in events
         if e.type in ("sleep_start", "sleep_end")
     ]
-
-    sleep_sessions: list[tuple[datetime, datetime]] = []
-    open_start: datetime | None = None
-    for etype, ts in sleep_events:
-        if etype == "sleep_start":
-            open_start = ts
-        elif etype == "sleep_end" and open_start is not None:
-            sleep_sessions.append((open_start, ts))
-            open_start = None
+    sleep_sessions = pair_sleep_sessions(raw_sleep_events)
 
     longest_sleep_min: float | None = None
     longest_sleep_date: str | None = None
@@ -117,7 +116,7 @@ async def get_leaderboards(
     for start, end in sleep_sessions:
         for offset in range(-1, 2):
             night_start = datetime(
-                start.year, start.month, start.day, 21, 0, 0, tzinfo=timezone.utc
+                start.year, start.month, start.day, NIGHT_SHIFT_START, 0, 0, tzinfo=timezone.utc
             ) + timedelta(days=offset)
             night_end = night_start + timedelta(hours=10)
             overlap_start = max(start, night_start)
