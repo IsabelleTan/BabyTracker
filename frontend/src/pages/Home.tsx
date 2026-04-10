@@ -270,6 +270,24 @@ function ActionCard({
   )
 }
 
+function NightToggle() {
+  const { night, toggle } = useNightModeCtx()
+  return (
+    <button
+      onClick={toggle}
+      aria-label={night ? 'Switch to day mode' : 'Switch to night mode'}
+      className="flex items-center rounded-full border border-primary/25 bg-muted/50 p-0.5 gap-0.5"
+    >
+      <span className={`flex items-center justify-center w-6 h-6 rounded-full ${!night ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>
+        <Sun className="w-3.5 h-3.5" />
+      </span>
+      <span className={`flex items-center justify-center w-6 h-6 rounded-full ${night ? 'bg-card text-foreground shadow-sm' : 'text-muted-foreground'}`}>
+        <Moon className="w-3.5 h-3.5" />
+      </span>
+    </button>
+  )
+}
+
 function TopBar({
   pendingCount,
   lastSynced,
@@ -280,7 +298,6 @@ function TopBar({
   isRefreshing: boolean
 }) {
   const ago = useTimeSince(lastSynced)
-  const { night, toggle } = useNightModeCtx()
 
   let syncText: { text: string; className: string } | null = null
   if (isRefreshing) syncText = { text: 'Syncing…', className: 'text-muted-foreground' }
@@ -290,13 +307,7 @@ function TopBar({
   return (
     <div className="flex items-center justify-between -mb-2">
       <span className={`text-xs ${syncText?.className ?? ''}`}>{syncText?.text ?? ''}</span>
-      <button
-        onClick={toggle}
-        aria-label={night ? 'Switch to day mode' : 'Switch to night mode'}
-        className="p-1.5 rounded-full text-muted-foreground hover:text-foreground transition-colors"
-      >
-        {night ? <Sun className="w-4 h-4" /> : <Moon className="w-4 h-4" />}
-      </button>
+      <NightToggle />
     </div>
   )
 }
