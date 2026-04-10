@@ -37,6 +37,50 @@ const MOCK_RESPONSE = {
   metadata: null,
 }
 
+describe('useSync.sync — pending queue flush order', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+    vi.mocked(events.getTodayEvents).mockResolvedValue([])
+    vi.mocked(events.getLastFeeds).mockResolvedValue([])
+  })
+
+  it('flushes the pending queue in FIFO order', async () => {
+    const pending = [
+      { id: 'p1', type: 'feed', timestamp: '2024-01-15T08:00:00Z', metadata: null },
+      { id: 'p2', type: 'diaper', timestamp: '2024-01-15T09:00:00Z', metadata: null },
+      { id: 'p3', type: 'sleep_start', timestamp: '2024-01-15T10:00:00Z', metadata: null },
+    ]
+    vi.mocked(db.getAllPending)
+      .mockResolvedValueOnce(pending)  // during flush
+      .mockResolvedValue([])           // after flush (finally block)
+    vi.mocked(events.logEvent).mockResolvedValue(MOCK_RESPONSE as events.BabyEvent)
+
+    const { result } = renderHook(() => useSync())
+    await waitFor(() => expect(result.current.lastSynced).not.toBeNull())
+
+    const flushedIds = vi.mocked(events.logEvent).mock.calls.map((c) => c[0].id)
+    expect(flushedIds).toEqual(['p1', 'p2', 'p3'])
+  })
+
+  it('stops flushing when an item fails (offline)', async () => {
+    const pending = [
+      { id: 'q1', type: 'feed', timestamp: '2024-01-15T08:00:00Z', metadata: null },
+      { id: 'q2', type: 'feed', timestamp: '2024-01-15T09:00:00Z', metadata: null },
+    ]
+    vi.mocked(db.getAllPending)
+      .mockResolvedValueOnce(pending)
+      .mockResolvedValue(pending) // still pending after failed flush
+    vi.mocked(events.logEvent).mockRejectedValue(new Error('offline'))
+
+    const { result } = renderHook(() => useSync())
+    await waitFor(() => expect(result.current.lastSynced).not.toBeNull())
+
+    // First item attempted, second never sent
+    expect(vi.mocked(events.logEvent)).toHaveBeenCalledTimes(1)
+    expect(result.current.pendingCount).toBe(2)
+  })
+})
+
 describe('useSync.log — pending count behaviour', () => {
   beforeEach(() => {
     vi.clearAllMocks()
