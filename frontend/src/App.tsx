@@ -1,10 +1,12 @@
+import { lazy, Suspense } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import BottomNav from '@/components/BottomNav'
 import RequireAuth from '@/components/RequireAuth'
 import Login from '@/pages/Login'
 import Home from '@/pages/Home'
-import Stats from '@/pages/Stats'
-import Leaderboards from '@/pages/Leaderboards'
+
+const Stats = lazy(() => import('@/pages/Stats'))
+const Leaderboards = lazy(() => import('@/pages/Leaderboards'))
 
 function AppLayout() {
   return (
@@ -12,8 +14,8 @@ function AppLayout() {
       <main className="flex-1 pb-16">
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/stats" element={<Stats />} />
-          <Route path="/leaderboards" element={<Leaderboards />} />
+          <Route path="/stats" element={<Suspense fallback={null}><Stats /></Suspense>} />
+          <Route path="/leaderboards" element={<Suspense fallback={null}><Leaderboards /></Suspense>} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </main>
