@@ -88,24 +88,6 @@ export default function Stats() {
 
       {!loading && !error && data.length > 0 && (
         <>
-          <Section title="Feeding">
-            <ChartCard
-              title="Feeds per day"
-              data={chartData}
-              dataKey="feed_count"
-              unit=""
-              color="var(--color-primary)"
-            />
-            <ChartCard
-              title="Avg feed interval"
-              data={chartData}
-              dataKey="avg_feed_interval_min"
-              unit="min"
-              color="var(--color-primary)"
-              formatTick={fmtMins}
-            />
-          </Section>
-
           <Section title="Sleep">
             <ChartCard
               title="Total sleep"
@@ -136,6 +118,24 @@ export default function Stats() {
               dataKey="avg_wake_min"
               unit="min"
               color="oklch(0.55 0.15 250)"
+              formatTick={fmtMins}
+            />
+          </Section>
+
+          <Section title="Feeding">
+            <ChartCard
+              title="Feeds per day"
+              data={chartData}
+              dataKey="feed_count"
+              unit=""
+              color="var(--color-primary)"
+            />
+            <ChartCard
+              title="Avg feed interval"
+              data={chartData}
+              dataKey="avg_feed_interval_min"
+              unit="min"
+              color="var(--color-primary)"
               formatTick={fmtMins}
             />
           </Section>
