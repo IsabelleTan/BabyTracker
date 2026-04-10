@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Moon, Trophy, Baby, Sparkles } from 'lucide-react'
 import { getLeaderboards, buildNotifications, type LeaderboardData, type ParentStat } from '@/lib/leaderboards'
+import NightToggle from '@/components/NightToggle'
 
 function fmtMins(mins: number | null | undefined): string {
   if (mins == null) return '—'
@@ -39,6 +40,9 @@ export default function Leaderboards() {
 
   return (
     <div className="flex flex-col gap-6 py-4">
+      <div className="flex justify-end">
+        <NightToggle />
+      </div>
       {notifications.length > 0 && (
         <div className="rounded-xl border border-primary/40 bg-primary/10 px-4 py-3 flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5 text-primary">
