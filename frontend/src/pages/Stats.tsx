@@ -71,9 +71,9 @@ export default function Stats() {
   const chartData = data.map((d) => ({ ...d, date: fmtDate(d.date) }))
 
   return (
-    <div className="flex flex-col gap-6 p-4">
+    <div className="flex flex-col gap-6 py-4">
       {/* Range selector */}
-      <div className="flex gap-2">
+      <div className="flex gap-2 px-2">
         {RANGES.map((r) => (
           <button
             key={r.value}
@@ -247,10 +247,10 @@ function ChartCard({
   const gridDash = '3 3'
 
   return (
-    <div className="rounded-xl border border-primary/35 bg-surface p-4 flex flex-col gap-3">
+    <div className="rounded-xl border border-primary/35 bg-surface px-3 py-3 flex flex-col gap-3">
       <span className="text-sm font-medium">{title}</span>
-      <ResponsiveContainer width="100%" height={140}>
-        <LineChart data={data} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
+      <ResponsiveContainer width="100%" height={150}>
+        <LineChart data={data} margin={{ top: 4, right: 12, left: -16, bottom: 0 }}>
           {yConfig.ticks.map((t) => (
             <ReferenceLine key={`y${t}`} y={t} stroke={gridColor} strokeDasharray={gridDash} />
           ))}
