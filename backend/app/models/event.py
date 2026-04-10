@@ -20,6 +20,7 @@ class Event(Base):
     type: Mapped[EventType] = mapped_column(SAEnum(EventType), nullable=False)
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     logged_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
+    baby_id: Mapped[str] = mapped_column(String(36), ForeignKey("babies.id"), nullable=False)
     metadata_: Mapped[Any] = mapped_column("metadata", JSON, nullable=True)
 
     author: Mapped["User"] = relationship("User", back_populates="events")  # noqa: F821
