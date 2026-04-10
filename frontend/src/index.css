@@ -155,7 +155,7 @@
   --popover-foreground: oklch(0.62 0.015 35);
   --surface: oklch(0.11 0.016 30);
   /* Amber primary — gentler on dark-adapted eyes than red */
-  --primary: oklch(0.60 0.12 42);
+  --primary: oklch(0.50 0.10 42);
   --primary-foreground: oklch(0.08 0.015 30);
   --secondary: oklch(0.18 0.02 30);
   --secondary-foreground: oklch(0.62 0.015 35);
@@ -166,7 +166,7 @@
   --destructive: oklch(0.55 0.18 18);
   --border: oklch(0.62 0.015 35 / 10%);
   --input: oklch(0.62 0.015 35 / 12%);
-  --ring: oklch(0.65 0.13 42);
+  --ring: oklch(0.50 0.10 42);
 }
 
 /* No animations in night mode — avoid bright flashes waking the baby */
