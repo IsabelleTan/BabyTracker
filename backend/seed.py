@@ -6,6 +6,8 @@ Usage:
 """
 import asyncio
 import uuid
+from dotenv import load_dotenv
+load_dotenv()
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from app.db.database import Base
 from app.models import *  # noqa
