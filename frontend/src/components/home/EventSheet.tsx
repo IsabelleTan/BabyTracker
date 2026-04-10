@@ -55,7 +55,10 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
     return null
   }
 
+  const [dbgEvent, setDbgEvent] = useState<string>('idle')
+
   function handleSave() {
+    setDbgEvent('click')
     onSave(fromDateTimeLocal(timestamp), buildMetadata())
   }
 
@@ -168,10 +171,21 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
 
         <DrawerFooter className="pt-2" data-vaul-no-drag>
           <button
+            onTouchStart={() => setDbgEvent('touchstart')}
+            onTouchEnd={() => setDbgEvent('touchend')}
+            onPointerDown={() => setDbgEvent('pointerdown')}
+            onPointerUp={() => setDbgEvent('pointerup')}
             onClick={handleSave}
-            className="w-full h-12 rounded-md bg-primary text-primary-foreground font-medium text-sm"
+            className={`w-full h-12 rounded-md font-medium text-sm text-white ${
+              dbgEvent === 'idle' ? 'bg-red-500' :
+              dbgEvent === 'touchstart' ? 'bg-orange-500' :
+              dbgEvent === 'touchend' ? 'bg-yellow-500' :
+              dbgEvent === 'pointerdown' ? 'bg-blue-500' :
+              dbgEvent === 'pointerup' ? 'bg-purple-500' :
+              'bg-green-500'
+            }`}
           >
-            Save
+            Save [{dbgEvent}]
           </button>
           <button
             onClick={onDismiss}
