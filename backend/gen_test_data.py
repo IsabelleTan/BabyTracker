@@ -13,6 +13,7 @@ import uuid
 from datetime import datetime, timedelta, timezone
 
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
+from sqlalchemy import delete
 from sqlalchemy.dialects.sqlite import insert
 
 from app.db.database import Base
@@ -24,8 +25,8 @@ DATABASE_URL = "sqlite+aiosqlite:///./babytracker.db"
 PARENT_1 = "0c175cd7-07e8-462b-88a2-aa19c3f31357"
 PARENT_2 = "29a1cc52-bf25-4f63-8bd5-a9c43d769756"
 
-# How far back to generate data
-DAYS = 90
+# How far back to generate data (one extra day so day 0 has night-sleep context)
+DAYS = 91
 
 
 def rng(lo: float, hi: float) -> float:
@@ -179,9 +180,15 @@ async def main():
         events = generate_day(date, age_days=day_i)
         all_events.extend(events)
 
-    print(f"Generated {len(all_events)} events across {DAYS} days — inserting…")
+    print(f"Generated {len(all_events)} events across {DAYS} days — clearing old test data and inserting…")
 
     async with session_factory() as session:
+        # Clear events logged by the two test parents before regenerating
+        await session.execute(
+            delete(Event).where(Event.logged_by.in_([PARENT_1, PARENT_2]))
+        )
+        await session.commit()
+
         for e in all_events:
             stmt = (
                 insert(Event)

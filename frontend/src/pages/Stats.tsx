@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   LineChart,
   Line,
@@ -106,6 +106,7 @@ export default function Stats() {
               unit="min"
               color="oklch(0.55 0.15 250)"
               formatTick={fmtMins}
+              tickStep={300}
             />
             <ChartCard
               title="Sleep sessions"
@@ -113,6 +114,7 @@ export default function Stats() {
               dataKey="sleep_session_count"
               unit=""
               color="oklch(0.55 0.15 250)"
+              tickStep={2}
             />
             <ChartCard
               title="Avg session length"
@@ -121,6 +123,7 @@ export default function Stats() {
               unit="min"
               color="oklch(0.55 0.15 250)"
               formatTick={fmtMins}
+              tickStep={60}
             />
             <ChartCard
               title="Avg wake time between naps"
@@ -129,6 +132,7 @@ export default function Stats() {
               unit="min"
               color="oklch(0.55 0.15 250)"
               formatTick={fmtMins}
+              tickStep={60}
             />
           </Section>
 
@@ -147,6 +151,7 @@ export default function Stats() {
               unit="min"
               color="var(--color-primary)"
               formatTick={fmtMins}
+              tickStep={60}
             />
           </Section>
 
@@ -176,12 +181,31 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
+function computeYTicks(
+  data: Record<string, unknown>[],
+  dataKey: string,
+  step: number,
+): { ticks: number[]; domain: [number, number] } {
+  const values = data
+    .map((d) => d[dataKey] as number | null | undefined)
+    .filter((v): v is number => v != null && !isNaN(v))
+  if (values.length === 0) return { ticks: [0, step], domain: [0, step] }
+  const max = Math.max(...values)
+  const min = Math.min(...values)
+  const domainMin = min > step ? Math.floor(min / step) * step : 0
+  const domainMax = Math.ceil(max / step) * step || step
+  const ticks: number[] = []
+  for (let t = domainMin; t <= domainMax; t += step) ticks.push(t)
+  return { ticks, domain: [domainMin, domainMax] }
+}
+
 function ChartCard({
   title,
   data,
   dataKey,
   color,
   formatTick,
+  tickStep,
 }: {
   title: string
   data: Record<string, unknown>[]
@@ -189,7 +213,15 @@ function ChartCard({
   unit: string
   color: string
   formatTick?: (v: number | null) => string
+  tickStep?: number
 }) {
+  const yConfig = useMemo(
+    () => (tickStep ? computeYTicks(data, dataKey, tickStep) : null),
+    [data, dataKey, tickStep],
+  )
+  // Even spacing: ~6 vertical grid lines regardless of range length
+  const xInterval = data.length <= 7 ? 0 : Math.round(data.length / 6) - 1
+
   return (
     <div className="rounded-xl border border-primary/35 bg-surface p-4 flex flex-col gap-3">
       <span className="text-sm font-medium">{title}</span>
@@ -201,7 +233,7 @@ function ChartCard({
             tick={{ fontSize: 10 }}
             tickLine={false}
             axisLine={false}
-            interval="preserveStartEnd"
+            interval={xInterval}
           />
           <YAxis
             tick={{ fontSize: 10 }}
@@ -209,6 +241,8 @@ function ChartCard({
             axisLine={false}
             tickFormatter={formatTick ?? String}
             width={48}
+            ticks={yConfig?.ticks}
+            domain={yConfig?.domain}
           />
           <Tooltip
             formatter={(value) =>
