@@ -263,6 +263,7 @@ function ChartCard({
             tickLine={false}
             axisLine={false}
             ticks={xTicks}
+            interval={0}
           />
           <YAxis
             tick={{ fontSize: 10 }}
