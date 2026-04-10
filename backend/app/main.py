@@ -1,6 +1,9 @@
 from contextlib import asynccontextmanager
 import os
+from dotenv import load_dotenv
 from fastapi import FastAPI
+
+load_dotenv()
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.db.database import engine, Base
