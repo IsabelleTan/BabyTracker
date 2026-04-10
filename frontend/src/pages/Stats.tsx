@@ -6,7 +6,7 @@ import {
   YAxis,
   Tooltip,
   ResponsiveContainer,
-  CartesianGrid,
+  ReferenceLine,
 } from 'recharts'
 import { getDailyStats, getEarliestEventDate, type DailyStat } from '@/lib/stats'
 
@@ -231,21 +231,32 @@ function ChartCard({
     () => computeYTicks(data, dataKey, tickStep),
     [data, dataKey, tickStep],
   )
-  // Compute explicit x tick positions so grid lines align exactly with labels
+  // Evenly spaced x ticks including both endpoints — no unequal last gap
   const xTicks = useMemo(() => {
-    if (data.length === 0) return []
-    const step = data.length <= 7 ? 1 : Math.round(data.length / 6)
-    return data
-      .map((d) => d.date as string)
-      .filter((_, i) => i % step === 0 || i === data.length - 1)
+    const n = data.length
+    if (n === 0) return []
+    const dates = data.map((d) => d.date as string)
+    if (n <= 8) return dates
+    const k = 7 // number of labels
+    const indices = new Set<number>()
+    for (let i = 0; i < k; i++) indices.add(Math.round((i * (n - 1)) / (k - 1)))
+    return [...indices].sort((a, b) => a - b).map((i) => dates[i])
   }, [data])
+
+  const gridColor = 'oklch(0.7 0.02 27 / 40%)'
+  const gridDash = '3 3'
 
   return (
     <div className="rounded-xl border border-primary/35 bg-surface p-4 flex flex-col gap-3">
       <span className="text-sm font-medium">{title}</span>
       <ResponsiveContainer width="100%" height={140}>
         <LineChart data={data} margin={{ top: 4, right: 4, left: -16, bottom: 0 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="oklch(0.7 0.02 27 / 40%)" />
+          {yConfig.ticks.map((t) => (
+            <ReferenceLine key={`y${t}`} y={t} stroke={gridColor} strokeDasharray={gridDash} />
+          ))}
+          {xTicks.map((t) => (
+            <ReferenceLine key={`x${t}`} x={t} stroke={gridColor} strokeDasharray={gridDash} />
+          ))}
           <XAxis
             dataKey="date"
             tick={{ fontSize: 10 }}
