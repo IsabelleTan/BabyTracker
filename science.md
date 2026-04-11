@@ -53,20 +53,23 @@ In the first 4–6 weeks, frequent evening feeding helps establish and maintain 
 The diagram below shows a typical day. Daytime feeds are spaced 2–3 hours apart; the evening cluster brings three feeds within 90 minutes; a longer sleep stretch follows.
 
 ```mermaid
-timeline
-    title A typical day with evening cluster feeding
-    section Daytime feeds
-        07h00 : Feed
-        09h15 : Feed
-        11h30 : Feed
-        14h00 : Feed
-        16h30 : Feed
-    section Evening cluster
-        19h00 : Feed
-        19h45 : Feed
-        20h25 : Feed
+gantt
+    dateFormat HH:mm
+    axisFormat %H:%M
+    title Feed timeline — cluster feeds highlighted
+
+    section Feeds
+    Feed         : f1, 07:00, 15m
+    Feed         : f2, 09:15, 15m
+    Feed         : f3, 11:30, 15m
+    Feed         : f4, 14:00, 15m
+    Feed         : f5, 16:30, 15m
+    Cluster feed : active, c1, 19:00, 15m
+    Cluster feed : active, c2, 19:45, 15m
+    Cluster feed : active, c3, 20:25, 15m
+
     section Night
-        21h00 : Sleep stretch
+    Sleep stretch : done, s1, 21:00, 180m
 ```
 
 ---
