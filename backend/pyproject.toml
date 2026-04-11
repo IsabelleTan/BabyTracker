@@ -30,6 +30,7 @@ addopts = "--cov=app --cov-report=xml --cov-report=term-missing"
 
 [tool.coverage.run]
 omit = ["tests/*", "seed.py"]
+concurrency = ["thread", "greenlet"]
 
 [build-system]
 requires = ["poetry-core>=2.0.0,<3.0.0"]
