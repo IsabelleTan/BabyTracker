@@ -6,13 +6,7 @@ import App from './App.tsx'
 
 // Capture beforeinstallprompt before React mounts — the event fires early during
 // page load and would be missed if we only listen inside a useEffect.
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
-}
-declare global {
-  interface Window { __pwaInstallEvent: BeforeInstallPromptEvent | null }
-}
+// Types for BeforeInstallPromptEvent and Window.__pwaInstallEvent live in globals.d.ts.
 window.__pwaInstallEvent = null
 window.addEventListener('beforeinstallprompt', (e) => {
   e.preventDefault()
