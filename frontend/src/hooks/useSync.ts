@@ -4,6 +4,7 @@ import {
   logEvent as apiLogEvent,
   getTodayEvents,
   getLastFeeds,
+  getNightSessionEvents,
   type BabyEvent,
   type LogEventPayload,
   type EventType,
@@ -15,6 +16,7 @@ const REFRESH_INTERVAL = 30_000
 export function useSync() {
   const [events, setEvents] = useState<BabyEvent[]>([])
   const [lastFeeds, setLastFeeds] = useState<BabyEvent[]>([])
+  const [nightSessionEvents, setNightSessionEvents] = useState<BabyEvent[]>([])
   const [pendingCount, setPendingCount] = useState(0)
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -38,9 +40,14 @@ export function useSync() {
       }
 
       // Re-fetch authoritative state from server
-      const [today, feeds] = await Promise.all([getTodayEvents(), getLastFeeds(3)])
+      const [today, feeds, nightSession] = await Promise.all([
+        getTodayEvents(),
+        getLastFeeds(3),
+        getNightSessionEvents(),
+      ])
       setEvents(today)
       setLastFeeds(feeds)
+      setNightSessionEvents(nightSession)
       setLastSynced(new Date())
     } catch {
       // Network unavailable — silently ignore
@@ -112,5 +119,5 @@ export function useSync() {
     setLastFeeds((prev) => prev.filter((e) => e.id !== id))
   }
 
-  return { events, lastFeeds, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent }
+  return { events, lastFeeds, nightSessionEvents, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent }
 }

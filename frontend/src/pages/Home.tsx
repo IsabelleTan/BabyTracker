@@ -1,10 +1,11 @@
 import { useState, useRef, useMemo, useEffect } from 'react'
-import { Milk, Moon, Sun, Droplets, Baby, Star, type LucideIcon } from 'lucide-react'
+import { Milk, Moon, Sun, Droplets, Baby, Star, LogOut, type LucideIcon } from 'lucide-react'
 import NightToggle from '@/components/NightToggle'
 import EventSheet from '@/components/home/EventSheet'
 import SummarySection from '@/components/home/SummarySection'
 import TimelineSection from '@/components/home/TimelineSection'
 import { useSync } from '@/hooks/useSync'
+import { logout } from '@/lib/auth'
 import { useTick, useTimeSince } from '@/hooks/useTimeSince'
 import { deleteEvent, type EventType, type BabyEvent } from '@/lib/events'
 import { generateId } from '@/lib/uuid'
@@ -21,6 +22,8 @@ import {
   getNewMilestone,
   getMilestoneMessage,
   markMilestoneSeen,
+  milestoneAllowedToday,
+  recordMilestoneShownToday,
   trackDailyLogging,
   type MilestoneKey,
 } from '@/lib/funMessages'
@@ -43,7 +46,7 @@ function nextFeedEstimate(lastFeeds: BabyEvent[]): Date | null {
 // ── component ────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const { events, lastFeeds, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent } =
+  const { events, lastFeeds, nightSessionEvents, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent } =
     useSync()
   const [sheetType, setSheetType] = useState<EventType | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -134,26 +137,35 @@ export default function Home() {
   const [milestone, setMilestone] = useState<MilestoneKey | null>(null)
   const isNight = isNightHours()
 
-  // Night event count for the current night session (22:00–06:00)
-  const nightEventCount = useMemo(() => events.filter((e) => {
-    const h = new Date(e.timestamp).getHours()
-    return h >= 22 || h < 6
-  }).length, [events])
+  // Night event count spans the full 22:00–06:00 session (includes pre-midnight events)
+  const nightEventCount = nightSessionEvents.length
 
+  // Night card: reactive to new night events
   useEffect(() => {
-    if (nightMessageShouldShow(nightEventCount)) {
-      setNightCardVisible(true)
-      markNightMessageShown()
-    }
-    if (babyVoiceShouldShow()) setBabyVoiceVisible(true)
+    if (!nightMessageShouldShow(nightEventCount)) return
+    setNightCardVisible(true)
+    markNightMessageShown()
   }, [nightEventCount])
 
-  // Track daily logging streak and check milestones whenever events load
+  // Baby voice: fire once on first data load
+  const babyVoiceInitDone = useRef(false)
+  useEffect(() => {
+    if (events.length === 0 || babyVoiceInitDone.current) return
+    babyVoiceInitDone.current = true
+    if (babyVoiceShouldShow()) setBabyVoiceVisible(true)
+  }, [events])
+
+  // Milestones: per-day gate prevents flooding on repeated syncs
   useEffect(() => {
     if (events.length === 0) return
     trackDailyLogging()
-    const key = getNewMilestone(events)
-    if (key) setMilestone(key)
+    if (milestoneAllowedToday()) {
+      const key = getNewMilestone(events)
+      if (key) {
+        setMilestone(key)
+        recordMilestoneShownToday()
+      }
+    }
   }, [events])
 
   const nightMsg = useMemo(() => getNightMessage(), [])
@@ -372,7 +384,16 @@ function TopBar({
   return (
     <div className="flex items-center justify-between -mb-2">
       <span className={`text-xs ${syncText?.className ?? ''}`}>{syncText?.text ?? ''}</span>
-      <NightToggle />
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => { logout(); window.location.reload() }}
+          aria-label="Log out"
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
+        <NightToggle />
+      </div>
     </div>
   )
 }

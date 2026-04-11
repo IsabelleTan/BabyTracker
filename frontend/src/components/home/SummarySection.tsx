@@ -1,10 +1,16 @@
-import { useMemo, useEffect, useState } from 'react'
+import { useMemo, useEffect, useRef, useState } from 'react'
 import { Milk, Moon, Droplets, Sparkles, Users, type LucideIcon } from 'lucide-react'
 import { formatDuration } from '@/hooks/useTimeSince'
 import type { BabyEvent } from '@/lib/events'
 import { getUser } from '@/lib/auth'
 import { getLeaderboards, buildNotifications } from '@/lib/leaderboards'
-import { getPartnerMessage } from '@/lib/funMessages'
+import {
+  getPartnerMessage,
+  partnerMessageAllowed,
+  recordPartnerMessageShown,
+  isNightHours,
+  type PartnerMessageResult,
+} from '@/lib/funMessages'
 
 interface Props {
   events: BabyEvent[]
@@ -14,9 +20,22 @@ export default function SummarySection({ events }: Props) {
   const stats = useMemo(() => computeStats(events), [events])
   const [notifications, setNotifications] = useState<string[]>([])
 
-  const partnerMsg = useMemo(() => {
+  // Partner message: compute once on first data load; suppress at night and within 3-day gate
+  const [partnerMsg, setPartnerMsg] = useState<PartnerMessageResult | null>(null)
+  const partnerMsgInitDone = useRef(false)
+  useEffect(() => {
+    if (events.length === 0 || partnerMsgInitDone.current) return
+    partnerMsgInitDone.current = true
+    if (isNightHours()) return
+    const users = new Set(events.map((e) => e.logged_by))
+    if (users.size < 2) return
+    if (!partnerMessageAllowed()) return
     const userId = getUser()?.user_id ?? ''
-    return getPartnerMessage(events, userId)
+    const msg = getPartnerMessage(events, userId)
+    if (msg) {
+      setPartnerMsg(msg)
+      recordPartnerMessageShown()
+    }
   }, [events])
 
   useEffect(() => {

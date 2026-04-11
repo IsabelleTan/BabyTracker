@@ -14,45 +14,48 @@ const NIGHT_MESSAGES = [
 ]
 
 const PARTNER_MESSAGES_BOTH = [
-  "You both showed up today — nice teamwork.",
-  "Two parents, one team. Baby is lucky.",
-  "You're both keeping things consistent.",
-  "Both of you in the log today. That counts for a lot.",
-  "The village starts at home. Look at you two.",
+  "You're both logging today, keeping pace with each other. Teamwork.",
+  "Both of you tracking today. Baby's story told by two.",
+  "Equal parts in the log today. That's what shared parenting looks like.",
+  "Both of you showing up in the data. That counts for a lot.",
+  "You're each pulling your weight in the tracking. The full picture comes through.",
 ]
 
+// Shown when the OTHER parent logged ≥ 70% of events
 const PARTNER_MESSAGES_SOLO = [
-  "Flying solo today — that's a lot. Well done.",
-  "Carrying the load today. That doesn't go unnoticed.",
-  "One parent, full effort. Respect.",
+  "Your partner carried most of the logging today. That's a lot of work.",
+  "Your partner put in the majority of the tracking today. They showed up.",
+  "Most of today's logs are your partner's. That doesn't go unnoticed.",
 ]
 
+// Shown when the OTHER parent logged ≥ 3 events during 22:00–06:00
 const PARTNER_MESSAGES_NIGHT_SHIFT = [
-  "Night shift handled. That's the hardest part.",
-  "Those night logs tell a story of dedication.",
-  "Up in the night and still logging — you're doing great.",
+  "Your partner took the night shift — up logging in the early hours.",
+  "Those night logs? Your partner. That kind of dedication deserves recognition.",
+  "Your partner was up in the night handling things. Worth appreciating.",
 ]
 
+// Shown when the OTHER parent logged ≥ 3 dirty/both diapers
 const PARTNER_MESSAGES_POOP_DUTY = [
-  "Someone's been on diaper duty today. An unsung hero.",
-  "Poop diaper count: high. Complaints logged: zero. Respect.",
-  "The glamorous side of parenting — handled without fuss.",
+  "Your partner handled 3+ poop diapers today. Quietly heroic.",
+  "Three or more messy diapers dealt with by your partner today. Respect.",
+  "Your partner took on 3+ dirty diapers today. The unglamorous work, done without fuss.",
 ]
 
 const BABY_VOICE_MESSAGES: Record<BabyVoiceContext, string[]> = {
   many_feeds: [
     "Hungry day — growth is real work.",
-    "Maximum feeds unlocked.",
-    "I had needs. You met them. Respect.",
+    "So many feeds today. Every single one answered.",
+    "Fed on demand all day long. Hungry work, being a baby.",
   ],
   long_nap: [
     "Finally, a proper sleep.",
     "That nap was everything.",
-    "Recharging complete.",
+    "Long nap! Recharging complete.",
   ],
   cluster: [
-    "Just needed some extra comfort tonight.",
-    "Evening snacks: mandatory.",
+    "Just needed a little extra comfort food tonight.",
+    "Evening comfort feeds: mandatory.",
     "Lots of feeds, zero regrets.",
   ],
   chaotic: [
@@ -116,10 +119,11 @@ export interface PartnerMessageResult {
 }
 
 // ── night-hour check ──────────────────────────────────────────────────────────
+// 21:00–07:00 — matches backend NIGHT_SHIFT_START/END and useNightMode auto-switch.
 
 export function isNightHours(): boolean {
   const h = new Date().getHours()
-  return h >= 22 || h < 6
+  return h >= 21 || h < 7
 }
 
 // ── baby voice context detection ──────────────────────────────────────────────
@@ -157,40 +161,31 @@ export function getBabyVoiceContext(events: BabyEvent[]): BabyVoiceContext {
 
   if (feeds.length >= 9)   return 'many_feeds'
   if (events.length >= 20) return 'chaotic'
-  if (events.length <= 3)  return 'quiet'
+  if (events.length <= 8)  return 'quiet'
   return 'normal'
 }
 
 // ── partner context detection ─────────────────────────────────────────────────
 
 export function getPartnerContext(events: BabyEvent[], currentUserId: string): PartnerContext {
-  // Poop duty: any user logged ≥ 3 dirty/both diapers
-  const poopByUser = new Map<string, number>()
-  for (const e of events) {
-    if (e.type === 'diaper') {
-      const kind = e.metadata?.diaper_type as string | undefined
-      if (kind === 'dirty' || kind === 'both') {
-        poopByUser.set(e.logged_by, (poopByUser.get(e.logged_by) ?? 0) + 1)
-      }
-    }
-  }
-  if ([...poopByUser.values()].some((n) => n >= 3)) return 'poop_duty'
+  // Poop duty: OTHER user logged ≥ 3 dirty/both diapers
+  const otherPoopCount = events.filter(
+    (e) => e.type === 'diaper' && e.logged_by !== currentUserId &&
+      (e.metadata?.diaper_type === 'dirty' || e.metadata?.diaper_type === 'both'),
+  ).length
+  if (otherPoopCount >= 3) return 'poop_duty'
 
-  // Night shift: any user logged ≥ 2 events between 22:00–06:00
-  const nightByUser = new Map<string, number>()
-  for (const e of events) {
+  // Night shift: OTHER user logged ≥ 3 events between 21:00–07:00
+  const otherNightCount = events.filter((e) => {
+    if (e.logged_by === currentUserId) return false
     const h = new Date(e.timestamp).getHours()
-    if (h >= 22 || h < 6) {
-      nightByUser.set(e.logged_by, (nightByUser.get(e.logged_by) ?? 0) + 1)
-    }
-  }
-  if ([...nightByUser.values()].some((n) => n >= 2)) return 'night_shift'
+    return h >= 21 || h < 7
+  }).length
+  if (otherNightCount >= 3) return 'night_shift'
 
-  // Solo: only one user, or current user logged ≥ 70% of events
-  const users = new Set(events.map((e) => e.logged_by))
-  if (users.size === 1) return 'solo'
-  const myCount = events.filter((e) => e.logged_by === currentUserId).length
-  if (events.length > 0 && myCount / events.length >= 0.7) return 'solo'
+  // Solo: OTHER user logged ≥ 70% of events (they carried the load)
+  const otherTotal = events.filter((e) => e.logged_by !== currentUserId).length
+  if (events.length > 0 && otherTotal / events.length >= 0.7) return 'solo'
 
   return 'both'
 }
@@ -208,6 +203,19 @@ export function getPartnerMessage(
     poop_duty:   PARTNER_MESSAGES_POOP_DUTY,
   }[context]
   return { context, message: pickByDay(bank) }
+}
+
+const PARTNER_MSG_KEY = 'partner_msg_last_shown'
+
+/** Whether 3+ days have passed since the partner message was last shown. */
+export function partnerMessageAllowed(): boolean {
+  const last = localStorage.getItem(PARTNER_MSG_KEY)
+  if (!last) return true
+  return Math.floor((parseLocalDate(todayDate()) - parseLocalDate(last)) / 86_400_000) >= 3
+}
+
+export function recordPartnerMessageShown(): void {
+  localStorage.setItem(PARTNER_MSG_KEY, todayDate())
 }
 
 // ── milestone detection ───────────────────────────────────────────────────────
@@ -316,6 +324,18 @@ export function getMilestoneMessage(key: MilestoneKey): string {
   return MILESTONE_MESSAGES[key]
 }
 
+/** Returns true if no milestone has been shown in the last 3 days. */
+export function milestoneAllowedToday(): boolean {
+  const last = localStorage.getItem('milestone_shown_date')
+  if (!last) return true
+  return Math.floor((parseLocalDate(todayDate()) - parseLocalDate(last)) / 86_400_000) >= 3
+}
+
+/** Call when a milestone card is first shown (not on dismiss). */
+export function recordMilestoneShownToday(): void {
+  localStorage.setItem('milestone_shown_date', todayDate())
+}
+
 export function markMilestoneSeen(key: MilestoneKey): void {
   localStorage.setItem(`milestone_${key}`, 'true')
 }
@@ -345,10 +365,10 @@ function todayDate(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
-// Night session spans 22:00–05:59. Key it to the evening date (before 6am = yesterday).
+// Night session spans 21:00–06:59. Key it to the evening date (before 7am = yesterday).
 function nightSessionDate(): string {
   const now = new Date()
-  if (now.getHours() < 6) {
+  if (now.getHours() < 7) {
     const d = new Date(now)
     d.setDate(d.getDate() - 1)
     return d.toISOString().slice(0, 10)
@@ -356,10 +376,16 @@ function nightSessionDate(): string {
   return now.toISOString().slice(0, 10)
 }
 
+/** Parse a YYYY-MM-DD string as local midnight (avoids UTC-offset day-shift). */
+function parseLocalDate(dateStr: string): number {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  return new Date(y, m - 1, d).getTime()
+}
+
 function nightsSinceLastShown(): number {
   const last = localStorage.getItem('night_msg_last_shown')
   if (!last) return 999
-  return Math.floor((Date.now() - new Date(last).getTime()) / 86_400_000)
+  return Math.floor((parseLocalDate(todayDate()) - parseLocalDate(last)) / 86_400_000)
 }
 
 const NIGHT_SHOWN_KEY = 'night_msg_shown'
@@ -382,10 +408,15 @@ export function markNightMessageShown(): void {
   localStorage.setItem('night_msg_last_shown', new Date().toISOString().slice(0, 10))
 }
 
+const BABY_VOICE_LAST_KEY = 'baby_voice_last_shown'
+
+/** Returns true if baby voice hasn't been shown in the last 3 days. */
 export function babyVoiceShouldShow(): boolean {
-  return localStorage.getItem(`${BABY_VOICE_KEY}_${todayDate()}`) !== 'true'
+  const last = localStorage.getItem(BABY_VOICE_LAST_KEY)
+  if (!last) return true
+  return Math.floor((parseLocalDate(todayDate()) - parseLocalDate(last)) / 86_400_000) >= 3
 }
 
 export function dismissBabyVoice(): void {
-  localStorage.setItem(`${BABY_VOICE_KEY}_${todayDate()}`, 'true')
+  localStorage.setItem(BABY_VOICE_LAST_KEY, todayDate())
 }
