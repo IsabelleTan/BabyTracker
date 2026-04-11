@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from 'react'
-import { Milk, Moon, Sun, Droplets, Sparkles, type LucideIcon } from 'lucide-react'
+import { Milk, Moon, Sun, Droplets, Baby, Star, type LucideIcon } from 'lucide-react'
 import NightToggle from '@/components/NightToggle'
 import EventSheet from '@/components/home/EventSheet'
 import SummarySection from '@/components/home/SummarySection'
@@ -17,6 +17,10 @@ import {
   markNightMessageShown,
   babyVoiceShouldShow,
   dismissBabyVoice,
+  getNewMilestone,
+  getMilestoneMessage,
+  markMilestoneSeen,
+  type MilestoneKey,
 } from '@/lib/funMessages'
 
 const PULL_THRESHOLD = 72
@@ -125,6 +129,7 @@ export default function Home() {
   // ── fun message cards ─────────────────────────────────────────────────────
   const [nightCardVisible, setNightCardVisible] = useState(false)
   const [babyVoiceVisible, setBabyVoiceVisible] = useState(false)
+  const [milestone, setMilestone] = useState<MilestoneKey | null>(null)
 
   useEffect(() => {
     if (nightMessageShouldShow()) {
@@ -133,6 +138,13 @@ export default function Home() {
     }
     if (babyVoiceShouldShow()) setBabyVoiceVisible(true)
   }, [])
+
+  // Check for new milestones whenever events update
+  useEffect(() => {
+    if (events.length === 0) return
+    const key = getNewMilestone(events)
+    if (key) setMilestone(key)
+  }, [events])
 
   const nightMsg = useMemo(() => getNightMessage(), [])
   const babyVoiceMsg = useMemo(() => {
@@ -218,10 +230,19 @@ export default function Home() {
 
         {loaded && <SummarySection events={events} />}
 
+        {/* Milestone — shown once ever per milestone, dismissed permanently */}
+        {milestone && (
+          <MessageCard
+            icon={Star}
+            message={getMilestoneMessage(milestone)}
+            onDismiss={() => { markMilestoneSeen(milestone); setMilestone(null) }}
+          />
+        )}
+
         {/* Baby voice — shown once per day, dismissed per day */}
         {loaded && babyVoiceVisible && (
           <MessageCard
-            icon={Sparkles}
+            icon={Baby}
             message={babyVoiceMsg}
             onDismiss={() => { dismissBabyVoice(); setBabyVoiceVisible(false) }}
           />
