@@ -5,6 +5,15 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* iOS Safari zooms in on any focused input with font-size < 16px.
+   Must be outside @layer: unlayered styles outrank all layers (including
+   Tailwind's @layer utilities where text-sm lives), so this cannot be
+   overridden by utility classes.
+   See: https://github.com/IsabelleTan/BabyTracker/issues/88 */
+input, select, textarea {
+  font-size: max(1rem, 16px);
+}
+
 @layer base {
   *, *::before, *::after {
     box-sizing: border-box;
@@ -15,13 +24,6 @@
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     @apply bg-background text-foreground;
-  }
-
-  /* iOS Safari zooms in on any input whose font-size is less than 16px.
-     max(1rem, 16px) ensures the threshold is always met without hard-coding a px value.
-     See: https://github.com/IsabelleTan/BabyTracker/issues/80 */
-  input, select, textarea {
-    font-size: max(1rem, 16px);
   }
 
   #root {
