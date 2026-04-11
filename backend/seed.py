@@ -28,13 +28,13 @@ from app.models.user import User
 from app.models.baby import Baby
 from app.models.user_baby import UserBaby
 from app.auth import hash_password
+from app.config import settings
 
-DATABASE_URL = "sqlite+aiosqlite:///./babytracker.db"
 MIN_PASSWORD_LENGTH = 12
 
 
 async def _get_session_factory():
-    engine = create_async_engine(DATABASE_URL)
+    engine = create_async_engine(settings.database_url)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     return engine, async_sessionmaker(engine, expire_on_commit=False)
