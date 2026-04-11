@@ -89,6 +89,16 @@ async def test_stats_wake_time_between_sessions(client_with_family):
 
 
 @pytest.mark.asyncio
+async def test_stats_daily_rejects_range_over_366_days(client_with_family):
+    client, headers = client_with_family
+    r = await client.get("/stats/daily", params={
+        "from": "2023-01-01T00:00:00Z",
+        "to": "2024-12-31T00:00:00Z",  # ~730 days
+    }, headers=headers)
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
 async def test_stats_range_returns_earliest_event(client_with_family):
     client, headers = client_with_family
     await client.post("/events", json={

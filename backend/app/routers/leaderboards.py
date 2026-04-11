@@ -1,13 +1,14 @@
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
 from app.db.database import get_db
+from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
 from app.models.user_baby import UserBaby
@@ -68,7 +69,9 @@ def _winner_uid(stats: dict[str, dict], key: str) -> str | None:
 
 
 @router.get("", response_model=LeaderboardData)
+@limiter.limit("30/minute")
 async def get_leaderboards(
+    request: Request,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

@@ -93,7 +93,7 @@ async def get_events(
     if type is not None:
         stmt = stmt.where(Event.type == type)
     if limit is not None:
-        stmt = stmt.limit(limit)
+        stmt = stmt.limit(min(limit, 1000))
 
     result = await db.execute(stmt)
     events = result.scalars().all()
