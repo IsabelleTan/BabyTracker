@@ -50,41 +50,23 @@ In the first 4–6 weeks, frequent evening feeding helps establish and maintain 
 
 ### What a cluster day looks like
 
-The chart below shows a typical day with cluster feeding. Normal feeds (spaced 2–3 hours apart) are shown in blue; the evening cluster is highlighted in orange.
-
-```
-TIME     06   07   08   09   10   11   12   13   14   15   16   17   18   19   20   21   22
-          |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |    |
-FEEDS    [F]       [F]       [F]            [F]       [F]            [F] [F][F][F]
-                                                                          ←cluster→
-INTERVAL      ~2h       ~2h       ~3h            ~2h       ~3h        45m 35m 40m
-```
-
-Key observations:
-- Morning and afternoon feeds are spaced 2–3 hours apart — a typical pattern
-- Evening feeds (19:00–21:00) come every 35–45 minutes
-- A longer sleep stretch typically follows the cluster
+The diagram below shows a typical day. Daytime feeds are spaced 2–3 hours apart; the evening cluster brings three feeds within 90 minutes; a longer sleep stretch follows.
 
 ```mermaid
-gantt
-    title Example day — cluster feeding in the evening (orange = cluster)
-    dateFormat HH:mm
-    axisFormat %H:%M
-
+timeline
+    title A typical day with evening cluster feeding
     section Daytime feeds
-    Feed 1       : f1, 07:00, 15m
-    Feed 2       : f2, 09:15, 15m
-    Feed 3       : f3, 11:30, 15m
-    Feed 4       : f4, 14:00, 15m
-    Feed 5       : f5, 16:30, 15m
-
+        07:00 : Feed
+        09:15 : Feed
+        11:30 : Feed
+        14:00 : Feed
+        16:30 : Feed
     section Evening cluster
-    Feed 6       : crit, c1, 19:00, 15m
-    Feed 7       : crit, c2, 19:45, 15m
-    Feed 8       : crit, c3, 20:25, 15m
-
+        19:00 : Feed
+        19:45 : Feed
+        20:25 : Feed
     section Night
-    Sleep stretch : milestone, s1, 21:00, 0m
+        21:00 : Sleep stretch
 ```
 
 ---
