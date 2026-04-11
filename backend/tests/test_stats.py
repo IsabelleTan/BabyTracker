@@ -1,0 +1,101 @@
+import pytest
+
+
+@pytest.mark.asyncio
+async def test_stats_zero_events(client_with_family):
+    client, headers = client_with_family
+    r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-15T00:00:00Z"}, headers=headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) == 1
+    day = data[0]
+    assert day["date"] == "2024-01-15"
+    assert day["feed_count"] == 0
+    assert day["total_sleep_min"] == 0
+    assert day["sleep_session_count"] == 0
+    assert day["diaper_count"] == 0
+    assert day["avg_feed_interval_min"] is None
+    assert day["avg_sleep_session_min"] is None
+
+
+@pytest.mark.asyncio
+async def test_stats_feed_interval(client_with_family):
+    client, headers = client_with_family
+    # Two feeds 120 minutes apart on the same day
+    for i, time in enumerate(["08:00", "10:00"]):
+        await client.post("/events", json={
+            "id": f"feed-{i}", "type": "feed",
+            "timestamp": f"2024-01-15T{time}:00Z",
+            "metadata": {"feed_type": "bottle", "amount_ml": 100},
+        }, headers=headers)
+
+    r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-15T00:00:00Z"}, headers=headers)
+    assert r.status_code == 200
+    day = r.json()[0]
+    assert day["feed_count"] == 2
+    assert day["avg_feed_interval_min"] == 120.0
+
+
+@pytest.mark.asyncio
+async def test_stats_single_sleep_session(client_with_family):
+    client, headers = client_with_family
+    await client.post("/events", json={
+        "id": "s1", "type": "sleep_start", "timestamp": "2024-01-15T20:00:00Z",
+    }, headers=headers)
+    await client.post("/events", json={
+        "id": "e1", "type": "sleep_end", "timestamp": "2024-01-15T22:00:00Z",
+    }, headers=headers)
+
+    r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-15T00:00:00Z"}, headers=headers)
+    day = r.json()[0]
+    assert day["sleep_session_count"] == 1
+    assert day["total_sleep_min"] == 120
+    assert day["avg_sleep_session_min"] == 120.0
+
+
+@pytest.mark.asyncio
+async def test_stats_sleep_spanning_midnight(client_with_family):
+    """A session starting Jan 15 at 23:00 and ending Jan 16 at 01:00 is attributed to Jan 15."""
+    client, headers = client_with_family
+    await client.post("/events", json={
+        "id": "s-mid", "type": "sleep_start", "timestamp": "2024-01-15T23:00:00Z",
+    }, headers=headers)
+    await client.post("/events", json={
+        "id": "e-mid", "type": "sleep_end", "timestamp": "2024-01-16T01:00:00Z",
+    }, headers=headers)
+
+    r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-16T00:00:00Z"}, headers=headers)
+    days = {d["date"]: d for d in r.json()}
+    # 120-minute session starts on Jan 15 → attributed to Jan 15
+    assert days["2024-01-15"]["sleep_session_count"] == 1
+    assert days["2024-01-15"]["total_sleep_min"] == 120
+    assert days["2024-01-16"]["sleep_session_count"] == 0
+
+
+@pytest.mark.asyncio
+async def test_stats_wake_time_between_sessions(client_with_family):
+    """Two sessions with a 60-minute gap → avg_wake_min = 60."""
+    client, headers = client_with_family
+    for sid, start, end in [
+        ("s1", "08:00", "09:00"),
+        ("s2", "10:00", "11:00"),
+    ]:
+        await client.post("/events", json={"id": sid, "type": "sleep_start", "timestamp": f"2024-01-15T{start}:00Z"}, headers=headers)
+        await client.post("/events", json={"id": f"e{sid}", "type": "sleep_end", "timestamp": f"2024-01-15T{end}:00Z"}, headers=headers)
+
+    r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-15T00:00:00Z"}, headers=headers)
+    day = r.json()[0]
+    assert day["avg_wake_min"] == 60.0
+
+
+@pytest.mark.asyncio
+async def test_stats_range_returns_earliest_event(client_with_family):
+    client, headers = client_with_family
+    await client.post("/events", json={
+        "id": "range-feed", "type": "feed", "timestamp": "2024-01-10T08:00:00Z",
+        "metadata": {"feed_type": "bottle", "amount_ml": 100},
+    }, headers=headers)
+
+    r = await client.get("/stats/range", headers=headers)
+    assert r.status_code == 200
+    assert r.json()["earliest"].startswith("2024-01-10")

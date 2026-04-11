@@ -1,3 +1,4 @@
+import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
@@ -6,7 +7,8 @@ from sqlalchemy.pool import StaticPool
 from app.main import app
 from app.db.database import Base, get_db
 from app.models.user import User
-from app.auth import hash_password
+from app.auth import hash_password, create_access_token, decode_token
+from fastapi import HTTPException
 
 TEST_DATABASE_URL = "sqlite+aiosqlite:///:memory:"
 
@@ -56,4 +58,21 @@ async def test_login_wrong_password(client):
 
 async def test_login_unknown_email(client):
     r = await client.post("/auth/login", data={"username": "unknown@test.com", "password": "secret"})
+    assert r.status_code == 401
+
+
+def test_decode_token_invalid_raises_401():
+    with pytest.raises(HTTPException) as exc_info:
+        decode_token("not-a-valid-jwt")
+    assert exc_info.value.status_code == 401
+
+
+async def test_get_events_with_deleted_user_token_returns_401(client):
+    """A valid JWT whose user_id no longer exists in the DB returns 401."""
+    token = create_access_token("nonexistent-user-id")
+    r = await client.get(
+        "/events",
+        params={"since": "2024-01-01T00:00:00Z"},
+        headers={"Authorization": f"Bearer {token}"},
+    )
     assert r.status_code == 401

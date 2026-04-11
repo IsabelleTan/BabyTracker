@@ -3,7 +3,7 @@
 A mobile-first PWA for two parents to track their baby's feeds, sleep, and diapers.
 
 [![CI](https://github.com/IsabelleTan/BabyTracker/actions/workflows/ci.yml/badge.svg)](https://github.com/IsabelleTan/BabyTracker/actions/workflows/ci.yml)
-[![codecov](https://codecov.io/gh/IsabelleTan/BabyTracker/branch/main/graph/badge.svg?token=T4UOKMWPJH)](https://codecov.io/gh/IsabelleTan/BabyTracker)
+[![codecov](https://codecov.io/gh/IsabelleTan/BabyTracker/branch/main/graph/badge.svg?token=T4UOKMWPJH&flag=backend)](https://codecov.io/gh/IsabelleTan/BabyTracker)
 
 ## Stack
 
