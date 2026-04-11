@@ -3,8 +3,7 @@ interface BeforeInstallPromptEvent extends Event {
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
 }
 
-declare global {
-  interface Window {
-    __pwaInstallEvent: BeforeInstallPromptEvent | null
-  }
+// Extends the global Window interface — no declare global needed in ambient (non-module) .d.ts files
+interface Window {
+  __pwaInstallEvent: BeforeInstallPromptEvent | null
 }
