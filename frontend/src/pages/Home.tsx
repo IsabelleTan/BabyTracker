@@ -8,37 +8,9 @@ import { useSync } from '@/hooks/useSync'
 import { useTick, useTimeSince } from '@/hooks/useTimeSince'
 import { deleteEvent, type EventType, type BabyEvent } from '@/lib/events'
 import { generateId } from '@/lib/uuid'
+import { formatTime as fmt, formatAgo as ago, formatUntil as until, formatDuration as duration } from '@/lib/time'
 
 const PULL_THRESHOLD = 72
-
-// ── time helpers (24hr, no AM/PM) ────────────────────────────────────────────
-
-function fmt(date: Date): string {
-  return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`
-}
-
-function ago(date: Date): string {
-  const mins = Math.floor((Date.now() - date.getTime()) / 60_000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const h = Math.floor(mins / 60), m = mins % 60
-  return m === 0 ? `${h}h ago` : `${h}h ${m}m ago`
-}
-
-function until(date: Date): string {
-  const mins = Math.floor((date.getTime() - Date.now()) / 60_000)
-  if (mins <= 0) return 'now'
-  if (mins < 60) return `in ${mins}m`
-  const h = Math.floor(mins / 60), m = mins % 60
-  return m === 0 ? `in ${h}h` : `in ${h}h ${m}m`
-}
-
-function duration(from: Date, to: Date = new Date()): string {
-  const totalMins = Math.floor((to.getTime() - from.getTime()) / 60_000)
-  const h = Math.floor(totalMins / 60), m = totalMins % 60
-  if (h === 0) return `${m}m`
-  return m === 0 ? `${h}h` : `${h}h ${m}m`
-}
 
 function nextFeedEstimate(lastFeeds: BabyEvent[]): Date | null {
   if (lastFeeds.length < 2) return null
