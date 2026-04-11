@@ -32,15 +32,15 @@ There are several well-supported biological explanations, and they are not mutua
 
 #### 1. Preparation for a longer sleep stretch
 
-The most widely cited explanation is that babies load up on calories in the evening to extend their first sleep block of the night. Studies tracking sleep consolidation in the first months of life show that the longest uninterrupted sleep stretch in a 24-hour period almost always follows the evening feed cluster ([Henderson et al., 2010](#ref-3)).
+The most widely cited explanation is that babies load up on calories in the evening to extend their first sleep block of the night. Sleep consolidation in the first year is rapid — most infants achieve uninterrupted stretches of several hours within the first few months of life — and the cluster is widely understood in lactation practice as the mechanism by which infants front-load calories before this longest stretch ([Henderson et al., 2010](#ref-3)).
 
 #### 2. Circadian variation in breast milk composition
 
-Breast milk is not a fixed substance — its composition changes across the day. Evening milk is richer in certain sleep-promoting compounds, particularly tryptophan (the precursor to serotonin and melatonin). The baby's drive to feed more in the evening may be partly a response to lower caloric density of daytime milk or higher energy expenditure during alertness windows ([Cubero et al., 2005](#ref-4); [Illnerová et al., 1993](#ref-5)).
+Breast milk is not a fixed substance — its composition changes across the day. Tryptophan (the precursor to serotonin and melatonin) follows a circadian rhythm in breast milk, and its rhythm entrains the infant's own melatonin cycle ([Cubero et al., 2005](#ref-4)). Melatonin itself is undetectable in daytime milk but rises substantially in night milk, providing a direct sleep-promoting signal to the breastfed infant ([Illnerová et al., 1993](#ref-5)). This circadian biology may partly explain why evening and overnight nursing is associated with longer subsequent sleep stretches.
 
 #### 3. The witching hour and nervous system development
 
-In the first 8–12 weeks, many babies have a daily "fussy window" in the late afternoon or evening. This is associated with an immature nervous system that has difficulty self-regulating at the end of a stimulating day. Frequent feeding provides comfort and sensory regulation as well as calories ([Riordan & Wambach, 2014](#ref-2)).
+In the first 8–12 weeks, many babies have a daily "fussy window" in the late afternoon or evening. This is associated with an immature nervous system that has difficulty self-regulating at the end of a stimulating day. Frequent feeding provides comfort and sensory regulation as well as calories ([Wambach & Riordan, 2016](#ref-2)).
 
 #### 4. Supply calibration in early breastfeeding
 
@@ -124,12 +124,12 @@ The chip is also suppressed from the **feed prediction model**: cluster interval
 
 | # | Authors | Year | Title | Source | DOI / ISBN |
 |---|---|---|---|---|---|
-| <a id="ref-1"></a>1 | Mohrbacher, N. | 2010 | *[Breastfeeding Answers Made Simple](https://www.worldcat.org/isbn/9780984772605)* | Hale Publishing | ISBN 978-0-9847726-0-5 |
-| <a id="ref-2"></a>2 | Riordan, J. & Wambach, K. | 2014 | *[Breastfeeding and Human Lactation](https://www.worldcat.org/isbn/9781284023886)*, 5th ed. | Jones & Bartlett | ISBN 978-1-284-02388-6 |
-| <a id="ref-3"></a>3 | Henderson, J.M.T. et al. | 2010 | [Consolidation of nighttime sleep in the first year of life](https://pubmed.ncbi.nlm.nih.gov/20974775/) | *Pediatrics* 126(5):e1081–e1087 | [10.1542/peds.2010-0976](https://doi.org/10.1542/peds.2010-0976) |
+| <a id="ref-1"></a>1 | Mohrbacher, N. | 2010 | *Breastfeeding Answers Made Simple* | Hale Publishing | — |
+| <a id="ref-2"></a>2 | Wambach, K. & Riordan, J. | 2016 | *[Breastfeeding and Human Lactation](https://www.worldcat.org/isbn/9781449697280)*, 5th ed. | Jones & Bartlett | ISBN 978-1-449-69728-0 |
+| <a id="ref-3"></a>3 | Henderson, J.M.T. et al. | 2010 | [Sleeping through the night: the consolidation of self-regulated sleep across the first year of life](https://pubmed.ncbi.nlm.nih.gov/20974775/) | *Pediatrics* 126(5):e1081–e1087 | [10.1542/peds.2010-0976](https://doi.org/10.1542/peds.2010-0976) |
 | <a id="ref-4"></a>4 | Cubero, J. et al. | 2005 | [The circadian rhythm of tryptophan in breast milk affects the rhythms of 6-sulfatoxymelatonin and sleep in newborn](https://pubmed.ncbi.nlm.nih.gov/16380706/) | *Neuroendocrinology Letters* 26(6):657–661 | [PMID 16380706](https://pubmed.ncbi.nlm.nih.gov/16380706/) |
 | <a id="ref-5"></a>5 | Illnerová, H. et al. | 1993 | [Melatonin rhythm in human milk](https://pubmed.ncbi.nlm.nih.gov/8370707/) | *J Clin Endocrinol Metab* 77(3):838–841 | [PMID 8370707](https://pubmed.ncbi.nlm.nih.gov/8370707/) |
-| <a id="ref-6"></a>6 | Woolridge, M.W. & Fisher, C. | 1988 | [Colic, overfeeding, and symptoms of lactose malabsorption in the breast-fed baby](https://doi.org/10.1016/S0140-6736(88)92790-0) | *The Lancet* 332(8607):382–384 | [10.1016/S0140-6736(88)92790-0](https://doi.org/10.1016/S0140-6736(88)92790-0) |
+| <a id="ref-6"></a>6 | Woolridge, M.W. & Fisher, C. | 1988 | [Colic, 'overfeeding', and symptoms of lactose malabsorption in the breast-fed baby: a possible artifact of feed management?](https://pubmed.ncbi.nlm.nih.gov/2899785/) | *The Lancet* 332(8607):382–384 | [10.1016/S0140-6736(88)92847-4](https://doi.org/10.1016/S0140-6736(88)92847-4) |
 
 ---
 
