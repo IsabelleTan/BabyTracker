@@ -23,6 +23,9 @@ input, select, textarea {
     margin: 0;
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
+    /* Prevent the browser's native pull-to-refresh from triggering a full page
+       reload — the app has its own pull-to-refresh gesture in Home.tsx. */
+    overscroll-behavior-y: contain;
     @apply bg-background text-foreground;
   }
 
@@ -35,7 +38,7 @@ input, select, textarea {
     @apply border-border outline-ring/50;
   }
   html {
-    @apply font-sans;
+    @apply font-sans bg-background;
   }
 }
 
