@@ -1,3 +1,6 @@
+// Injected at build time by vite.config.ts → define
+declare const __COMMIT_HASH__: string
+
 interface BeforeInstallPromptEvent extends Event {
   prompt(): Promise<void>
   userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
