@@ -1,20 +1,18 @@
 import { useEffect, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
-}
-
 export default function InstallPrompt() {
-  const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null)
+  // main.tsx captures beforeinstallprompt before React mounts; read it here.
+  const [installEvent, setInstallEvent] = useState<Window['__pwaInstallEvent']>(
+    () => window.__pwaInstallEvent,
+  )
   const [dismissed, setDismissed] = useState(false)
 
-  // Capture the browser's install prompt so we can trigger it ourselves
+  // Also listen for the event in case it fires after mount (e.g. re-triggered).
   useEffect(() => {
     function handler(e: Event) {
       e.preventDefault()
-      setInstallEvent(e as BeforeInstallPromptEvent)
+      setInstallEvent(e as Window['__pwaInstallEvent'])
     }
     window.addEventListener('beforeinstallprompt', handler)
     return () => window.removeEventListener('beforeinstallprompt', handler)
