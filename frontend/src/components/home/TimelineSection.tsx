@@ -1,5 +1,5 @@
-import { useState, useRef } from 'react'
-import { Milk, Moon, Sun, Droplets, Trash2, type LucideIcon } from 'lucide-react'
+import { useState, useRef, useMemo } from 'react'
+import { Milk, Moon, Sun, Droplets, Trash2, Info, type LucideIcon } from 'lucide-react'
 import {
   AlertDialog,
   AlertDialogAction,
@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog'
 import { type BabyEvent } from '@/lib/events'
+import { detectClusters } from '@/lib/clusterFeeding'
 
 const EVENT_LABELS: Record<string, string> = {
   feed: 'Feed',
@@ -36,9 +37,21 @@ interface Props {
 export default function TimelineSection({ events, onDeleted }: Props) {
   const [pendingDelete, setPendingDelete] = useState<BabyEvent | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [clusterDismissed, setClusterDismissed] = useState(false)
 
   // Most recent first
   const sorted = [...events].sort((a, b) => b.timestamp.localeCompare(a.timestamp))
+
+  // Detect which event IDs belong to a cluster; the chip shows above the most
+  // recent clustered event (first in the sorted/descending list)
+  const clusterFirstId = useMemo(() => {
+    const clusters = detectClusters(events)
+    if (clusters.length === 0) return null
+    // Most recent cluster
+    const latest = clusters.sort((a, b) => b.end.getTime() - a.end.getTime())[0]
+    // Find the first occurrence in the sorted (desc) list
+    return sorted.find((e) => latest.eventIds.has(e.id))?.id ?? null
+  }, [events, sorted])
 
   async function confirmDelete() {
     if (!pendingDelete) return
@@ -62,12 +75,16 @@ export default function TimelineSection({ events, onDeleted }: Props) {
         ) : (
           <div className="rounded-xl border border-primary/35 overflow-hidden">
             {sorted.map((event, i) => (
-              <TimelineRow
-                key={event.id}
-                event={event}
-                isLast={i === sorted.length - 1}
-                onSwipeDelete={() => setPendingDelete(event)}
-              />
+              <div key={event.id}>
+                {clusterFirstId === event.id && !clusterDismissed && (
+                  <ClusterChip onDismiss={() => setClusterDismissed(true)} />
+                )}
+                <TimelineRow
+                  event={event}
+                  isLast={i === sorted.length - 1}
+                  onSwipeDelete={() => setPendingDelete(event)}
+                />
+              </div>
             ))}
           </div>
         )}
@@ -95,6 +112,27 @@ export default function TimelineSection({ events, onDeleted }: Props) {
         </AlertDialogContent>
       </AlertDialog>
     </>
+  )
+}
+
+function ClusterChip({ onDismiss }: { onDismiss: () => void }) {
+  return (
+    <div className="flex items-start gap-2 px-4 py-2.5 bg-primary/5 border-b border-primary/20">
+      <Info className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-foreground font-medium">Cluster feeding</p>
+        <p className="text-xs text-muted-foreground">
+          Frequent short feeds in the evening are completely normal — baby is topping up before a longer sleep stretch.
+        </p>
+      </div>
+      <button
+        onClick={onDismiss}
+        className="text-muted-foreground hover:text-foreground text-xs shrink-0 leading-none pt-0.5"
+        aria-label="Dismiss"
+      >
+        ✕
+      </button>
+    </div>
   )
 }
 
