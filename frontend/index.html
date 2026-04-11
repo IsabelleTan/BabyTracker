@@ -20,9 +20,21 @@
 
     <!-- Security -->
     <meta http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'" />
+      content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'; worker-src 'self' blob:; manifest-src 'self'" />
   </head>
   <body>
+    <!-- Apply night mode before React mounts to prevent a flash of light theme.
+         Mirrors the logic in useNightMode.ts (OVERRIDE_KEY + isAutoNight). -->
+    <script>
+      (function () {
+        try {
+          var o = localStorage.getItem('night_mode_override');
+          var h = new Date().getHours();
+          if (o === 'true' || (o === null && (h >= 21 || h < 7)))
+            document.documentElement.classList.add('night');
+        } catch (_) {}
+      })();
+    </script>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>
