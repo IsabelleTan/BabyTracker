@@ -111,8 +111,11 @@ export default function Home() {
     try {
       await deleteEvent(id)
       removeEvent(id)
-    } catch {
-      showToast('Delete failed — are you online?')
+    } catch (err: any) {
+      const status = err?.response?.status
+      if (status === 403) showToast("Can't delete — not your family's event")
+      else if (status === 404) showToast('Event already deleted')
+      else showToast('Delete failed — are you online?')
     }
   }
 

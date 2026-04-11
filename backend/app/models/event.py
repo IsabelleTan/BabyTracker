@@ -21,6 +21,8 @@ class Event(Base):
     timestamp: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     logged_by: Mapped[str] = mapped_column(String(36), ForeignKey("users.id"), nullable=False)
     baby_id: Mapped[str] = mapped_column(String(36), ForeignKey("babies.id"), nullable=False)
+    # Named `metadata_` (trailing underscore) to avoid shadowing SQLAlchemy's
+    # own `metadata` attribute on the declarative base. The DB column is still "metadata".
     metadata_: Mapped[Any] = mapped_column("metadata", JSON, nullable=True)
 
     author: Mapped["User"] = relationship("User", back_populates="events")  # noqa: F821
