@@ -1,10 +1,10 @@
-<svg width="120" height="120" viewBox="0 0 110 110" xmlns="http://www.w3.org/2000/svg">
+<svg width="120" height="120" viewBox="0 0 70 70" xmlns="http://www.w3.org/2000/svg">
 
   // hair
   <path d="M46 28
            c26 -12 30 24 6 20
            c-14 -2 -10 -12 6 -14"
-        fill="none" stroke="black" stroke-width="5" stroke-linecap="round" transform="scale(0.8) translate(15,10)"/>
+        fill="none" stroke="black" stroke-width="5" stroke-linecap="round" transform="scale(0.8) translate(-14,-16)"/>
 
 // left eye
   <path d="
@@ -24,7 +24,7 @@ C-66 22 -50 13 -36 7
 C-24 3 -12 1 0 0
 " 
 fill="black" stroke="black" stroke-width="5" stroke-linecap="round"
-transform="translate(62,48) scale(0.1) translate(-220,120)"/>
+transform="translate(62,48) scale(0.1) translate(-420,-120)"/>
 
   // right eye
   <path d="
@@ -44,7 +44,7 @@ C-66 22 -50 13 -36 7
 C-24 3 -12 1 0 0
 " 
 fill="black" stroke="black" stroke-width="5" stroke-linecap="round"
-transform="translate(62,48) scale(0.1) translate(50,120)"/>
+transform="translate(62,48) scale(0.1) translate(-150,-120)"/>
   
 
   // mouth
@@ -64,5 +64,5 @@ C5 87 5 81 9 76
 C16 68 24 67 40 70
 " 
 fill="black" stroke="black" stroke-width="5" stroke-linecap="round"
-transform="scale(0.1) translate(440, 720)"/>
+transform="scale(0.1) translate(240, 460)"/>
 </svg>
