@@ -13,6 +13,7 @@ import {
   getBabyVoiceContext,
   getBabyVoiceMessage,
   getNightMessage,
+  isNightHours,
   nightMessageShouldShow,
   markNightMessageShown,
   babyVoiceShouldShow,
@@ -20,6 +21,7 @@ import {
   getNewMilestone,
   getMilestoneMessage,
   markMilestoneSeen,
+  trackDailyLogging,
   type MilestoneKey,
 } from '@/lib/funMessages'
 
@@ -130,18 +132,26 @@ export default function Home() {
   const [nightCardVisible, setNightCardVisible] = useState(false)
   const [babyVoiceVisible, setBabyVoiceVisible] = useState(false)
   const [milestone, setMilestone] = useState<MilestoneKey | null>(null)
+  const isNight = isNightHours()
+
+  // Night event count for the current night session (22:00–06:00)
+  const nightEventCount = useMemo(() => events.filter((e) => {
+    const h = new Date(e.timestamp).getHours()
+    return h >= 22 || h < 6
+  }).length, [events])
 
   useEffect(() => {
-    if (nightMessageShouldShow()) {
+    if (nightMessageShouldShow(nightEventCount)) {
       setNightCardVisible(true)
       markNightMessageShown()
     }
     if (babyVoiceShouldShow()) setBabyVoiceVisible(true)
-  }, [])
+  }, [nightEventCount])
 
-  // Check for new milestones whenever events update
+  // Track daily logging streak and check milestones whenever events load
   useEffect(() => {
     if (events.length === 0) return
+    trackDailyLogging()
     const key = getNewMilestone(events)
     if (key) setMilestone(key)
   }, [events])
@@ -151,6 +161,12 @@ export default function Home() {
     const ctx = getBabyVoiceContext(events)
     return getBabyVoiceMessage(ctx)
   }, [events])
+
+  // During night hours: only night card shown; baby voice + milestone suppressed.
+  // During day: max 1 dismissable card — baby voice first, milestone only after
+  // baby voice has been dismissed for today.
+  const showBabyVoice = loaded && !isNight && babyVoiceVisible
+  const showMilestone = loaded && !isNight && !babyVoiceVisible && milestone !== null
 
   return (
     <div
@@ -230,21 +246,21 @@ export default function Home() {
 
         {loaded && <SummarySection events={events} />}
 
-        {/* Milestone — shown once ever per milestone, dismissed permanently */}
-        {milestone && (
-          <MessageCard
-            icon={Star}
-            message={getMilestoneMessage(milestone)}
-            onDismiss={() => { markMilestoneSeen(milestone); setMilestone(null) }}
-          />
-        )}
-
-        {/* Baby voice — shown once per day, dismissed per day */}
-        {loaded && babyVoiceVisible && (
+        {/* Baby voice — once per day, suppressed at night */}
+        {showBabyVoice && (
           <MessageCard
             icon={Baby}
             message={babyVoiceMsg}
             onDismiss={() => { dismissBabyVoice(); setBabyVoiceVisible(false) }}
+          />
+        )}
+
+        {/* Milestone — once ever, only shown after baby voice is dismissed, suppressed at night */}
+        {showMilestone && (
+          <MessageCard
+            icon={Star}
+            message={getMilestoneMessage(milestone!)}
+            onDismiss={() => { markMilestoneSeen(milestone!); setMilestone(null) }}
           />
         )}
 

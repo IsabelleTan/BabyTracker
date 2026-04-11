@@ -3,6 +3,9 @@ import {
   getBabyVoiceContext,
   getPartnerContext,
   getNewMilestone,
+  nightMessageShouldShow,
+  markNightMessageShown,
+  isNightHours,
 } from '@/lib/funMessages'
 import type { BabyEvent } from '@/lib/events'
 
@@ -35,8 +38,9 @@ describe('getBabyVoiceContext', () => {
   })
 
   it('returns "many_feeds" when feed count is ≥ 9', () => {
-    const events = Array.from({ length: 9 }, (_, i) => makeEvent('feed', today(6 + i)))
-    expect(getBabyVoiceContext(events)).toBe('many_feeds')
+    expect(getBabyVoiceContext(
+      Array.from({ length: 9 }, (_, i) => makeEvent('feed', today(6 + i)))
+    )).toBe('many_feeds')
   })
 
   it('returns "quiet" when there are ≤ 3 events', () => {
@@ -45,8 +49,7 @@ describe('getBabyVoiceContext', () => {
 
   it('returns "long_nap" for a completed sleep block ≥ 3 hours', () => {
     const events = [
-      makeEvent('sleep_start', today(10, 0)),
-      makeEvent('sleep_end',   today(13, 30)),
+      makeEvent('sleep_start', today(10, 0)), makeEvent('sleep_end', today(13, 30)),
       makeEvent('feed', today(8)), makeEvent('feed', today(14)),
     ]
     expect(getBabyVoiceContext(events)).toBe('long_nap')
@@ -54,8 +57,7 @@ describe('getBabyVoiceContext', () => {
 
   it('does not return "long_nap" for a sleep block under 3 hours', () => {
     const events = [
-      makeEvent('sleep_start', today(10, 0)),
-      makeEvent('sleep_end',   today(12, 59)),
+      makeEvent('sleep_start', today(10, 0)), makeEvent('sleep_end', today(12, 59)),
       makeEvent('feed', today(8)), makeEvent('feed', today(13)),
     ]
     expect(getBabyVoiceContext(events)).not.toBe('long_nap')
@@ -63,36 +65,32 @@ describe('getBabyVoiceContext', () => {
 
   it('returns "cluster" for ≥ 2 short-gap evening feeds', () => {
     const events = [
-      makeEvent('feed', today(19, 0)),
-      makeEvent('feed', today(19, 30)),
-      makeEvent('feed', today(20, 0)),
-      makeEvent('feed', today(9)),
+      makeEvent('feed', today(19, 0)), makeEvent('feed', today(19, 30)),
+      makeEvent('feed', today(20, 0)), makeEvent('feed', today(9)),
     ]
     expect(getBabyVoiceContext(events)).toBe('cluster')
   })
 
   it('does not return "cluster" when evening gaps are ≥ 45 min', () => {
     const events = [
-      makeEvent('feed', today(19, 0)),
-      makeEvent('feed', today(19, 50)),
+      makeEvent('feed', today(19, 0)), makeEvent('feed', today(19, 50)),
       makeEvent('feed', today(20, 40)),
     ]
     expect(getBabyVoiceContext(events)).not.toBe('cluster')
   })
 
   it('returns "chaotic" when there are ≥ 20 events with no other trigger', () => {
-    const events = Array.from({ length: 20 }, (_, i) =>
-      makeEvent('diaper', today(6 + Math.floor(i / 2), (i % 2) * 30)),
-    )
-    expect(getBabyVoiceContext(events)).toBe('chaotic')
+    expect(getBabyVoiceContext(
+      Array.from({ length: 20 }, (_, i) =>
+        makeEvent('diaper', today(6 + Math.floor(i / 2), (i % 2) * 30))
+      )
+    )).toBe('chaotic')
   })
 
   it('cluster takes priority over many_feeds', () => {
     const events = [
       ...Array.from({ length: 6 }, (_, i) => makeEvent('feed', today(7 + i))),
-      makeEvent('feed', today(19, 0)),
-      makeEvent('feed', today(19, 30)),
-      makeEvent('feed', today(20, 0)),
+      makeEvent('feed', today(19, 0)), makeEvent('feed', today(19, 30)), makeEvent('feed', today(20, 0)),
     ]
     expect(getBabyVoiceContext(events)).toBe('cluster')
   })
@@ -101,12 +99,10 @@ describe('getBabyVoiceContext', () => {
 // ── getPartnerContext ─────────────────────────────────────────────────────────
 
 describe('getPartnerContext', () => {
-  it('returns "both" when two users have logged roughly equally', () => {
+  it('returns "both" when two users logged roughly equally', () => {
     const events = [
-      makeEvent('feed', today(8),  'user-1'),
-      makeEvent('feed', today(10), 'user-2'),
-      makeEvent('feed', today(12), 'user-1'),
-      makeEvent('feed', today(14), 'user-2'),
+      makeEvent('feed', today(8),  'user-1'), makeEvent('feed', today(10), 'user-2'),
+      makeEvent('feed', today(12), 'user-1'), makeEvent('feed', today(14), 'user-2'),
     ]
     expect(getPartnerContext(events, 'user-1')).toBe('both')
   })
@@ -118,19 +114,17 @@ describe('getPartnerContext', () => {
 
   it('returns "solo" when current user logged ≥ 70% of events', () => {
     const events = [
-      makeEvent('feed', today(8),  'user-1'),
-      makeEvent('feed', today(10), 'user-1'),
-      makeEvent('feed', today(12), 'user-1'),
-      makeEvent('feed', today(14), 'user-2'),  // only 25% from user-2
+      makeEvent('feed', today(8),  'user-1'), makeEvent('feed', today(10), 'user-1'),
+      makeEvent('feed', today(12), 'user-1'), makeEvent('feed', today(14), 'user-2'),
     ]
     expect(getPartnerContext(events, 'user-1')).toBe('solo')
   })
 
-  it('returns "night_shift" when a user logged ≥ 2 events at night', () => {
+  it('returns "night_shift" when a user logged ≥ 2 night events', () => {
     const events = [
-      makeEvent('feed', today(23, 0),  'user-1'),
-      makeEvent('feed', today(2,  0),  'user-1'),
-      makeEvent('feed', today(10),     'user-2'),
+      makeEvent('feed', today(23, 0), 'user-1'),
+      makeEvent('feed', today(2,  0), 'user-1'),
+      makeEvent('feed', today(10),    'user-2'),
     ]
     expect(getPartnerContext(events, 'user-2')).toBe('night_shift')
   })
@@ -158,49 +152,91 @@ describe('getPartnerContext', () => {
 // ── getNewMilestone ───────────────────────────────────────────────────────────
 
 describe('getNewMilestone', () => {
-  beforeEach(() => {
-    // Clear milestone localStorage before each test
-    localStorage.clear()
-  })
+  beforeEach(() => { localStorage.clear() })
 
   it('returns null for an empty event list', () => {
     expect(getNewMilestone([])).toBeNull()
   })
 
-  it('detects sleep_5h for a ≥ 5-hour sleep block', () => {
-    const events = [
-      makeEvent('sleep_start', today(21, 0)),
-      makeEvent('sleep_end',   today(2,  30)),  // 5.5 hours
-    ]
-    // Adjust: sleep_end must be after sleep_start in ISO sort
+  it('detects sleep_5h for a ≥ 5-hour block', () => {
     const start = new Date(); start.setHours(21, 0, 0, 0)
-    const end   = new Date(); end.setHours(2, 30, 0, 0)
-    if (end < start) end.setDate(end.getDate() + 1)
-    const evs = [
-      { ...makeEvent('sleep_start', start.toISOString()), },
-      { ...makeEvent('sleep_end',   end.toISOString()),   },
-    ]
-    expect(getNewMilestone(evs)).toBe('sleep_5h')
-  })
-
-  it('detects sleep_8h for a ≥ 8-hour sleep block (takes priority over sleep_5h)', () => {
-    const start = new Date(); start.setHours(21, 0, 0, 0)
-    const end   = new Date(start.getTime() + 8.5 * 60 * 60 * 1000)
-    const evs = [
+    const end = new Date(start.getTime() + 5.5 * 3_600_000)
+    expect(getNewMilestone([
       makeEvent('sleep_start', start.toISOString()),
       makeEvent('sleep_end',   end.toISOString()),
+    ])).toBe('sleep_5h')
+  })
+
+  it('detects sleep_8h (priority over sleep_5h) for a ≥ 8-hour block', () => {
+    const start = new Date(); start.setHours(21, 0, 0, 0)
+    const end = new Date(start.getTime() + 8.5 * 3_600_000)
+    expect(getNewMilestone([
+      makeEvent('sleep_start', start.toISOString()),
+      makeEvent('sleep_end',   end.toISOString()),
+    ])).toBe('sleep_8h')
+  })
+
+  it('detects feeds_8 for ≥ 8 feeds', () => {
+    expect(getNewMilestone(
+      Array.from({ length: 8 }, (_, i) => makeEvent('feed', today(6 + i)))
+    )).toBe('feeds_8')
+  })
+
+  it('detects feeds_12 (priority over feeds_8) for ≥ 12 feeds', () => {
+    expect(getNewMilestone(
+      Array.from({ length: 12 }, (_, i) => makeEvent('feed', today(6 + i)))
+    )).toBe('feeds_12')
+  })
+
+  it('detects all_event_types when all three types are present', () => {
+    expect(getNewMilestone([
+      makeEvent('feed',        today(8)),
+      makeEvent('sleep_start', today(9)),
+      makeEvent('diaper',      today(10)),
+    ])).toBe('all_event_types')
+  })
+
+  it('detects night_survived for an event between 02:00–04:00', () => {
+    expect(getNewMilestone([makeEvent('feed', today(3, 0))])).toBe('night_survived')
+  })
+
+  it('detects cluster_first when there is an evening cluster', () => {
+    const events = [
+      makeEvent('feed', today(19, 0)), makeEvent('feed', today(19, 30)),
+      makeEvent('feed', today(20, 0)),
     ]
-    expect(getNewMilestone(evs)).toBe('sleep_8h')
+    expect(getNewMilestone(events)).toBe('cluster_first')
   })
 
-  it('detects feeds_8 when there are ≥ 8 feeds', () => {
-    const events = Array.from({ length: 8 }, (_, i) => makeEvent('feed', today(6 + i)))
-    expect(getNewMilestone(events)).toBe('feeds_8')
+  it('detects both_partners_first when two users have logged', () => {
+    expect(getNewMilestone([
+      makeEvent('feed', today(8), 'user-1'),
+      makeEvent('feed', today(9), 'user-2'),
+    ])).toBe('both_partners_first')
   })
 
-  it('returns null once the milestone has been marked seen', () => {
+  it('returns null once a milestone has been marked seen', () => {
     localStorage.setItem('milestone_feeds_8', 'true')
-    const events = Array.from({ length: 8 }, (_, i) => makeEvent('feed', today(6 + i)))
-    expect(getNewMilestone(events)).toBeNull()
+    expect(getNewMilestone(
+      Array.from({ length: 8 }, (_, i) => makeEvent('feed', today(6 + i)))
+    )).toBeNull()
+  })
+})
+
+// ── nightMessageShouldShow ────────────────────────────────────────────────────
+
+describe('nightMessageShouldShow', () => {
+  beforeEach(() => { localStorage.clear() })
+
+  it('returns false during day hours regardless of event count', () => {
+    // This test only makes sense if it actually runs during day hours.
+    // We guard with isNightHours() to avoid false failures on night CI runs.
+    if (isNightHours()) return
+    expect(nightMessageShouldShow(5)).toBe(false)
+  })
+
+  it('returns false once already shown this night session', () => {
+    markNightMessageShown()
+    expect(nightMessageShouldShow(5)).toBe(false)
   })
 })

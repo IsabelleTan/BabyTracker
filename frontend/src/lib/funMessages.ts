@@ -13,7 +13,6 @@ const NIGHT_MESSAGES = [
   "Rest will come. For now, you've got this.",
 ]
 
-// Partner messages by context
 const PARTNER_MESSAGES_BOTH = [
   "You both showed up today — nice teamwork.",
   "Two parents, one team. Baby is lucky.",
@@ -73,13 +72,27 @@ const BABY_VOICE_MESSAGES: Record<BabyVoiceContext, string[]> = {
   ],
 }
 
-// Milestone messages — shown once ever per milestone key
 const MILESTONE_MESSAGES: Record<MilestoneKey, string> = {
-  sleep_5h:    "First 5-hour sleep stretch logged. That's a real milestone.",
-  feeds_8:     "8 feeds in a day — you're keeping up a great rhythm.",
-  days_7:      "7 days of logging. You're building something really useful here.",
-  sleep_8h:    "First 8-hour sleep stretch. Sleep is consolidating.",
-  poop_streak: "Diaper tracking every day this week — nothing gets past you.",
+  // Sleep
+  sleep_5h:          "First 5-hour sleep stretch logged. That's a real milestone.",
+  sleep_8h:          "First 8-hour sleep stretch. Sleep is consolidating — keep going.",
+  nap_2h:            "First 2-hour nap logged. They really went for it.",
+  sleep_total_14h:   "14 hours of sleep today. A restful one.",
+  // Feeds
+  feeds_8:           "8 feeds in a day — you're keeping up a great rhythm.",
+  feeds_12:          "12 feeds today. That's an intense day. You handled it.",
+  // Diapers
+  diaper_8:          "8 diapers in a day. Thorough logging, thorough parenting.",
+  // Events / variety
+  all_event_types:   "Feeds, sleep, and diapers all logged today — the full picture.",
+  // Time of day
+  night_survived:    "You were up at 3am and logged it. That level of dedication is something.",
+  cluster_first:     "First cluster feeding logged. It's a lot — and it's completely normal.",
+  // Teamwork
+  both_partners_first: "First day with both of you in the log. Teamwork from day one.",
+  // Consistency
+  logging_days_7:    "7 days of logging. You're building something genuinely useful.",
+  logging_days_30:   "30 days of logging. A month in. You're really doing this.",
 }
 
 // ── types ─────────────────────────────────────────────────────────────────────
@@ -88,14 +101,28 @@ export type BabyVoiceContext = 'many_feeds' | 'long_nap' | 'cluster' | 'chaotic'
 
 export type PartnerContext = 'both' | 'solo' | 'night_shift' | 'poop_duty'
 
-export type MilestoneKey = 'sleep_5h' | 'feeds_8' | 'days_7' | 'sleep_8h' | 'poop_streak'
+export type MilestoneKey =
+  | 'sleep_5h' | 'sleep_8h' | 'nap_2h' | 'sleep_total_14h'
+  | 'feeds_8' | 'feeds_12'
+  | 'diaper_8'
+  | 'all_event_types'
+  | 'night_survived' | 'cluster_first'
+  | 'both_partners_first'
+  | 'logging_days_7' | 'logging_days_30'
 
 export interface PartnerMessageResult {
   context: PartnerContext
   message: string
 }
 
-// ── context detection ─────────────────────────────────────────────────────────
+// ── night-hour check ──────────────────────────────────────────────────────────
+
+export function isNightHours(): boolean {
+  const h = new Date().getHours()
+  return h >= 22 || h < 6
+}
+
+// ── baby voice context detection ──────────────────────────────────────────────
 
 export function getBabyVoiceContext(events: BabyEvent[]): BabyVoiceContext {
   const feeds = events.filter((e) => e.type === 'feed')
@@ -108,8 +135,7 @@ export function getBabyVoiceContext(events: BabyEvent[]): BabyVoiceContext {
   for (let i = 1; i < eveningFeeds.length; i++) {
     const gapMin =
       (new Date(eveningFeeds[i].timestamp).getTime() -
-        new Date(eveningFeeds[i - 1].timestamp).getTime()) /
-      60_000
+        new Date(eveningFeeds[i - 1].timestamp).getTime()) / 60_000
     if (gapMin < 45) shortGaps++
   }
   if (shortGaps >= 2) return 'cluster'
@@ -135,11 +161,10 @@ export function getBabyVoiceContext(events: BabyEvent[]): BabyVoiceContext {
   return 'normal'
 }
 
-/** Returns the partner message context based on today's event distribution. */
-export function getPartnerContext(events: BabyEvent[], currentUserId: string): PartnerContext {
-  const users = new Set(events.map((e) => e.logged_by))
+// ── partner context detection ─────────────────────────────────────────────────
 
-  // Poop duty: one user logged ≥ 3 dirty/both diapers
+export function getPartnerContext(events: BabyEvent[], currentUserId: string): PartnerContext {
+  // Poop duty: any user logged ≥ 3 dirty/both diapers
   const poopByUser = new Map<string, number>()
   for (const e of events) {
     if (e.type === 'diaper') {
@@ -152,16 +177,17 @@ export function getPartnerContext(events: BabyEvent[], currentUserId: string): P
   if ([...poopByUser.values()].some((n) => n >= 3)) return 'poop_duty'
 
   // Night shift: any user logged ≥ 2 events between 22:00–06:00
-  const nightEventsByUser = new Map<string, number>()
+  const nightByUser = new Map<string, number>()
   for (const e of events) {
     const h = new Date(e.timestamp).getHours()
     if (h >= 22 || h < 6) {
-      nightEventsByUser.set(e.logged_by, (nightEventsByUser.get(e.logged_by) ?? 0) + 1)
+      nightByUser.set(e.logged_by, (nightByUser.get(e.logged_by) ?? 0) + 1)
     }
   }
-  if ([...nightEventsByUser.values()].some((n) => n >= 2)) return 'night_shift'
+  if ([...nightByUser.values()].some((n) => n >= 2)) return 'night_shift'
 
-  // Solo: only one user, or one user logged ≥ 70% of events
+  // Solo: only one user, or current user logged ≥ 70% of events
+  const users = new Set(events.map((e) => e.logged_by))
   if (users.size === 1) return 'solo'
   const myCount = events.filter((e) => e.logged_by === currentUserId).length
   if (events.length > 0 && myCount / events.length >= 0.7) return 'solo'
@@ -169,7 +195,6 @@ export function getPartnerContext(events: BabyEvent[], currentUserId: string): P
   return 'both'
 }
 
-/** Returns null if no partner message should be shown (no events). */
 export function getPartnerMessage(
   events: BabyEvent[],
   currentUserId: string,
@@ -187,36 +212,104 @@ export function getPartnerMessage(
 
 // ── milestone detection ───────────────────────────────────────────────────────
 
+/** Increment the total-days-logged counter, once per calendar day. */
+export function trackDailyLogging(): void {
+  const key = 'logging_total_days'
+  const lastKey = 'logging_last_day'
+  const today = new Date().toISOString().slice(0, 10)
+  if (localStorage.getItem(lastKey) === today) return
+  const current = parseInt(localStorage.getItem(key) ?? '0', 10)
+  localStorage.setItem(key, String(current + 1))
+  localStorage.setItem(lastKey, today)
+}
+
+function totalDaysLogged(): number {
+  return parseInt(localStorage.getItem('logging_total_days') ?? '0', 10)
+}
+
 /** Returns the first milestone unlocked today that hasn't been shown before, or null. */
 export function getNewMilestone(events: BabyEvent[]): MilestoneKey | null {
+  const unseen = (key: MilestoneKey) =>
+    localStorage.getItem(`milestone_${key}`) !== 'true'
+
   const candidates: MilestoneKey[] = []
 
-  // sleep_5h / sleep_8h: longest completed sleep block
+  // ── sleep ──────────────────────────────────────────────────────────────────
   const sleepSorted = events
     .filter((e) => e.type === 'sleep_start' || e.type === 'sleep_end')
     .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+
   let openStart: Date | null = null
-  let longestSleepMin = 0
+  let longestStretchMin = 0
+  let longestDaytimeMin = 0
+  let totalSleepMin = 0
+
   for (const e of sleepSorted) {
     if (e.type === 'sleep_start') {
       openStart = new Date(e.timestamp)
     } else if (e.type === 'sleep_end' && openStart) {
       const durMin = (new Date(e.timestamp).getTime() - openStart.getTime()) / 60_000
-      if (durMin > longestSleepMin) longestSleepMin = durMin
+      totalSleepMin += durMin
+      if (durMin > longestStretchMin) longestStretchMin = durMin
+      const startHour = openStart.getHours()
+      if (startHour >= 6 && startHour < 20 && durMin > longestDaytimeMin) {
+        longestDaytimeMin = durMin
+      }
       openStart = null
     }
   }
-  if (longestSleepMin >= 480) candidates.push('sleep_8h')
-  else if (longestSleepMin >= 300) candidates.push('sleep_5h')
 
-  // feeds_8: ≥ 8 feeds logged today
-  if (events.filter((e) => e.type === 'feed').length >= 8) candidates.push('feeds_8')
+  if (longestStretchMin >= 480 && unseen('sleep_8h'))        candidates.push('sleep_8h')
+  else if (longestStretchMin >= 300 && unseen('sleep_5h'))   candidates.push('sleep_5h')
+  if (longestDaytimeMin >= 120 && unseen('nap_2h'))          candidates.push('nap_2h')
+  if (totalSleepMin >= 840 && unseen('sleep_total_14h'))     candidates.push('sleep_total_14h')
 
-  // Return the first candidate not yet shown
-  for (const key of candidates) {
-    if (localStorage.getItem(`milestone_${key}`) !== 'true') return key
+  // ── feeds ──────────────────────────────────────────────────────────────────
+  const feedCount = events.filter((e) => e.type === 'feed').length
+  if (feedCount >= 12 && unseen('feeds_12'))  candidates.push('feeds_12')
+  else if (feedCount >= 8 && unseen('feeds_8')) candidates.push('feeds_8')
+
+  // ── diapers ────────────────────────────────────────────────────────────────
+  if (events.filter((e) => e.type === 'diaper').length >= 8 && unseen('diaper_8'))
+    candidates.push('diaper_8')
+
+  // ── variety ────────────────────────────────────────────────────────────────
+  const types = new Set(events.map((e) => e.type))
+  if (
+    types.has('feed') && types.has('sleep_start') && types.has('diaper') &&
+    unseen('all_event_types')
+  ) candidates.push('all_event_types')
+
+  // ── time of day ────────────────────────────────────────────────────────────
+  const hasDeepNight = events.some((e) => {
+    const h = new Date(e.timestamp).getHours()
+    return h >= 2 && h < 4
+  })
+  if (hasDeepNight && unseen('night_survived')) candidates.push('night_survived')
+
+  // Cluster: ≥2 short evening feed gaps (same logic as getBabyVoiceContext)
+  const eveningFeeds = events
+    .filter((e) => e.type === 'feed')
+    .filter((e) => { const h = new Date(e.timestamp).getHours(); return h >= 17 && h < 23 })
+    .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
+  let shortGaps = 0
+  for (let i = 1; i < eveningFeeds.length; i++) {
+    const gap = (new Date(eveningFeeds[i].timestamp).getTime() -
+      new Date(eveningFeeds[i - 1].timestamp).getTime()) / 60_000
+    if (gap < 45) shortGaps++
   }
-  return null
+  if (shortGaps >= 2 && unseen('cluster_first')) candidates.push('cluster_first')
+
+  // ── teamwork ───────────────────────────────────────────────────────────────
+  if (new Set(events.map((e) => e.logged_by)).size >= 2 && unseen('both_partners_first'))
+    candidates.push('both_partners_first')
+
+  // ── consistency (localStorage-tracked) ────────────────────────────────────
+  const days = totalDaysLogged()
+  if (days >= 30 && unseen('logging_days_30'))     candidates.push('logging_days_30')
+  else if (days >= 7 && unseen('logging_days_7'))  candidates.push('logging_days_7')
+
+  return candidates[0] ?? null
 }
 
 export function getMilestoneMessage(key: MilestoneKey): string {
@@ -227,12 +320,11 @@ export function markMilestoneSeen(key: MilestoneKey): void {
   localStorage.setItem(`milestone_${key}`, 'true')
 }
 
-// ── day-seeded message rotation ───────────────────────────────────────────────
+// ── day-seeded rotation ───────────────────────────────────────────────────────
 
 function dayOfYear(): number {
   const now = new Date()
-  const start = new Date(now.getFullYear(), 0, 0)
-  return Math.floor((now.getTime() - start.getTime()) / 86_400_000)
+  return Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86_400_000)
 }
 
 function pickByDay<T>(bank: T[]): T {
@@ -247,39 +339,47 @@ export function getNightMessage(): string {
   return pickByDay(NIGHT_MESSAGES)
 }
 
-// ── night-hour check ──────────────────────────────────────────────────────────
-
-export function isNightHours(): boolean {
-  const h = new Date().getHours()
-  return h >= 22 || h < 6
-}
-
-// ── localStorage suppression ──────────────────────────────────────────────────
+// ── localStorage helpers ──────────────────────────────────────────────────────
 
 function todayDate(): string {
   return new Date().toISOString().slice(0, 10)
 }
 
+// Night session spans 22:00–05:59. Key it to the evening date (before 6am = yesterday).
 function nightSessionDate(): string {
   const now = new Date()
   if (now.getHours() < 6) {
-    const yesterday = new Date(now)
-    yesterday.setDate(yesterday.getDate() - 1)
-    return yesterday.toISOString().slice(0, 10)
+    const d = new Date(now)
+    d.setDate(d.getDate() - 1)
+    return d.toISOString().slice(0, 10)
   }
   return now.toISOString().slice(0, 10)
+}
+
+function nightsSinceLastShown(): number {
+  const last = localStorage.getItem('night_msg_last_shown')
+  if (!last) return 999
+  return Math.floor((Date.now() - new Date(last).getTime()) / 86_400_000)
 }
 
 const NIGHT_SHOWN_KEY = 'night_msg_shown'
 const BABY_VOICE_KEY  = 'baby_voice_dismissed'
 
-export function nightMessageShouldShow(): boolean {
-  return isNightHours() &&
-    localStorage.getItem(`${NIGHT_SHOWN_KEY}_${nightSessionDate()}`) !== 'true'
+// ── show-condition exports ────────────────────────────────────────────────────
+
+/**
+ * Night encouragement is selective: only shown on rough nights (≥3 night-hour
+ * events logged) or after a gap of ≥3 nights since it last appeared.
+ */
+export function nightMessageShouldShow(nightEventCount: number): boolean {
+  if (!isNightHours()) return false
+  if (localStorage.getItem(`${NIGHT_SHOWN_KEY}_${nightSessionDate()}`) === 'true') return false
+  return nightEventCount >= 3 || nightsSinceLastShown() >= 3
 }
 
 export function markNightMessageShown(): void {
   localStorage.setItem(`${NIGHT_SHOWN_KEY}_${nightSessionDate()}`, 'true')
+  localStorage.setItem('night_msg_last_shown', new Date().toISOString().slice(0, 10))
 }
 
 export function babyVoiceShouldShow(): boolean {
