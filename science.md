@@ -135,11 +135,19 @@ The algorithm uses a greedy forward scan: it starts at each feed and extends the
 
 ### What the app shows
 
-When a cluster is detected, a dismissable information chip appears above the most recent clustered feed in today's timeline:
+When a cluster is detected, an information chip appears above the most recent clustered feed in today's timeline:
 
-> *Frequent short feeds in the evening are completely normal — baby is topping up before a longer sleep stretch.*
+> **Cluster feeding**
+> Short feeds bunched together in the evening are completely normal — baby is topping up before a longer sleep stretch. This usually lasts 1–2 hours.
+> *[Don't show again]* &nbsp;&nbsp; ✕
 
-The chip is intentionally minimal and calm. No warning colours. No alert language. It is there to name what is happening and provide context before the parent reaches for their phone to search "cluster feeding normal?"
+**Design decisions:**
+
+- **Named explicitly.** The term "cluster feeding" is used so parents can search for it and find more information. Naming the phenomenon is more reassuring than a vague description.
+- **Duration expectation set.** "Usually lasts 1–2 hours" gives parents a realistic end-point rather than leaving it open-ended.
+- **No warning colours.** The chip uses a soft blue-tinted background, not amber or red. Cluster feeding is normal; the visual language reflects that.
+- **Smart suppression.** The chip is shown on the first three calendar days a cluster is detected, then automatically suppressed. By day 3, the parent has seen the explanation and knows what it is — continuing to show it daily would be patronising and would train parents to ignore all notifications. A "Don't show again" button skips straight to permanent suppression for parents who get it the first time.
+- **Session dismiss (✕) vs. permanent dismiss.** Tapping ✕ hides the chip until the next app load. "Don't show again" permanently suppresses it via `localStorage`.
 
 The chip is also suppressed from the **feed prediction model**: cluster intervals are excluded when calculating the estimated next feed, so a burst of 40-minute intervals does not make the app predict the next feed in 40 minutes. See [Section 3](#3-smarter-feed-prediction-ema) for details on how this works.
 

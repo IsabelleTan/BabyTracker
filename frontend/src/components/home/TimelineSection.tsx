@@ -1,4 +1,4 @@
-import { useState, useRef, useMemo } from 'react'
+import { useState, useRef, useMemo, useEffect } from 'react'
 import { Milk, Moon, Sun, Droplets, Trash2, Info, type LucideIcon } from 'lucide-react'
 import {
   AlertDialog,
@@ -33,6 +33,36 @@ interface Props {
   events: BabyEvent[]
   onDeleted: (id: string) => Promise<void>
 }
+
+// ── cluster chip persistence ─────────────────────────────────────────────────
+// Track distinct calendar days the chip has been shown. After CLUSTER_MAX_DAYS
+// the chip is silently suppressed — the parent already knows what it is.
+// "Don't show again" skips straight to permanent suppression.
+
+const CLUSTER_DAYS_KEY      = 'cluster_chip_days_shown'   // JSON string[]
+const CLUSTER_FOREVER_KEY   = 'cluster_chip_dismissed'     // 'true'
+const CLUSTER_MAX_DAYS      = 3
+
+function clusterChipVisible(): boolean {
+  if (localStorage.getItem(CLUSTER_FOREVER_KEY) === 'true') return false
+  const days: string[] = JSON.parse(localStorage.getItem(CLUSTER_DAYS_KEY) ?? '[]')
+  return days.length < CLUSTER_MAX_DAYS
+}
+
+/** Record today as a day the chip was shown (idempotent within a day). */
+function markChipShownToday(): void {
+  const today = new Date().toISOString().slice(0, 10)
+  const days: string[] = JSON.parse(localStorage.getItem(CLUSTER_DAYS_KEY) ?? '[]')
+  if (!days.includes(today)) {
+    localStorage.setItem(CLUSTER_DAYS_KEY, JSON.stringify([...days, today]))
+  }
+}
+
+function dismissChipForever(): void {
+  localStorage.setItem(CLUSTER_FOREVER_KEY, 'true')
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 
 export default function TimelineSection({ events, onDeleted }: Props) {
   const [pendingDelete, setPendingDelete] = useState<BabyEvent | null>(null)
@@ -76,8 +106,12 @@ export default function TimelineSection({ events, onDeleted }: Props) {
           <div className="rounded-xl border border-primary/35 overflow-hidden">
             {sorted.map((event, i) => (
               <div key={event.id}>
-                {clusterFirstId === event.id && !clusterDismissed && (
-                  <ClusterChip onDismiss={() => setClusterDismissed(true)} />
+                {clusterFirstId === event.id && !clusterDismissed && clusterChipVisible() && (
+                  <ClusterChip
+                    onShow={markChipShownToday}
+                    onDismiss={() => setClusterDismissed(true)}
+                    onDismissForever={() => { dismissChipForever(); setClusterDismissed(true) }}
+                  />
                 )}
                 <TimelineRow
                   event={event}
@@ -115,15 +149,32 @@ export default function TimelineSection({ events, onDeleted }: Props) {
   )
 }
 
-function ClusterChip({ onDismiss }: { onDismiss: () => void }) {
+function ClusterChip({
+  onShow,
+  onDismiss,
+  onDismissForever,
+}: {
+  onShow: () => void
+  onDismiss: () => void
+  onDismissForever: () => void
+}) {
+  // Record that this chip was shown today, once per mount
+  useEffect(() => { onShow() }, [])
+
   return (
     <div className="flex items-start gap-2 px-4 py-2.5 bg-primary/5 border-b border-primary/20">
       <Info className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
       <div className="flex-1 min-w-0">
         <p className="text-xs text-foreground font-medium">Cluster feeding</p>
         <p className="text-xs text-muted-foreground">
-          Frequent short feeds in the evening are completely normal — baby is topping up before a longer sleep stretch.
+          Short feeds bunched together in the evening are completely normal — baby is topping up before a longer sleep stretch. This usually lasts 1–2 hours.
         </p>
+        <button
+          onClick={onDismissForever}
+          className="text-xs text-muted-foreground/70 hover:text-muted-foreground mt-1 leading-none"
+        >
+          Don't show again
+        </button>
       </div>
       <button
         onClick={onDismiss}
