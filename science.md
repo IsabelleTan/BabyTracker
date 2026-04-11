@@ -56,17 +56,17 @@ The diagram below shows a typical day. Daytime feeds are spaced 2–3 hours apar
 timeline
     title A typical day with evening cluster feeding
     section Daytime feeds
-        07:00 : Feed
-        09:15 : Feed
-        11:30 : Feed
-        14:00 : Feed
-        16:30 : Feed
+        07h00 : Feed
+        09h15 : Feed
+        11h30 : Feed
+        14h00 : Feed
+        16h30 : Feed
     section Evening cluster
-        19:00 : Feed
-        19:45 : Feed
-        20:25 : Feed
+        19h00 : Feed
+        19h45 : Feed
+        20h25 : Feed
     section Night
-        21:00 : Sleep stretch
+        21h00 : Sleep stretch
 ```
 
 ---
