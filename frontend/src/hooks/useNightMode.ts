@@ -45,7 +45,7 @@ export function useNightMode(): { night: boolean; toggle: () => void } {
   const toggle = useCallback(() => {
     setOverride((prev) => {
       const next = !(prev ?? auto)
-      localStorage.setItem(OVERRIDE_KEY, String(next))
+      try { localStorage.setItem(OVERRIDE_KEY, String(next)) } catch { /* quota exceeded */ }
       return next
     })
   }, [auto])
