@@ -36,6 +36,17 @@ export default function Leaderboards() {
     return <p className="text-sm text-destructive text-center py-16">Failed to load leaderboards</p>
   }
 
+  if (!data.has_enough_data) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 py-20 text-center px-6">
+        <Trophy className="w-10 h-10 text-primary/40" />
+        <p className="text-sm text-muted-foreground">
+          Leaderboards unlock after 7 days of tracking — check back soon!
+        </p>
+      </div>
+    )
+  }
+
   const notifications = buildNotifications(data)
 
   return (
@@ -173,14 +184,9 @@ function AwardsSection({ data }: { data: LeaderboardData }) {
       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
         Awards
       </h2>
-      {!data.has_enough_data && (
-        <p className="text-xs text-muted-foreground px-1">
-          Awards are unlocked after 7 days of tracking — check back soon!
-        </p>
-      )}
       <div className="flex flex-col gap-3">
         {awards.map((award) => (
-          <AwardCard key={award.title} award={award} parents={data.parents} showWinner={data.has_enough_data} />
+          <AwardCard key={award.title} award={award} parents={data.parents} />
         ))}
       </div>
     </section>
@@ -190,11 +196,9 @@ function AwardsSection({ data }: { data: LeaderboardData }) {
 function AwardCard({
   award,
   parents,
-  showWinner,
 }: {
   award: Award
   parents: ParentStat[]
-  showWinner: boolean
 }) {
   const values = parents.map((p) => award.getValue(p))
   const winnerIdx = values.indexOf(Math.max(...values))
@@ -217,7 +221,7 @@ function AwardCard({
       </div>
       <div className="flex gap-3">
         {parents.map((p, i) => {
-          const isWinner = showWinner && i === winnerIdx
+          const isWinner = i === winnerIdx
           return (
             <div
               key={p.display_name}
