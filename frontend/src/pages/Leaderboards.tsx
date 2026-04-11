@@ -186,7 +186,7 @@ function AwardsSection({ data }: { data: LeaderboardData }) {
       </h2>
       <div className="flex flex-col gap-3">
         {awards.map((award) => (
-          <AwardCard key={award.title} award={award} parents={data.parents} showWinner={true} />
+          <AwardCard key={award.title} award={award} parents={data.parents} />
         ))}
       </div>
     </section>
@@ -196,11 +196,9 @@ function AwardsSection({ data }: { data: LeaderboardData }) {
 function AwardCard({
   award,
   parents,
-  showWinner,
 }: {
   award: Award
   parents: ParentStat[]
-  showWinner: boolean
 }) {
   const values = parents.map((p) => award.getValue(p))
   const winnerIdx = values.indexOf(Math.max(...values))
@@ -223,7 +221,7 @@ function AwardCard({
       </div>
       <div className="flex gap-3">
         {parents.map((p, i) => {
-          const isWinner = showWinner && i === winnerIdx
+          const isWinner = i === winnerIdx
           return (
             <div
               key={p.display_name}
