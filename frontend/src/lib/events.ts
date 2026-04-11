@@ -45,6 +45,18 @@ export async function getTodayEvents(): Promise<BabyEvent[]> {
   return data
 }
 
+/** Events from the current night session: 21:00 tonight (or yesterday if before 07:00) to now. */
+export async function getNightSessionEvents(): Promise<BabyEvent[]> {
+  const now = new Date()
+  const sessionStart = new Date(now)
+  if (now.getHours() < 7) sessionStart.setDate(sessionStart.getDate() - 1)
+  sessionStart.setHours(21, 0, 0, 0)
+  const { data } = await api.get<BabyEvent[]>('/events', {
+    params: { from_: sessionStart.toISOString(), to: now.toISOString() },
+  })
+  return data
+}
+
 /** Format a Date to the value expected by <input type="datetime-local"> */
 export function toDateTimeLocal(date: Date): string {
   const offset = date.getTimezoneOffset()

@@ -1,14 +1,32 @@
-import { useState, useRef, useMemo } from 'react'
-import { Milk, Moon, Sun, Droplets, type LucideIcon } from 'lucide-react'
+import { useState, useRef, useMemo, useEffect } from 'react'
+import { Milk, Moon, Sun, Droplets, Baby, Star, LogOut, type LucideIcon } from 'lucide-react'
 import NightToggle from '@/components/NightToggle'
 import EventSheet from '@/components/home/EventSheet'
 import SummarySection from '@/components/home/SummarySection'
 import TimelineSection from '@/components/home/TimelineSection'
 import { useSync } from '@/hooks/useSync'
+import { logout } from '@/lib/auth'
 import { useTick, useTimeSince } from '@/hooks/useTimeSince'
 import { deleteEvent, type EventType, type BabyEvent } from '@/lib/events'
 import { generateId } from '@/lib/uuid'
 import { formatTime as fmt, formatAgo as ago, formatUntil as until, formatDuration as duration } from '@/lib/time'
+import {
+  getBabyVoiceContext,
+  getBabyVoiceMessage,
+  getNightMessage,
+  isNightHours,
+  nightMessageShouldShow,
+  markNightMessageShown,
+  babyVoiceShouldShow,
+  dismissBabyVoice,
+  getNewMilestone,
+  getMilestoneMessage,
+  markMilestoneSeen,
+  milestoneAllowedToday,
+  recordMilestoneShownToday,
+  trackDailyLogging,
+  type MilestoneKey,
+} from '@/lib/funMessages'
 
 const PULL_THRESHOLD = 72
 
@@ -28,7 +46,7 @@ function nextFeedEstimate(lastFeeds: BabyEvent[]): Date | null {
 // ── component ────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const { events, lastFeeds, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent } =
+  const { events, lastFeeds, nightSessionEvents, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent } =
     useSync()
   const [sheetType, setSheetType] = useState<EventType | null>(null)
   const [toast, setToast] = useState<string | null>(null)
@@ -113,6 +131,55 @@ export default function Home() {
   const isSleeping = sleepStatus?.sleeping ?? false
   const loaded = lastSynced !== null || events.length > 0
 
+  // ── fun message cards ─────────────────────────────────────────────────────
+  const [nightCardVisible, setNightCardVisible] = useState(false)
+  const [babyVoiceVisible, setBabyVoiceVisible] = useState(false)
+  const [milestone, setMilestone] = useState<MilestoneKey | null>(null)
+  const isNight = isNightHours()
+
+  // Night event count spans the full 22:00–06:00 session (includes pre-midnight events)
+  const nightEventCount = nightSessionEvents.length
+
+  // Night card: reactive to new night events
+  useEffect(() => {
+    if (!nightMessageShouldShow(nightEventCount)) return
+    setNightCardVisible(true)
+    markNightMessageShown()
+  }, [nightEventCount])
+
+  // Baby voice: fire once on first data load
+  const babyVoiceInitDone = useRef(false)
+  useEffect(() => {
+    if (events.length === 0 || babyVoiceInitDone.current) return
+    babyVoiceInitDone.current = true
+    if (babyVoiceShouldShow()) setBabyVoiceVisible(true)
+  }, [events])
+
+  // Milestones: per-day gate prevents flooding on repeated syncs
+  useEffect(() => {
+    if (events.length === 0) return
+    trackDailyLogging()
+    if (milestoneAllowedToday()) {
+      const key = getNewMilestone(events)
+      if (key) {
+        setMilestone(key)
+        recordMilestoneShownToday()
+      }
+    }
+  }, [events])
+
+  const nightMsg = useMemo(() => getNightMessage(), [])
+  const babyVoiceMsg = useMemo(() => {
+    const ctx = getBabyVoiceContext(events)
+    return getBabyVoiceMessage(ctx)
+  }, [events])
+
+  // During night hours: only night card shown; baby voice + milestone suppressed.
+  // During day: max 1 dismissable card — baby voice first, milestone only after
+  // baby voice has been dismissed for today.
+  const showBabyVoice = loaded && !isNight && babyVoiceVisible
+  const showMilestone = loaded && !isNight && !babyVoiceVisible && milestone !== null
+
   return (
     <div
       className="flex flex-col min-h-[calc(100svh-4rem)]"
@@ -139,6 +206,15 @@ export default function Home() {
 
       <div className="flex flex-col gap-6 p-4">
         <TopBar pendingCount={pendingCount} lastSynced={lastSynced} isRefreshing={isRefreshing} />
+
+        {/* Night encouragement — shown once per night session */}
+        {nightCardVisible && (
+          <MessageCard
+            icon={Moon}
+            message={nightMsg}
+            onDismiss={() => setNightCardVisible(false)}
+          />
+        )}
 
         {/* Action cards — break out of container padding for max width */}
         <div className="-mx-4 px-2 grid grid-cols-3 gap-2">
@@ -181,6 +257,25 @@ export default function Home() {
         </div>
 
         {loaded && <SummarySection events={events} />}
+
+        {/* Baby voice — once per day, suppressed at night */}
+        {showBabyVoice && (
+          <MessageCard
+            icon={Baby}
+            message={babyVoiceMsg}
+            onDismiss={() => { dismissBabyVoice(); setBabyVoiceVisible(false) }}
+          />
+        )}
+
+        {/* Milestone — once ever, only shown after baby voice is dismissed, suppressed at night */}
+        {showMilestone && (
+          <MessageCard
+            icon={Star}
+            message={getMilestoneMessage(milestone!)}
+            onDismiss={() => { markMilestoneSeen(milestone!); setMilestone(null) }}
+          />
+        )}
+
         {loaded && <TimelineSection events={events} onDeleted={handleDeleted} />}
       </div>
 
@@ -246,6 +341,30 @@ function ActionCard({
 }
 
 
+function MessageCard({
+  icon: Icon,
+  message,
+  onDismiss,
+}: {
+  icon: LucideIcon
+  message: string
+  onDismiss: () => void
+}) {
+  return (
+    <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
+      <Icon className="w-4 h-4 text-primary shrink-0 mt-0.5" />
+      <p className="flex-1 text-sm text-foreground">{message}</p>
+      <button
+        onClick={onDismiss}
+        className="text-muted-foreground hover:text-foreground text-xs shrink-0 leading-none pt-0.5"
+        aria-label="Dismiss"
+      >
+        ✕
+      </button>
+    </div>
+  )
+}
+
 function TopBar({
   pendingCount,
   lastSynced,
@@ -265,7 +384,16 @@ function TopBar({
   return (
     <div className="flex items-center justify-between -mb-2">
       <span className={`text-xs ${syncText?.className ?? ''}`}>{syncText?.text ?? ''}</span>
-      <NightToggle />
+      <div className="flex items-center gap-2">
+        <button
+          onClick={() => { logout(); window.location.reload() }}
+          aria-label="Log out"
+          className="text-muted-foreground hover:text-foreground"
+        >
+          <LogOut className="w-4 h-4" />
+        </button>
+        <NightToggle />
+      </div>
     </div>
   )
 }

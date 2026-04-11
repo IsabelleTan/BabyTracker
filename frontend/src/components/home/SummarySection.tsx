@@ -1,8 +1,16 @@
-import { useMemo, useEffect, useState } from 'react'
-import { Milk, Moon, Droplets, Sparkles, type LucideIcon } from 'lucide-react'
+import { useMemo, useEffect, useRef, useState } from 'react'
+import { Milk, Moon, Droplets, Sparkles, Users, type LucideIcon } from 'lucide-react'
 import { formatDuration } from '@/hooks/useTimeSince'
 import type { BabyEvent } from '@/lib/events'
+import { getUser } from '@/lib/auth'
 import { getLeaderboards, buildNotifications } from '@/lib/leaderboards'
+import {
+  getPartnerMessage,
+  partnerMessageAllowed,
+  recordPartnerMessageShown,
+  isNightHours,
+  type PartnerMessageResult,
+} from '@/lib/funMessages'
 
 interface Props {
   events: BabyEvent[]
@@ -11,6 +19,24 @@ interface Props {
 export default function SummarySection({ events }: Props) {
   const stats = useMemo(() => computeStats(events), [events])
   const [notifications, setNotifications] = useState<string[]>([])
+
+  // Partner message: compute once on first data load; suppress at night and within 3-day gate
+  const [partnerMsg, setPartnerMsg] = useState<PartnerMessageResult | null>(null)
+  const partnerMsgInitDone = useRef(false)
+  useEffect(() => {
+    if (events.length === 0 || partnerMsgInitDone.current) return
+    partnerMsgInitDone.current = true
+    if (isNightHours()) return
+    const users = new Set(events.map((e) => e.logged_by))
+    if (users.size < 2) return
+    if (!partnerMessageAllowed()) return
+    const userId = getUser()?.user_id ?? ''
+    const msg = getPartnerMessage(events, userId)
+    if (msg) {
+      setPartnerMsg(msg)
+      recordPartnerMessageShown()
+    }
+  }, [events])
 
   useEffect(() => {
     getLeaderboards()
@@ -29,6 +55,12 @@ export default function SummarySection({ events }: Props) {
           <StatCell icon={Moon} value={stats.totalSleep} label="sleep" />
           <StatCell icon={Droplets} value={String(stats.diaperCount)} label="diapers" />
         </div>
+        {partnerMsg && (
+          <div className="border-t border-primary/15 pt-3 flex items-center gap-2">
+            <Users className="w-3.5 h-3.5 text-primary shrink-0" />
+            <p className="text-xs text-foreground">{partnerMsg.message}</p>
+          </div>
+        )}
         {notifications.length > 0 && (
           <div className="border-t border-primary/15 pt-3 flex flex-col gap-1.5">
             <div className="flex items-center gap-1.5 text-primary">

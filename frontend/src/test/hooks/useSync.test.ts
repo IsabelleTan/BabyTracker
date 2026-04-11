@@ -14,6 +14,7 @@ vi.mock('@/lib/events', () => ({
   logEvent: vi.fn(),
   getTodayEvents: vi.fn().mockResolvedValue([]),
   getLastFeeds: vi.fn().mockResolvedValue([]),
+  getNightSessionEvents: vi.fn().mockResolvedValue([]),
   deleteEvent: vi.fn(),
 }))
 
