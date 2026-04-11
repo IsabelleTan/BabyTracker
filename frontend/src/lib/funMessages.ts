@@ -389,7 +389,6 @@ function nightsSinceLastShown(): number {
 }
 
 const NIGHT_SHOWN_KEY = 'night_msg_shown'
-const BABY_VOICE_KEY  = 'baby_voice_dismissed'
 
 // ── show-condition exports ────────────────────────────────────────────────────
 
