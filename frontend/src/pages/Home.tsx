@@ -3,6 +3,7 @@ import { Milk, Moon, Sun, Droplets, type LucideIcon } from 'lucide-react'
 import NightToggle from '@/components/NightToggle'
 import EventSheet from '@/components/home/EventSheet'
 import SummarySection from '@/components/home/SummarySection'
+import DailyStory from '@/components/home/DailyStory'
 import TimelineSection from '@/components/home/TimelineSection'
 import { useSync } from '@/hooks/useSync'
 import { useTick, useTimeSince } from '@/hooks/useTimeSince'
@@ -181,6 +182,7 @@ export default function Home() {
         </div>
 
         {loaded && <SummarySection events={events} />}
+        {loaded && <DailyStory events={events} />}
         {loaded && <TimelineSection events={events} onDeleted={handleDeleted} />}
       </div>
 
