@@ -1,13 +1,14 @@
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
 from app.db.database import get_db
+from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
 from app.models.user_baby import UserBaby
@@ -50,13 +51,24 @@ async def get_stats_range(
     return StatsRange(earliest=earliest)
 
 
+MAX_STATS_RANGE_DAYS = 366
+
+
 @router.get("/daily", response_model=list[DailyStat])
+@limiter.limit("30/minute")
 async def get_daily_stats(
+    request: Request,
     from_: datetime = Query(alias="from"),
     to: datetime = Query(),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
+    if (_utc(to) - _utc(from_)).days > MAX_STATS_RANGE_DAYS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Date range must not exceed {MAX_STATS_RANGE_DAYS} days",
+        )
+
     baby_ids = _baby_ids_subquery(current_user)
 
     # Fetch one extra day before/after to catch cross-day sleep sessions
