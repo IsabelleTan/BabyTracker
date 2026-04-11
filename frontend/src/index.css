@@ -17,7 +17,9 @@
     @apply bg-background text-foreground;
   }
 
-  /* Prevent iOS Safari from zooming in when focusing inputs with font-size < 16px */
+  /* iOS Safari zooms in on any input whose font-size is less than 16px.
+     max(1rem, 16px) ensures the threshold is always met without hard-coding a px value.
+     See: https://github.com/IsabelleTan/BabyTracker/issues/80 */
   input, select, textarea {
     font-size: max(1rem, 16px);
   }
