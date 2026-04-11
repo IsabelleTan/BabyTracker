@@ -383,7 +383,10 @@ function TopBar({
 
   return (
     <div className="flex items-center justify-between -mb-2">
-      <span className={`text-xs ${syncText?.className ?? ''}`}>{syncText?.text ?? ''}</span>
+      <span className={`text-xs ${syncText?.className ?? ''}`}>
+        {syncText?.text ?? ''}
+        {lastSynced && <span className="text-muted-foreground/40 ml-1">{__COMMIT_HASH__}</span>}
+      </span>
       <div className="flex items-center gap-2">
         <button
           onClick={() => { logout(); window.location.reload() }}
