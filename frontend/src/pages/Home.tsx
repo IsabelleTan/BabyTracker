@@ -6,24 +6,12 @@ import SummarySection from '@/components/home/SummarySection'
 import TimelineSection from '@/components/home/TimelineSection'
 import { useSync } from '@/hooks/useSync'
 import { useTick, useTimeSince } from '@/hooks/useTimeSince'
-import { deleteEvent, type EventType, type BabyEvent } from '@/lib/events'
+import { deleteEvent, type EventType } from '@/lib/events'
 import { generateId } from '@/lib/uuid'
 import { formatTime as fmt, formatAgo as ago, formatUntil as until, formatDuration as duration } from '@/lib/time'
+import { predictNextFeed } from '@/lib/feedPrediction'
 
 const PULL_THRESHOLD = 72
-
-function nextFeedEstimate(lastFeeds: BabyEvent[]): Date | null {
-  if (lastFeeds.length < 2) return null
-  const intervals: number[] = []
-  for (let i = 1; i < lastFeeds.length; i++) {
-    intervals.push(
-      new Date(lastFeeds[i].timestamp).getTime() -
-        new Date(lastFeeds[i - 1].timestamp).getTime(),
-    )
-  }
-  const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length
-  return new Date(new Date(lastFeeds[lastFeeds.length - 1].timestamp).getTime() + avg)
-}
 
 // ── component ────────────────────────────────────────────────────────────────
 
@@ -97,7 +85,7 @@ export default function Home() {
     return e ? new Date(e.timestamp) : null
   }, [events])
 
-  const nextFeed = useMemo(() => nextFeedEstimate(lastFeeds), [lastFeeds])
+  const nextFeed = useMemo(() => predictNextFeed(lastFeeds), [lastFeeds])
 
   const sleepStatus = useMemo(() => {
     const e = [...events].filter((e) => e.type === 'sleep_start' || e.type === 'sleep_end').at(-1)

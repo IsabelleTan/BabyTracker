@@ -38,7 +38,7 @@ export function useSync() {
       }
 
       // Re-fetch authoritative state from server
-      const [today, feeds] = await Promise.all([getTodayEvents(), getLastFeeds(3)])
+      const [today, feeds] = await Promise.all([getTodayEvents(), getLastFeeds(20)])
       setEvents(today)
       setLastFeeds(feeds)
       setLastSynced(new Date())
@@ -103,7 +103,7 @@ export function useSync() {
       [...prev, event].sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
     )
     if (event.type === 'feed') {
-      setLastFeeds((prev) => [...prev, event].slice(-3))
+      setLastFeeds((prev) => [...prev, event].slice(-20))
     }
   }
 
