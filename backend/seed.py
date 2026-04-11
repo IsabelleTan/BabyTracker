@@ -3,7 +3,7 @@ Account management CLI — create babies and user accounts.
 
 Usage:
     # Create a baby (prints the baby ID you'll need for create-user)
-    poetry run python seed.py create-baby --name "Baby"
+    poetry run python seed.py create-baby --name "Baby" --dob 2024-11-03
 
     # List all babies and their IDs
     poetry run python seed.py list-babies
@@ -16,6 +16,7 @@ import argparse
 import asyncio
 import getpass
 import uuid
+from datetime import date
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -39,15 +40,17 @@ async def _get_session_factory():
     return engine, async_sessionmaker(engine, expire_on_commit=False)
 
 
-async def cmd_create_baby(name: str) -> None:
+async def cmd_create_baby(name: str, dob: date | None) -> None:
     engine, session_factory = await _get_session_factory()
     baby_id = str(uuid.uuid4())
     async with session_factory() as session:
-        session.add(Baby(id=baby_id, name=name))
+        session.add(Baby(id=baby_id, name=name, date_of_birth=dob))
         await session.commit()
     await engine.dispose()
     print(f"Baby '{name}' created.")
     print(f"Baby ID: {baby_id}")
+    if dob:
+        print(f"Date of birth: {dob}")
 
 
 async def cmd_list_babies() -> None:
@@ -109,6 +112,7 @@ def main() -> None:
     # create-baby
     p_baby = sub.add_parser("create-baby", help="Create a new baby profile")
     p_baby.add_argument("--name", required=True, help="Baby's name")
+    p_baby.add_argument("--dob", default=None, help="Date of birth in YYYY-MM-DD format (optional)")
 
     # list-babies
     sub.add_parser("list-babies", help="List all babies and their IDs")
@@ -122,7 +126,8 @@ def main() -> None:
     args = parser.parse_args()
 
     if args.command == "create-baby":
-        asyncio.run(cmd_create_baby(args.name))
+        dob = date.fromisoformat(args.dob) if args.dob else None
+        asyncio.run(cmd_create_baby(args.name, dob))
     elif args.command == "list-babies":
         asyncio.run(cmd_list_babies())
     elif args.command == "create-user":
