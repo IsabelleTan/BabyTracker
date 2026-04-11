@@ -1,8 +1,9 @@
 import { useMemo, useEffect, useState } from 'react'
-import { Milk, Moon, Droplets, Sparkles, type LucideIcon } from 'lucide-react'
+import { Milk, Moon, Droplets, Sparkles, Users, type LucideIcon } from 'lucide-react'
 import { formatDuration } from '@/hooks/useTimeSince'
 import type { BabyEvent } from '@/lib/events'
 import { getLeaderboards, buildNotifications } from '@/lib/leaderboards'
+import { bothPartnersLogged, getPartnerMessage } from '@/lib/funMessages'
 
 interface Props {
   events: BabyEvent[]
@@ -11,6 +12,10 @@ interface Props {
 export default function SummarySection({ events }: Props) {
   const stats = useMemo(() => computeStats(events), [events])
   const [notifications, setNotifications] = useState<string[]>([])
+  const partnerMsg = useMemo(
+    () => bothPartnersLogged(events) ? getPartnerMessage() : null,
+    [events],
+  )
 
   useEffect(() => {
     getLeaderboards()
@@ -29,6 +34,12 @@ export default function SummarySection({ events }: Props) {
           <StatCell icon={Moon} value={stats.totalSleep} label="sleep" />
           <StatCell icon={Droplets} value={String(stats.diaperCount)} label="diapers" />
         </div>
+        {partnerMsg && (
+          <div className="border-t border-primary/15 pt-3 flex items-center gap-2">
+            <Users className="w-3.5 h-3.5 text-primary shrink-0" />
+            <p className="text-xs text-foreground">{partnerMsg}</p>
+          </div>
+        )}
         {notifications.length > 0 && (
           <div className="border-t border-primary/15 pt-3 flex flex-col gap-1.5">
             <div className="flex items-center gap-1.5 text-primary">
