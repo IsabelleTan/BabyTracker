@@ -1,4 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
+import { formatAgo, formatDurationMs } from '@/lib/time'
+
+export { formatAgo as formatTimeSince, formatDurationMs as formatDuration }
 
 /** Causes the component to re-render every minute, pausing when the page is hidden. */
 export function useTick(): void {
@@ -41,22 +44,5 @@ export function useTimeSince(date: Date | null): string {
   }, [])
 
   if (!date) return '—'
-  return formatTimeSince(date)
-}
-
-export function formatTimeSince(date: Date): string {
-  const mins = Math.floor((Date.now() - date.getTime()) / 60_000)
-  if (mins < 1) return 'just now'
-  if (mins < 60) return `${mins}m ago`
-  const h = Math.floor(mins / 60)
-  const m = mins % 60
-  return m === 0 ? `${h}h ago` : `${h}h ${m}m ago`
-}
-
-export function formatDuration(ms: number): string {
-  const totalMins = Math.floor(ms / 60_000)
-  const h = Math.floor(totalMins / 60)
-  const m = totalMins % 60
-  if (h === 0) return `${m}m`
-  return m === 0 ? `${h}h` : `${h}h ${m}m`
+  return formatAgo(date)
 }
