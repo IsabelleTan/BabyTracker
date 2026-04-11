@@ -1,19 +1,14 @@
 from datetime import datetime, timedelta, timezone
 from typing import Any
-import os
 import bcrypt
 from jose import JWTError, jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import settings
 from app.db.database import get_db
 from app.models.user import User
-
-_secret = os.environ.get("SECRET_KEY", "")
-if not _secret:
-    raise RuntimeError("SECRET_KEY environment variable must be set")
-SECRET_KEY: str = _secret
 
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_DAYS = 7
@@ -31,12 +26,12 @@ def verify_password(plain: str, hashed: str) -> bool:
 
 def create_access_token(subject: str) -> str:
     expire = datetime.now(timezone.utc) + timedelta(days=ACCESS_TOKEN_EXPIRE_DAYS)
-    return jwt.encode({"sub": subject, "exp": expire}, SECRET_KEY, algorithm=ALGORITHM)
+    return jwt.encode({"sub": subject, "exp": expire}, settings.secret_key, algorithm=ALGORITHM)
 
 
 def decode_token(token: str) -> dict[str, Any]:
     try:
-        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return jwt.decode(token, settings.secret_key, algorithms=[ALGORITHM])
     except JWTError:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid token")
 
