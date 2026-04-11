@@ -1,8 +1,10 @@
 import { useMemo, useEffect, useState } from 'react'
-import { Milk, Moon, Droplets, Sparkles, type LucideIcon } from 'lucide-react'
+import { Milk, Moon, Droplets, Sparkles, TrendingUp, type LucideIcon } from 'lucide-react'
 import { formatDuration } from '@/hooks/useTimeSince'
 import type { BabyEvent } from '@/lib/events'
 import { getLeaderboards, buildNotifications } from '@/lib/leaderboards'
+import { getDailyStats } from '@/lib/stats'
+import { detectSleepTrend } from '@/lib/sleepTrend'
 
 interface Props {
   events: BabyEvent[]
@@ -11,11 +13,24 @@ interface Props {
 export default function SummarySection({ events }: Props) {
   const stats = useMemo(() => computeStats(events), [events])
   const [notifications, setNotifications] = useState<string[]>([])
+  const [sleepTrendMessage, setSleepTrendMessage] = useState<string | null>(null)
 
   useEffect(() => {
     getLeaderboards()
       .then((data) => setNotifications(buildNotifications(data)))
       .catch(() => {/* silent — notifications are non-critical */})
+  }, [])
+
+  useEffect(() => {
+    const to = new Date()
+    const from = new Date(to)
+    from.setDate(from.getDate() - 28) // fetch 28 days so we always have ≥14 with data
+    getDailyStats(from, to)
+      .then((data) => {
+        const result = detectSleepTrend(data)
+        setSleepTrendMessage(result.trending ? result.message : null)
+      })
+      .catch(() => {/* silent — trend is non-critical */})
   }, [])
 
   return (
@@ -38,6 +53,12 @@ export default function SummarySection({ events }: Props) {
             {notifications.map((n) => (
               <p key={n} className="text-xs text-foreground pl-5">{n}</p>
             ))}
+          </div>
+        )}
+        {sleepTrendMessage && (
+          <div className="border-t border-primary/15 pt-3 flex items-start gap-2">
+            <TrendingUp className="w-3.5 h-3.5 text-primary shrink-0 mt-0.5" />
+            <p className="text-xs text-foreground">{sleepTrendMessage}</p>
           </div>
         )}
       </div>
