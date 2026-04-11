@@ -126,9 +126,9 @@ The chip is also suppressed from the **feed prediction model**: cluster interval
 |---|---|---|---|---|---|
 | <a id="ref-1"></a>1 | Mohrbacher, N. | 2010 | *[Breastfeeding Answers Made Simple](https://www.worldcat.org/isbn/9780984772605)* | Hale Publishing | ISBN 978-0-9847726-0-5 |
 | <a id="ref-2"></a>2 | Riordan, J. & Wambach, K. | 2014 | *[Breastfeeding and Human Lactation](https://www.worldcat.org/isbn/9781284023886)*, 5th ed. | Jones & Bartlett | ISBN 978-1-284-02388-6 |
-| <a id="ref-3"></a>3 | Henderson, J.M.T. et al. | 2010 | [Consolidation of nighttime sleep in the first year of life](https://doi.org/10.1542/peds.2010-0413) | *Pediatrics* 126(3):e590–e597 | [10.1542/peds.2010-0413](https://doi.org/10.1542/peds.2010-0413) |
-| <a id="ref-4"></a>4 | Cubero, J. et al. | 2005 | [The circadian rhythm of tryptophan in breast milk affects the rhythms of 6-sulfatoxymelatonin and sleep in newborn](https://pubmed.ncbi.nlm.nih.gov/16380698/) | *Neuroendocrinology Letters* 26(6):657–661 | [PMID 16380698](https://pubmed.ncbi.nlm.nih.gov/16380698/) |
-| <a id="ref-5"></a>5 | Illnerová, H. et al. | 1993 | [The circadian rhythm in plasma melatonin concentration of the artificially fed infant](https://pubmed.ncbi.nlm.nih.gov/8370707/) | *J Clin Endocrinol Metab* 77(3):838–841 | [PMID 8370707](https://pubmed.ncbi.nlm.nih.gov/8370707/) |
+| <a id="ref-3"></a>3 | Henderson, J.M.T. et al. | 2010 | [Consolidation of nighttime sleep in the first year of life](https://pubmed.ncbi.nlm.nih.gov/20974775/) | *Pediatrics* 126(5):e1081–e1087 | [10.1542/peds.2010-0976](https://doi.org/10.1542/peds.2010-0976) |
+| <a id="ref-4"></a>4 | Cubero, J. et al. | 2005 | [The circadian rhythm of tryptophan in breast milk affects the rhythms of 6-sulfatoxymelatonin and sleep in newborn](https://pubmed.ncbi.nlm.nih.gov/16380706/) | *Neuroendocrinology Letters* 26(6):657–661 | [PMID 16380706](https://pubmed.ncbi.nlm.nih.gov/16380706/) |
+| <a id="ref-5"></a>5 | Illnerová, H. et al. | 1993 | [Melatonin rhythm in human milk](https://pubmed.ncbi.nlm.nih.gov/8370707/) | *J Clin Endocrinol Metab* 77(3):838–841 | [PMID 8370707](https://pubmed.ncbi.nlm.nih.gov/8370707/) |
 | <a id="ref-6"></a>6 | Woolridge, M.W. & Fisher, C. | 1988 | [Colic, overfeeding, and symptoms of lactose malabsorption in the breast-fed baby](https://doi.org/10.1016/S0140-6736(88)92790-0) | *The Lancet* 332(8607):382–384 | [10.1016/S0140-6736(88)92790-0](https://doi.org/10.1016/S0140-6736(88)92790-0) |
 
 ---
