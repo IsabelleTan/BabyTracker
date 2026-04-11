@@ -39,7 +39,7 @@ export default function Leaderboards() {
   if (!data.has_enough_data) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-20 text-center px-6">
-        <Trophy className="w-10 h-10 text-primary/40" />
+        <Trophy className="w-10 h-10 text-primary opacity-40" />
         <p className="text-sm text-muted-foreground">
           Leaderboards unlock after 7 days of tracking — check back soon!
         </p>
