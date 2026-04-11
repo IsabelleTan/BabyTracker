@@ -32,7 +32,7 @@ There are several well-supported biological explanations, and they are not mutua
 
 #### 1. Preparation for a longer sleep stretch
 
-The most widely cited explanation is that babies load up on calories in the evening to extend their first sleep block of the night. Sleep consolidation in the first year is rapid — most infants achieve uninterrupted stretches of several hours within the first few months of life — and the cluster is widely understood in lactation practice as the mechanism by which infants front-load calories before this longest stretch ([Henderson et al., 2010](#ref-3)).
+The most widely cited explanation is that babies load up on calories in the evening to extend their first sleep block of the night. Sleep consolidation in the first year is rapid: most infants achieve uninterrupted stretches of several hours within the first few months, with the most rapid consolidation occurring in the first four months ([Henderson et al., 2010](#ref-3)). The cluster is understood in lactation practice as the mechanism by which infants front-load calories before this longest stretch ([Mohrbacher, 2010](#ref-1)).
 
 #### 2. Circadian variation in breast milk composition
 
@@ -40,7 +40,7 @@ Breast milk is not a fixed substance — its composition changes across the day.
 
 #### 3. The witching hour and nervous system development
 
-In the first 8–12 weeks, many babies have a daily "fussy window" in the late afternoon or evening. This is associated with an immature nervous system that has difficulty self-regulating at the end of a stimulating day. Frequent feeding provides comfort and sensory regulation as well as calories ([Wambach & Riordan, 2016](#ref-2)).
+In the first 8–12 weeks, many babies have a daily fussy period in the late afternoon or evening, associated with an immature nervous system that has difficulty self-regulating at the end of a stimulating day. Frequent feeding provides comfort and sensory regulation as well as calories. These patterns are well documented in the breastfeeding literature ([Wambach & Riordan, 2016](#ref-2)).
 
 #### 4. Supply calibration in early breastfeeding
 
