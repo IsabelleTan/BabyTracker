@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react'
 import { addPending, removePending, getAllPending } from '@/lib/db'
 import {
   logEvent as apiLogEvent,
-  getTodayEvents,
+  getLast24HoursEvents,
   getLastFeeds,
   getNightSessionEvents,
   type BabyEvent,
@@ -41,7 +41,7 @@ export function useSync() {
 
       // Re-fetch authoritative state from server
       const [today, feeds, nightSession] = await Promise.all([
-        getTodayEvents(),
+        getLast24HoursEvents(),
         getLastFeeds(3),
         getNightSessionEvents(),
       ])

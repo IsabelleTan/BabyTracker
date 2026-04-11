@@ -35,12 +35,11 @@ export async function getLastFeeds(n: number): Promise<BabyEvent[]> {
   return [...data].reverse()
 }
 
-export async function getTodayEvents(): Promise<BabyEvent[]> {
+export async function getLast24HoursEvents(): Promise<BabyEvent[]> {
   const now = new Date()
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
+  const from = new Date(now.getTime() - 24 * 60 * 60 * 1000)
   const { data } = await api.get<BabyEvent[]>('/events', {
-    params: { from_: start.toISOString(), to: end.toISOString() },
+    params: { from_: from.toISOString(), to: now.toISOString() },
   })
   return data
 }
