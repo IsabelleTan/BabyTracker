@@ -25,6 +25,17 @@ PARENTS = [
 
 BABY_NAME = "Baby"
 
+MIN_PASSWORD_LENGTH = 12
+
+
+def _validate_passwords() -> None:
+    weak = [p["display_name"] for p in PARENTS if len(p["password"]) < MIN_PASSWORD_LENGTH]
+    if weak:
+        raise SystemExit(
+            f"Passwords for {', '.join(weak)} are shorter than {MIN_PASSWORD_LENGTH} characters. "
+            "Update the PARENTS list in seed.py before running."
+        )
+
 
 async def seed():
     engine = create_async_engine(DATABASE_URL)
@@ -59,4 +70,5 @@ async def seed():
 
 
 if __name__ == "__main__":
+    _validate_passwords()
     asyncio.run(seed())
