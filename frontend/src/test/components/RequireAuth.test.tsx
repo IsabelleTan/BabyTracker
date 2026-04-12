@@ -33,7 +33,9 @@ describe('RequireAuth', () => {
   })
 
   it('renders children when authenticated', () => {
-    localStorage.setItem('token', 'valid-token')
+    const futureExp = Math.floor(Date.now() / 1000) + 3600
+    const jwt = `header.${btoa(JSON.stringify({ exp: futureExp }))}.sig`
+    localStorage.setItem('token', jwt)
     renderWithRouter('/')
     expect(screen.getByText('Protected content')).toBeInTheDocument()
     expect(screen.queryByText('Login page')).not.toBeInTheDocument()

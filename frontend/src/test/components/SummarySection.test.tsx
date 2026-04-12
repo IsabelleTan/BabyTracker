@@ -93,13 +93,17 @@ describe('SummarySection — today stats', () => {
     })
   })
 
-  it('shows dash for sleep when no completed block exists today', async () => {
+  it('shows elapsed duration for an ongoing sleep session (no sleep_end yet)', async () => {
     const events: BabyEvent[] = [
-      // Only a sleep_start, no matching sleep_end
+      // Only a sleep_start, no matching sleep_end — ongoing session counts toward total
       makeEvent({ type: 'sleep_start', timestamp: todayAt(2) }),
     ]
     render(<SummarySection events={events} />)
-    await waitFor(() => expect(screen.getByText('—')).toBeInTheDocument())
+    // Should show a non-dash sleep duration for the in-progress session
+    await waitFor(() => {
+      const sleepEl = screen.getByText(/\d+h|\d+m/)
+      expect(sleepEl).toBeInTheDocument()
+    })
   })
 })
 
