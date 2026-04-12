@@ -1,3 +1,4 @@
+from datetime import datetime, timezone, timedelta
 import pytest
 
 
@@ -109,3 +110,79 @@ async def test_stats_range_returns_earliest_event(client_with_family):
     r = await client.get("/stats/range", headers=headers)
     assert r.status_code == 200
     assert r.json()["earliest"].startswith("2024-01-10")
+
+
+# ── Edge cases ────────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_stats_daily_rejects_from_after_to(client_with_family):
+    """from > to should return 422 (the range is negative, not just zero)."""
+    client, headers = client_with_family
+    r = await client.get("/stats/daily", params={
+        "from": "2024-01-20T00:00:00Z",
+        "to":   "2024-01-15T00:00:00Z",  # earlier than from
+    }, headers=headers)
+    assert r.status_code == 422
+
+
+@pytest.mark.asyncio
+async def test_stats_daily_no_events_returns_zeros(client_with_family):
+    """A range with no events returns one row per day, all zeroed out."""
+    client, headers = client_with_family
+    r = await client.get("/stats/daily", params={
+        "from": "2024-03-01T00:00:00Z",
+        "to":   "2024-03-03T00:00:00Z",
+    }, headers=headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert len(data) == 3
+    for day in data:
+        assert day["feed_count"] == 0
+        assert day["diaper_count"] == 0
+        assert day["total_sleep_min"] == 0
+        assert day["avg_feed_interval_min"] is None
+
+
+@pytest.mark.asyncio
+async def test_stats_daily_boundary_inclusive(client_with_family):
+    """Events exactly at from and to boundaries are included."""
+    client, headers = client_with_family
+    # Event precisely at midnight (from boundary)
+    await client.post("/events", json={
+        "id": "boundary-feed", "type": "feed",
+        "timestamp": "2024-02-01T00:00:00Z",
+        "metadata": {"feed_type": "bottle", "amount_ml": 100},
+    }, headers=headers)
+
+    r = await client.get("/stats/daily", params={
+        "from": "2024-02-01T00:00:00Z",
+        "to":   "2024-02-01T23:59:59Z",
+    }, headers=headers)
+    assert r.status_code == 200
+    assert r.json()[0]["feed_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_stats_range_returns_null_when_no_events(client_with_family):
+    client, headers = client_with_family
+    r = await client.get("/stats/range", headers=headers)
+    assert r.status_code == 200
+    assert r.json()["earliest"] is None
+
+
+@pytest.mark.asyncio
+async def test_stats_diaper_count(client_with_family):
+    """Diaper events are counted per day regardless of type."""
+    client, headers = client_with_family
+    for i, dtype in enumerate(["wet", "dirty", "both"]):
+        await client.post("/events", json={
+            "id": f"diaper-{i}", "type": "diaper",
+            "timestamp": f"2024-02-10T{8 + i:02d}:00:00Z",
+            "metadata": {"diaper_type": dtype},
+        }, headers=headers)
+
+    r = await client.get("/stats/daily", params={
+        "from": "2024-02-10T00:00:00Z",
+        "to":   "2024-02-10T23:59:59Z",
+    }, headers=headers)
+    assert r.json()[0]["diaper_count"] == 3
