@@ -104,8 +104,9 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
               {feedType === 'breast' ? (
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Left (min)</label>
+                    <label htmlFor="left-min" className="text-sm font-medium">Left (min)</label>
                     <input
+                      id="left-min"
                       type="number"
                       min="0"
                       placeholder="0"
@@ -115,8 +116,9 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
                     />
                   </div>
                   <div className="space-y-1.5">
-                    <label className="text-sm font-medium">Right (min)</label>
+                    <label htmlFor="right-min" className="text-sm font-medium">Right (min)</label>
                     <input
+                      id="right-min"
                       type="number"
                       min="0"
                       placeholder="0"
@@ -128,8 +130,9 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
                 </div>
               ) : (
                 <div className="space-y-1.5">
-                  <label className="text-sm font-medium">Amount (ml)</label>
+                  <label htmlFor="amount-ml" className="text-sm font-medium">Amount (ml)</label>
                   <input
+                    id="amount-ml"
                     type="number"
                     min="0"
                     placeholder="0"

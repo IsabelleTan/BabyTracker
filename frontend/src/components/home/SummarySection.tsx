@@ -91,11 +91,10 @@ function computeStats(events: BabyEvent[]) {
   const todayStart = new Date()
   todayStart.setHours(0, 0, 0, 0)
   const today = events.filter((e) => new Date(e.timestamp) >= todayStart)
-
   const feeds = today.filter((e) => e.type === 'feed')
   const diapers = today.filter((e) => e.type === 'diaper')
 
-  // Total sleep: sum completed sleep blocks
+  // Total sleep: sum completed sleep blocks (today only)
   let totalSleepMs = 0
   const sleepEvents = today.filter(
     (e) => e.type === 'sleep_start' || e.type === 'sleep_end',
