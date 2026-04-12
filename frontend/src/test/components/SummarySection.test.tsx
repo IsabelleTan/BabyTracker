@@ -3,9 +3,8 @@ import { render, screen, waitFor } from '@testing-library/react'
 import SummarySection from '@/components/home/SummarySection'
 import type { BabyEvent } from '@/lib/events'
 
-vi.mock('@/lib/leaderboards', () => ({
-  getLeaderboards: vi.fn().mockResolvedValue({ has_enough_data: false, parents: [] }),
-  buildNotifications: vi.fn().mockReturnValue([]),
+vi.mock('@/contexts/LeaderboardContext', () => ({
+  useLeaderboardData: vi.fn().mockReturnValue({ data: null, notifications: [], loading: false, error: false }),
 }))
 vi.mock('@/lib/funMessages', () => ({
   getPartnerMessage: vi.fn().mockReturnValue(null),
@@ -110,9 +109,11 @@ describe('SummarySection — today stats', () => {
 describe('SummarySection — leaderboard notifications', () => {
   beforeEach(() => vi.clearAllMocks())
 
-  it('displays notification messages returned by buildNotifications', async () => {
-    const { buildNotifications } = await import('@/lib/leaderboards')
-    vi.mocked(buildNotifications).mockReturnValue(['New record! 🎉'])
+  it('displays notification messages from the leaderboard context', async () => {
+    const { useLeaderboardData } = await import('@/contexts/LeaderboardContext')
+    vi.mocked(useLeaderboardData).mockReturnValue({
+      data: null, notifications: ['New record! 🎉'], loading: false, error: false,
+    })
 
     render(<SummarySection events={[]} />)
     await waitFor(() =>
@@ -120,9 +121,11 @@ describe('SummarySection — leaderboard notifications', () => {
     )
   })
 
-  it('shows no notification section when buildNotifications returns empty', async () => {
-    const { buildNotifications } = await import('@/lib/leaderboards')
-    vi.mocked(buildNotifications).mockReturnValue([])
+  it('shows no notification section when context returns empty notifications', async () => {
+    const { useLeaderboardData } = await import('@/contexts/LeaderboardContext')
+    vi.mocked(useLeaderboardData).mockReturnValue({
+      data: null, notifications: [], loading: false, error: false,
+    })
 
     render(<SummarySection events={[]} />)
     await waitFor(() =>
