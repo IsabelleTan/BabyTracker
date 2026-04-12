@@ -90,39 +90,46 @@ input, select, textarea {
 }
 
 :root {
-  --background: oklch(0.87 0.045 27);
-  --foreground: oklch(0.18 0.025 25);
-  --card: oklch(0.98 0.008 25);
-  --card-foreground: oklch(0.18 0.025 25);
-  --popover: oklch(0.98 0.008 25);
-  --popover-foreground: oklch(0.18 0.025 25);
-  --surface: oklch(0.93 0.028 27);
-  --primary: oklch(0.52 0.16 18);
-  --primary-foreground: oklch(0.99 0.005 25);
-  --secondary: oklch(0.94 0.018 25);
-  --secondary-foreground: oklch(0.18 0.025 25);
-  --muted: oklch(0.94 0.012 25);
-  --muted-foreground: oklch(0.52 0.03 25);
-  --accent: oklch(0.94 0.018 25);
-  --accent-foreground: oklch(0.18 0.025 25);
+  /* Background recedes: near-white with a barely-there warm tint (hue 35 = peach-amber,
+     less pink than 27). Panels and cards now float rather than blend into the backdrop. */
+  --background: oklch(0.97 0.012 35);
+  --foreground: oklch(0.16 0.025 25);
+  /* Pure white cards give crisp edges against the warm background */
+  --card: oklch(1.0 0.002 30);
+  --card-foreground: oklch(0.16 0.025 25);
+  --popover: oklch(1.0 0.002 30);
+  --popover-foreground: oklch(0.16 0.025 25);
+  /* Surface (Today panel, containers) — warm but clearly distinct from background */
+  --surface: oklch(0.95 0.013 33);
+  /* Primary pushed to C=0.20: terracotta pops harder on a light background */
+  --primary: oklch(0.50 0.20 18);
+  --primary-foreground: oklch(0.99 0.004 25);
+  --secondary: oklch(0.93 0.014 32);
+  --secondary-foreground: oklch(0.16 0.025 25);
+  --muted: oklch(0.93 0.010 32);
+  /* Muted text darker to maintain legibility on the lighter background */
+  --muted-foreground: oklch(0.46 0.04 25);
+  --accent: oklch(0.93 0.014 32);
+  --accent-foreground: oklch(0.16 0.025 25);
   --destructive: oklch(0.55 0.22 18);
-  --border: oklch(0.89 0.018 25);
-  --input: oklch(0.89 0.018 25);
-  --ring: oklch(0.52 0.16 18);
-  --chart-1: oklch(0.52 0.16 18);
-  --chart-2: oklch(0.62 0.14 35);
-  --chart-3: oklch(0.72 0.10 45);
-  --chart-4: oklch(0.80 0.07 55);
-  --chart-5: oklch(0.86 0.04 60);
+  /* Border slightly more visible so panels have crisp edges */
+  --border: oklch(0.87 0.024 30);
+  --input: oklch(0.87 0.024 30);
+  --ring: oklch(0.50 0.20 18);
+  --chart-1: oklch(0.50 0.20 18);
+  --chart-2: oklch(0.60 0.16 35);
+  --chart-3: oklch(0.70 0.11 45);
+  --chart-4: oklch(0.78 0.08 55);
+  --chart-5: oklch(0.85 0.05 60);
   --radius: 0.75rem;
-  --sidebar: oklch(0.97 0.01 25);
-  --sidebar-foreground: oklch(0.18 0.025 25);
-  --sidebar-primary: oklch(0.52 0.16 18);
-  --sidebar-primary-foreground: oklch(0.99 0.005 25);
-  --sidebar-accent: oklch(0.94 0.018 25);
-  --sidebar-accent-foreground: oklch(0.18 0.025 25);
-  --sidebar-border: oklch(0.89 0.018 25);
-  --sidebar-ring: oklch(0.52 0.16 18);
+  --sidebar: oklch(0.97 0.010 32);
+  --sidebar-foreground: oklch(0.16 0.025 25);
+  --sidebar-primary: oklch(0.50 0.20 18);
+  --sidebar-primary-foreground: oklch(0.99 0.004 25);
+  --sidebar-accent: oklch(0.93 0.014 32);
+  --sidebar-accent-foreground: oklch(0.16 0.025 25);
+  --sidebar-border: oklch(0.87 0.024 30);
+  --sidebar-ring: oklch(0.50 0.20 18);
 }
 
 .dark {

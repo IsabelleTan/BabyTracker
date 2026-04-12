@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { Milk, Moon, Droplets, Sparkles, Users, type LucideIcon } from 'lucide-react'
 import { formatDuration } from '@/hooks/useTimeSince'
-import type { BabyEvent } from '@/lib/events'
+import { getEventsSince, type BabyEvent } from '@/lib/events'
 import { getUser } from '@/lib/auth'
 import { useLeaderboardData } from '@/contexts/LeaderboardContext'
 import {
@@ -17,7 +17,18 @@ interface Props {
 }
 
 export default function SummarySection({ events }: Props) {
-  const stats = useMemo(() => computeStats(events), [events])
+  // Fetch 8 days of history for 7-day averages; merge with live events for optimistic updates
+  const [historyEvents, setHistoryEvents] = useState<BabyEvent[]>([])
+  useEffect(() => {
+    getEventsSince(8).then(setHistoryEvents).catch(() => {})
+  }, [])
+  const allEvents = useMemo(() => {
+    const map = new Map(historyEvents.map((e) => [e.id, e]))
+    events.forEach((e) => map.set(e.id, e))
+    return Array.from(map.values())
+  }, [historyEvents, events])
+
+  const stats = useMemo(() => computeStats(allEvents), [allEvents])
   const { notifications } = useLeaderboardData()
 
   // Partner message: compute once on first data load; suppress at night and within 3-day gate
@@ -44,11 +55,36 @@ export default function SummarySection({ events }: Props) {
         Today
       </h2>
       <div className="rounded-xl border border-primary/35 bg-surface p-4 flex flex-col gap-3">
-        <div className="grid grid-cols-3 gap-2 text-center">
-          <StatCell icon={Milk} value={String(stats.feedCount)} label="feeds" />
-          <StatCell icon={Moon} value={stats.totalSleep} label="sleep" />
-          <StatCell icon={Droplets} value={String(stats.diaperCount)} label="diapers" />
+        <div className="flex flex-col gap-2.5">
+          <StatBar
+            icon={Milk}
+            label="Feeds"
+            value={stats.feedCount}
+            valueStr={String(stats.feedCount)}
+            avg={stats.avgFeeds}
+
+            max={stats.maxFeeds}
+          />
+          <StatBar
+            icon={Moon}
+            label="Sleep"
+            value={stats.totalSleepMs}
+            valueStr={stats.totalSleep}
+            avg={stats.avgSleepMs}
+
+            max={stats.maxSleepMs}
+          />
+          <StatBar
+            icon={Droplets}
+            label="Diapers"
+            value={stats.diaperCount}
+            valueStr={String(stats.diaperCount)}
+            avg={stats.avgDiapers}
+
+            max={stats.maxDiapers}
+          />
         </div>
+        <p className="text-[10px] text-muted-foreground/60">│ vs 7-day avg</p>
         {partnerMsg && (
           <div className="border-t border-primary/15 pt-3 flex items-center gap-2">
             <Users className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -71,46 +107,117 @@ export default function SummarySection({ events }: Props) {
   )
 }
 
-function StatCell({ icon: Icon, value, label }: { icon: LucideIcon; value: string; label: string }) {
+function StatBar({
+  icon: Icon,
+  label,
+  value,
+  valueStr,
+  avg,
+  max,
+}: {
+  icon: LucideIcon
+  label: string
+  value: number
+  valueStr: string
+  avg: number
+  max: number
+}) {
+  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0
+  const avgPct = max > 0 ? Math.min((avg / max) * 100, 100) : 0
+
   return (
-    <div className="flex flex-col items-center gap-1">
-      <Icon className="w-5 h-5 text-primary" />
-      <span className="text-lg font-bold">{value}</span>
-      <span className="text-xs text-muted-foreground">{label}</span>
+    <div className="flex items-center gap-3">
+      <div className="flex items-center gap-2 w-20 shrink-0">
+        <Icon className="w-4.5 h-4.5 text-primary" />
+        <span className="text-sm text-muted-foreground">{label}</span>
+      </div>
+      <div className="flex-1 relative h-2.5 bg-border rounded-full overflow-visible">
+        <div
+          className="h-full bg-primary/50 rounded-full"
+          style={{ width: `${pct}%` }}
+        />
+        {avg > 0 && (
+          <div
+            className="absolute top-1/2 -translate-y-1/2 w-[2px] h-5 bg-primary/70 rounded-full"
+            style={{ left: `${avgPct}%` }}
+          />
+        )}
+      </div>
+      <span className="text-sm font-semibold w-14 text-right shrink-0">{valueStr}</span>
     </div>
   )
 }
 
-function computeStats(events: BabyEvent[]) {
-  const todayStart = new Date()
-  todayStart.setHours(0, 0, 0, 0)
-  const today = events.filter((e) => new Date(e.timestamp) >= todayStart)
-  const feeds = today.filter((e) => e.type === 'feed')
-  const diapers = today.filter((e) => e.type === 'diaper')
-
-  // Total sleep: sum completed sleep blocks (today only)
-  let totalSleepMs = 0
-  const sleepEvents = today.filter(
+function computeSleepMs(events: BabyEvent[], capAt: Date): number {
+  const sleepEvents = events.filter(
     (e) => e.type === 'sleep_start' || e.type === 'sleep_end',
   )
+  let total = 0
   let openStart: Date | null = null
   for (const e of sleepEvents) {
     if (e.type === 'sleep_start') {
       openStart = new Date(e.timestamp)
     } else if (e.type === 'sleep_end' && openStart) {
-      totalSleepMs += new Date(e.timestamp).getTime() - openStart.getTime()
+      total += new Date(e.timestamp).getTime() - openStart.getTime()
       openStart = null
     }
   }
-  // Include the ongoing (not yet ended) session so the panel doesn't show '—'
-  // while the baby is still asleep.
   if (openStart !== null) {
-    totalSleepMs += Date.now() - openStart.getTime()
+    total += capAt.getTime() - openStart.getTime()
+  }
+  return total
+}
+
+function computeStats(events: BabyEvent[]) {
+  const now = new Date()
+  const todayStart = new Date(now)
+  todayStart.setHours(0, 0, 0, 0)
+
+  const todayEvents = events.filter((e) => new Date(e.timestamp) >= todayStart)
+  const feedCount = todayEvents.filter((e) => e.type === 'feed').length
+  const diaperCount = todayEvents.filter((e) => e.type === 'diaper').length
+  const totalSleepMs = computeSleepMs(todayEvents, now)
+
+  // 7-day daily totals (days 1–7 before today)
+  const dailyFeeds: number[] = []
+  const dailyDiapers: number[] = []
+  const dailySleepMs: number[] = []
+
+  for (let d = 1; d <= 7; d++) {
+    const dayStart = new Date(todayStart)
+    dayStart.setDate(dayStart.getDate() - d)
+    const dayEnd = new Date(todayStart)
+    dayEnd.setDate(dayEnd.getDate() - d + 1)
+    const dayEvents = events.filter((e) => {
+      const t = new Date(e.timestamp)
+      return t >= dayStart && t < dayEnd
+    })
+    dailyFeeds.push(dayEvents.filter((e) => e.type === 'feed').length)
+    dailyDiapers.push(dayEvents.filter((e) => e.type === 'diaper').length)
+    dailySleepMs.push(computeSleepMs(dayEvents, dayEnd))
   }
 
+  const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length
+
+  const avgFeeds = avg(dailyFeeds)
+  const avgDiapers = avg(dailyDiapers)
+  const avgSleepMs = avg(dailySleepMs)
+
+  // Scale: max across today + past 7 days so the bar never overflows
+  const maxFeeds = Math.max(feedCount, ...dailyFeeds, 1)
+  const maxDiapers = Math.max(diaperCount, ...dailyDiapers, 1)
+  const maxSleepMs = Math.max(totalSleepMs, ...dailySleepMs, 1)
+
   return {
-    feedCount: feeds.length,
-    diaperCount: diapers.length,
+    feedCount,
+    diaperCount,
+    totalSleepMs,
     totalSleep: totalSleepMs > 0 ? formatDuration(totalSleepMs) : '—',
+    avgFeeds,
+    avgDiapers,
+    avgSleepMs,
+    maxFeeds,
+    maxDiapers,
+    maxSleepMs,
   }
 }

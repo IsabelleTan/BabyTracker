@@ -44,6 +44,18 @@ export async function getLast24HoursEvents(): Promise<BabyEvent[]> {
   return data
 }
 
+/** Events from the past N calendar days (midnight local N days ago → now), for averages. */
+export async function getEventsSince(days: number): Promise<BabyEvent[]> {
+  const now = new Date()
+  const from = new Date(now)
+  from.setDate(from.getDate() - days)
+  from.setHours(0, 0, 0, 0)
+  const { data } = await api.get<BabyEvent[]>('/events', {
+    params: { from_: from.toISOString(), to: now.toISOString() },
+  })
+  return data
+}
+
 /** Events from the current night session: 21:00 tonight (or yesterday if before 07:00) to now. */
 export async function getNightSessionEvents(): Promise<BabyEvent[]> {
   const now = new Date()
