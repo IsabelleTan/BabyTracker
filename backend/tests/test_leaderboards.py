@@ -146,14 +146,17 @@ async def test_leaderboards_night_shift_counted(client_with_family):
 async def test_leaderboards_sleep_records(client_with_family):
     """Longest sleep, best night, and worst night are computed from completed sessions."""
     client, headers = client_with_family
-    # One 3-hour sleep session, entirely within the night window (21:00–07:00)
-    await client.post("/events", json={"id": "sl-s", "type": "sleep_start", "timestamp": "2024-01-15T22:00:00Z"}, headers=headers)
-    await client.post("/events", json={"id": "sl-e", "type": "sleep_end",   "timestamp": "2024-01-16T01:00:00Z"}, headers=headers)
+    # One 3-hour sleep session, entirely within the night window (21:00–07:00).
+    # Use a relative date (30 days ago) so the event is always within the 730-day window.
+    base = (datetime.now(timezone.utc) - timedelta(days=30)).replace(hour=22, minute=0, second=0, microsecond=0)
+    end = base + timedelta(hours=3)
+    await client.post("/events", json={"id": "sl-s", "type": "sleep_start", "timestamp": base.isoformat()}, headers=headers)
+    await client.post("/events", json={"id": "sl-e", "type": "sleep_end",   "timestamp": end.isoformat()}, headers=headers)
 
     r = await client.get("/leaderboards", headers=headers)
     data = r.json()
     assert data["longest_sleep_min"] == 180.0
-    assert data["longest_sleep_date"] == "2024-01-15"
+    assert data["longest_sleep_date"] == base.date().isoformat()
     assert data["best_night_min"] is not None
     assert data["best_night_min"] > 0
 
@@ -161,27 +164,32 @@ async def test_leaderboards_sleep_records(client_with_family):
 @pytest.mark.asyncio
 async def test_leaderboards_most_feeds_record(client_with_family):
     client, headers = client_with_family
-    # 3 feeds on one day
+    # 3 feeds on one day (30 days ago, always within the 730-day window)
+    base_date = (datetime.now(timezone.utc) - timedelta(days=30)).date()
     for i in range(3):
+        ts = datetime(base_date.year, base_date.month, base_date.day, 8 + i * 2, 0, 0, tzinfo=timezone.utc)
         await client.post("/events", json={
             "id": f"rec-feed-{i}", "type": "feed",
-            "timestamp": f"2024-01-15T{8 + i * 2:02d}:00:00Z",
+            "timestamp": ts.isoformat(),
             "metadata": {"feed_type": "bottle", "amount_ml": 100},
         }, headers=headers)
 
     r = await client.get("/leaderboards", headers=headers)
     data = r.json()
     assert data["most_feeds_count"] == 3
-    assert data["most_feeds_date"] == "2024-01-15"
+    assert data["most_feeds_date"] == base_date.isoformat()
 
 
 @pytest.mark.asyncio
 async def test_leaderboards_most_poop_record(client_with_family):
     client, headers = client_with_family
+    # Use a relative date (30 days ago) so events are always within the 730-day window
+    base_date = (datetime.now(timezone.utc) - timedelta(days=30)).date()
     for i, dtype in enumerate(["dirty", "both", "wet"]):
+        ts = datetime(base_date.year, base_date.month, base_date.day, 8 + i, 0, 0, tzinfo=timezone.utc)
         await client.post("/events", json={
             "id": f"poop-{i}", "type": "diaper",
-            "timestamp": f"2024-01-15T{8 + i:02d}:00:00Z",
+            "timestamp": ts.isoformat(),
             "metadata": {"diaper_type": dtype},
         }, headers=headers)
 
@@ -189,4 +197,4 @@ async def test_leaderboards_most_poop_record(client_with_family):
     data = r.json()
     # "dirty" and "both" count; "wet" does not
     assert data["most_poop_count"] == 2
-    assert data["most_poop_date"] == "2024-01-15"
+    assert data["most_poop_date"] == base_date.isoformat()

@@ -78,24 +78,37 @@ async def get_leaderboards(
     baby_ids = select(UserBaby.baby_id).where(UserBaby.user_id == current_user.id)
     family_user_ids = select(UserBaby.user_id).where(UserBaby.baby_id.in_(baby_ids))
 
-    events_result = await db.execute(
+    today_utc = datetime.now(timezone.utc)
+    today_start = today_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_str = today_utc.date().isoformat()
+
+    # Records window: cap at 730 days so the query stays bounded as data grows.
+    # All sleep/feed/poop records are computed from this window.
+    records_cutoff = today_utc - timedelta(days=730)
+    record_events_result = await db.execute(
+        select(Event)
+        .where(Event.baby_id.in_(baby_ids), Event.timestamp >= records_cutoff)
+        .order_by(Event.timestamp)
+    )
+    record_events = record_events_result.scalars().all()
+
+    # Parent-stat events: all-time, so cumulative award counts (total logs,
+    # night shifts, poop changes) are never truncated.
+    stat_events_result = await db.execute(
         select(Event)
         .where(Event.baby_id.in_(baby_ids))
         .order_by(Event.timestamp)
     )
-    events = events_result.scalars().all()
+    stat_events = stat_events_result.scalars().all()
 
     users_result = await db.execute(
         select(User).where(User.id.in_(family_user_ids))
     )
     users = {u.id: u.display_name for u in users_result.scalars().all()}
 
-    today_utc = datetime.now(timezone.utc)
-    today_start = today_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_str = today_utc.date().isoformat()
-
-    # Require at least 7 days of data before surfacing notifications/awards
-    earliest_ts = min((_utc(e.timestamp) for e in events), default=None)
+    # Require at least 7 days of data (checked against all-time events so the
+    # 730-day records window doesn't affect the gate for new families).
+    earliest_ts = min((_utc(e.timestamp) for e in stat_events), default=None)
     has_enough_data = (
         earliest_ts is not None and (today_utc - earliest_ts).days >= 7
     )
@@ -103,7 +116,7 @@ async def get_leaderboards(
     # ── Sleep sessions ────────────────────────────────────────────────────────
     raw_sleep_events = [
         (e.type, _utc(e.timestamp))
-        for e in events
+        for e in record_events
         if e.type in ("sleep_start", "sleep_end")
     ]
     sleep_sessions = pair_sleep_sessions(raw_sleep_events)
@@ -141,7 +154,7 @@ async def get_leaderboards(
 
     # ── Feeds per day ─────────────────────────────────────────────────────────
     feeds_by_day: dict[str, int] = defaultdict(int)
-    for e in events:
+    for e in record_events:
         if e.type == "feed":
             feeds_by_day[_utc(e.timestamp).date().isoformat()] += 1
 
@@ -153,7 +166,7 @@ async def get_leaderboards(
 
     # ── Poop diapers per day ──────────────────────────────────────────────────
     poop_by_day: dict[str, int] = defaultdict(int)
-    for e in events:
+    for e in record_events:
         if e.type == "diaper":
             meta = e.metadata_ or {}
             if meta.get("diaper_type") in ("dirty", "both"):
@@ -172,8 +185,8 @@ async def get_leaderboards(
     most_poop_new = has_enough_data and most_poop_date == today_str
 
     # ── Award claimed today (suppressed until enough data) ────────────────────
-    curr_stats = _compute_parent_stats(events, users)
-    prev_events = [e for e in events if _utc(e.timestamp) < today_start]
+    curr_stats = _compute_parent_stats(stat_events, users)
+    prev_events = [e for e in stat_events if _utc(e.timestamp) < today_start]
     prev_stats = _compute_parent_stats(prev_events, users)
 
     def award_claimed(key: str) -> bool:
