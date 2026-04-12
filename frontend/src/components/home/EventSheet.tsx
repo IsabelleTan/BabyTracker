@@ -46,13 +46,11 @@ function WheelPicker({
   values,
   selectedIndex,
   onChange,
-  label,
   width = 52,
 }: {
   values: string[]
   selectedIndex: number
   onChange: (index: number) => void
-  label?: string
   width?: number
 }) {
   const maxOffset = (values.length - 1) * ITEM_H

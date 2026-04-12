@@ -113,7 +113,6 @@ function StatBar({
   value,
   valueStr,
   avg,
-  avgStr,
   max,
 }: {
   icon: LucideIcon

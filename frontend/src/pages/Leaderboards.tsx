@@ -1,4 +1,4 @@
-import { Moon, Trophy, Baby, Sparkles, Crown, Swords, Toilet } from 'lucide-react'
+import { Trophy, Sparkles, Crown, Swords, Toilet } from 'lucide-react'
 import { type LeaderboardData, type ParentStat } from '@/lib/leaderboards'
 import { useLeaderboardData } from '@/contexts/LeaderboardContext'
 import NightToggle from '@/components/NightToggle'
