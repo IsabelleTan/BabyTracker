@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react'
 import { Moon, Trophy, Baby, Sparkles } from 'lucide-react'
-import { getLeaderboards, buildNotifications, type LeaderboardData, type ParentStat } from '@/lib/leaderboards'
+import { type LeaderboardData, type ParentStat } from '@/lib/leaderboards'
+import { useLeaderboardData } from '@/contexts/LeaderboardContext'
 import NightToggle from '@/components/NightToggle'
 
 function fmtMins(mins: number | null | undefined): string {
@@ -18,16 +18,7 @@ function fmtDate(dateStr: string | null): string {
 }
 
 export default function Leaderboards() {
-  const [data, setData] = useState<LeaderboardData | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
-
-  useEffect(() => {
-    getLeaderboards()
-      .then(setData)
-      .catch(() => setError(true))
-      .finally(() => setLoading(false))
-  }, [])
+  const { data, loading, error, notifications } = useLeaderboardData()
 
   if (loading) {
     return <p className="text-sm text-muted-foreground text-center py-16">Loading…</p>
@@ -46,8 +37,6 @@ export default function Leaderboards() {
       </div>
     )
   }
-
-  const notifications = buildNotifications(data)
 
   return (
     <div className="flex flex-col gap-6 py-4">

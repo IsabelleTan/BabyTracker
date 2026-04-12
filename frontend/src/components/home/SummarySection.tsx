@@ -3,7 +3,7 @@ import { Milk, Moon, Droplets, Sparkles, Users, type LucideIcon } from 'lucide-r
 import { formatDuration } from '@/hooks/useTimeSince'
 import type { BabyEvent } from '@/lib/events'
 import { getUser } from '@/lib/auth'
-import { getLeaderboards, buildNotifications } from '@/lib/leaderboards'
+import { useLeaderboardData } from '@/contexts/LeaderboardContext'
 import {
   getPartnerMessage,
   partnerMessageAllowed,
@@ -18,7 +18,7 @@ interface Props {
 
 export default function SummarySection({ events }: Props) {
   const stats = useMemo(() => computeStats(events), [events])
-  const [notifications, setNotifications] = useState<string[]>([])
+  const { notifications } = useLeaderboardData()
 
   // Partner message: compute once on first data load; suppress at night and within 3-day gate
   const [partnerMsg, setPartnerMsg] = useState<PartnerMessageResult | null>(null)
@@ -37,12 +37,6 @@ export default function SummarySection({ events }: Props) {
       recordPartnerMessageShown()
     }
   }, [events])
-
-  useEffect(() => {
-    getLeaderboards()
-      .then((data) => setNotifications(buildNotifications(data)))
-      .catch(() => {/* silent — notifications are non-critical */})
-  }, [])
 
   return (
     <div className="flex flex-col gap-1">

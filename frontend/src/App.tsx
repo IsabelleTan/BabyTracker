@@ -6,6 +6,7 @@ import InstallPrompt from '@/components/InstallPrompt'
 import Login from '@/pages/Login'
 import Home from '@/pages/Home'
 import { useNightMode } from '@/hooks/useNightMode'
+import { LeaderboardProvider } from '@/contexts/LeaderboardContext'
 
 const Stats = lazy(() => import('@/pages/Stats'))
 const Leaderboards = lazy(() => import('@/pages/Leaderboards'))
@@ -16,18 +17,20 @@ export const useNightModeCtx = () => useContext(NightModeContext)
 
 function AppLayout() {
   return (
-    <div className="w-full flex flex-col min-h-svh max-w-lg mx-auto">
-      <main className="flex-1 pb-16 px-4">
-        <Routes>
-          <Route path="/" element={<Home />} />
-          <Route path="/stats" element={<Suspense fallback={null}><Stats /></Suspense>} />
-          <Route path="/leaderboards" element={<Suspense fallback={null}><Leaderboards /></Suspense>} />
-          <Route path="*" element={<Navigate to="/" replace />} />
-        </Routes>
-      </main>
-      <BottomNav />
-      <InstallPrompt />
-    </div>
+    <LeaderboardProvider>
+      <div className="w-full flex flex-col min-h-svh max-w-lg mx-auto">
+        <main className="flex-1 pb-16 px-4">
+          <Routes>
+            <Route path="/" element={<Home />} />
+            <Route path="/stats" element={<Suspense fallback={null}><Stats /></Suspense>} />
+            <Route path="/leaderboards" element={<Suspense fallback={null}><Leaderboards /></Suspense>} />
+            <Route path="*" element={<Navigate to="/" replace />} />
+          </Routes>
+        </main>
+        <BottomNav />
+        <InstallPrompt />
+      </div>
+    </LeaderboardProvider>
   )
 }
 
