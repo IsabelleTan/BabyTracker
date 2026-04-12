@@ -109,6 +109,11 @@ function computeStats(events: BabyEvent[]) {
       openStart = null
     }
   }
+  // Include the ongoing (not yet ended) session so the panel doesn't show '—'
+  // while the baby is still asleep.
+  if (openStart !== null) {
+    totalSleepMs += Date.now() - openStart.getTime()
+  }
 
   return {
     feedCount: feeds.length,
