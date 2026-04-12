@@ -63,7 +63,10 @@ async def get_daily_stats(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    if (_utc(to) - _utc(from_)).days > MAX_STATS_RANGE_DAYS:
+    range_days = (_utc(to) - _utc(from_)).days
+    if range_days < 0:
+        raise HTTPException(status_code=422, detail="'from' must not be after 'to'")
+    if range_days > MAX_STATS_RANGE_DAYS:
         raise HTTPException(
             status_code=422,
             detail=f"Date range must not exceed {MAX_STATS_RANGE_DAYS} days",
