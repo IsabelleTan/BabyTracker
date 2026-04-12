@@ -78,9 +78,18 @@ async def get_leaderboards(
     baby_ids = select(UserBaby.baby_id).where(UserBaby.user_id == current_user.id)
     family_user_ids = select(UserBaby.user_id).where(UserBaby.baby_id.in_(baby_ids))
 
+    today_utc = datetime.now(timezone.utc)
+    today_start = today_utc.replace(hour=0, minute=0, second=0, microsecond=0)
+    today_str = today_utc.date().isoformat()
+
+    # Cap at 4 years — the realistic maximum lifetime of this app for any family.
+    # The compound index on (baby_id, timestamp) makes this range scan fast even
+    # at the upper bound (~25k events).
+    MAX_LEADERBOARD_DAYS = 4 * 365
+    cutoff = today_utc - timedelta(days=MAX_LEADERBOARD_DAYS)
     events_result = await db.execute(
         select(Event)
-        .where(Event.baby_id.in_(baby_ids))
+        .where(Event.baby_id.in_(baby_ids), Event.timestamp >= cutoff)
         .order_by(Event.timestamp)
     )
     events = events_result.scalars().all()
@@ -90,11 +99,6 @@ async def get_leaderboards(
     )
     users = {u.id: u.display_name for u in users_result.scalars().all()}
 
-    today_utc = datetime.now(timezone.utc)
-    today_start = today_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_str = today_utc.date().isoformat()
-
-    # Require at least 7 days of data before surfacing notifications/awards
     earliest_ts = min((_utc(e.timestamp) for e in events), default=None)
     has_enough_data = (
         earliest_ts is not None and (today_utc - earliest_ts).days >= 7
