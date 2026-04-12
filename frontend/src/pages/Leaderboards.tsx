@@ -1,4 +1,4 @@
-import { Moon, Trophy, Baby, Sparkles } from 'lucide-react'
+import { Moon, Trophy, Baby, Sparkles, Crown, Swords, Toilet } from 'lucide-react'
 import { type LeaderboardData, type ParentStat } from '@/lib/leaderboards'
 import { useLeaderboardData } from '@/contexts/LeaderboardContext'
 import NightToggle from '@/components/NightToggle'
@@ -51,13 +51,13 @@ export default function Leaderboards() {
           ))}
         </div>
       )}
-      <RecordsSection data={data} />
       <AwardsSection data={data} />
+      <RecordsSection data={data} />
     </div>
   )
 }
 
-// ── Records ──────────────────────────────────────────────────────────────────
+// ── Awards ───────────────────────────────────────────────────────────────────
 
 function NewBadge() {
   return (
@@ -66,6 +66,116 @@ function NewBadge() {
     </span>
   )
 }
+
+interface Award {
+  icon: React.ReactNode
+  title: string
+  subtitle: string
+  getValue: (p: ParentStat) => number
+  formatValue: (n: number) => string
+  claimedToday: boolean
+}
+
+function AwardsSection({ data }: { data: LeaderboardData }) {
+  const awards: Award[] = [
+    {
+      icon: <Crown className="w-5 h-5" />,
+      title: 'Chief Log Officer (CLO)',
+      subtitle: 'Most events logged overall',
+      getValue: (p) => p.total_logs,
+      formatValue: (n) => `${n} logs`,
+      claimedToday: data.chief_log_claimed_today,
+    },
+    {
+      icon: <Swords className="w-5 h-5" />,
+      title: 'Night Shift Ninja',
+      subtitle: 'Most events logged between 9 pm – 7 am',
+      getValue: (p) => p.night_shifts,
+      formatValue: (n) => `${n} logs`,
+      claimedToday: data.night_shift_claimed_today,
+    },
+    {
+      icon: <Toilet className="w-5 h-5" />,
+      title: 'Number One at Number Two',
+      subtitle: 'Most poop diapers changed',
+      getValue: (p) => p.poop_changes,
+      formatValue: (n) => `${n} changes`,
+      claimedToday: data.poop_award_claimed_today,
+    },
+  ]
+
+  return (
+    <section className="flex flex-col gap-3">
+      <div className="flex items-center justify-between px-1">
+        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          Awards
+        </h2>
+        <NightToggle />
+      </div>
+      <div className="flex flex-col gap-3">
+        {awards.map((award) => (
+          <AwardCard key={award.title} award={award} parents={data.parents} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+function AwardCard({
+  award,
+  parents,
+}: {
+  award: Award
+  parents: ParentStat[]
+}) {
+  const values = parents.map((p) => award.getValue(p))
+  const winnerIdx = values.indexOf(Math.max(...values))
+
+  return (
+    <div
+      className={`rounded-xl border bg-card shadow-sm px-4 py-3 flex flex-col gap-3 ${
+        award.claimedToday ? 'border-primary/60' : 'border-primary/25'
+      }`}
+    >
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-primary">
+          {award.icon}
+          <div>
+            <p className="text-sm font-semibold leading-tight">{award.title}</p>
+            <p className="text-xs text-muted-foreground">{award.subtitle}</p>
+          </div>
+        </div>
+        {award.claimedToday && <NewBadge />}
+      </div>
+      <div className="flex gap-8 justify-center">
+        {parents.map((p, i) => {
+          const isWinner = i === winnerIdx
+          const val = award.getValue(p)
+          const max = Math.max(...values)
+          const pct = max > 0 ? (val / max) * 100 : 0
+          return (
+            <div key={p.display_name} className="w-[88px] flex flex-col items-center gap-1.5">
+              <span className={`text-xs font-semibold ${isWinner ? 'text-primary' : 'text-muted-foreground'}`}>
+                {award.formatValue(val)}
+              </span>
+              <div className="w-full h-20 flex items-end">
+                <div className="w-full h-full flex items-end">
+                  <div
+                    className={`w-full rounded-t-sm transition-all ${isWinner ? 'bg-primary/60' : 'bg-muted-foreground/30'}`}
+                    style={{ height: `${pct}%` }}
+                  />
+                </div>
+              </div>
+              <span className={`text-xs truncate max-w-full ${isWinner ? 'text-primary font-medium' : 'text-muted-foreground'}`}>{p.display_name}</span>
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// ── Records ──────────────────────────────────────────────────────────────────
 
 function RecordsSection({ data }: { data: LeaderboardData }) {
   const rows: { label: string; value: string; sub: string; isNew: boolean }[] = [
@@ -103,13 +213,10 @@ function RecordsSection({ data }: { data: LeaderboardData }) {
 
   return (
     <section className="flex flex-col gap-3">
-      <div className="flex items-center justify-between px-1">
-        <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
-          Records
-        </h2>
-        <NightToggle />
-      </div>
-      <div className="rounded-xl border border-primary/35 bg-surface divide-y divide-primary/15">
+      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
+        Records
+      </h2>
+      <div className="rounded-xl border border-primary/25 bg-surface divide-y divide-primary/15">
         {rows.map((row) => (
           <div key={row.label} className="flex items-center justify-between px-4 py-3">
             <div className="flex items-center">
@@ -126,113 +233,5 @@ function RecordsSection({ data }: { data: LeaderboardData }) {
         ))}
       </div>
     </section>
-  )
-}
-
-// ── Awards ───────────────────────────────────────────────────────────────────
-
-interface Award {
-  icon: React.ReactNode
-  title: string
-  subtitle: string
-  getValue: (p: ParentStat) => number
-  formatValue: (n: number) => string
-  claimedToday: boolean
-}
-
-function AwardsSection({ data }: { data: LeaderboardData }) {
-  const awards: Award[] = [
-    {
-      icon: <Moon className="w-5 h-5" />,
-      title: 'Night Shift Ninja',
-      subtitle: 'Most events logged between 9 pm – 7 am',
-      getValue: (p) => p.night_shifts,
-      formatValue: (n) => `${n} logs`,
-      claimedToday: data.night_shift_claimed_today,
-    },
-    {
-      icon: <Trophy className="w-5 h-5" />,
-      title: 'Chief Log Officer',
-      subtitle: 'Most events logged overall',
-      getValue: (p) => p.total_logs,
-      formatValue: (n) => `${n} logs`,
-      claimedToday: data.chief_log_claimed_today,
-    },
-    {
-      icon: <Baby className="w-5 h-5" />,
-      title: 'Number One at Number Two',
-      subtitle: 'Most poop diapers changed',
-      getValue: (p) => p.poop_changes,
-      formatValue: (n) => `${n} changes`,
-      claimedToday: data.poop_award_claimed_today,
-    },
-  ]
-
-  return (
-    <section className="flex flex-col gap-3">
-      <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
-        Awards
-      </h2>
-      <div className="flex flex-col gap-3">
-        {awards.map((award) => (
-          <AwardCard key={award.title} award={award} parents={data.parents} />
-        ))}
-      </div>
-    </section>
-  )
-}
-
-function AwardCard({
-  award,
-  parents,
-}: {
-  award: Award
-  parents: ParentStat[]
-}) {
-  const values = parents.map((p) => award.getValue(p))
-  const winnerIdx = values.indexOf(Math.max(...values))
-
-  return (
-    <div
-      className={`rounded-xl border bg-surface px-4 py-3 flex flex-col gap-3 ${
-        award.claimedToday ? 'border-primary/60' : 'border-primary/35'
-      }`}
-    >
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-2 text-primary">
-          {award.icon}
-          <div>
-            <p className="text-sm font-semibold leading-tight">{award.title}</p>
-            <p className="text-xs text-muted-foreground">{award.subtitle}</p>
-          </div>
-        </div>
-        {award.claimedToday && <NewBadge />}
-      </div>
-      <div className="flex gap-3">
-        {parents.map((p, i) => {
-          const isWinner = i === winnerIdx
-          return (
-            <div
-              key={p.display_name}
-              className={`flex-1 rounded-lg px-3 py-2 flex flex-col items-center gap-0.5 ${
-                isWinner
-                  ? 'bg-primary/15 border border-primary/40'
-                  : 'bg-background/60 border border-primary/15'
-              }`}
-            >
-              <span
-                className={`text-lg font-bold leading-tight ${isWinner ? 'text-primary' : 'text-foreground'}`}
-              >
-                {award.formatValue(award.getValue(p))}
-              </span>
-              <span className="text-xs text-muted-foreground">{p.display_name}</span>
-              {isWinner && (
-                <span className="text-xs font-medium text-primary mt-0.5">winner</span>
-              )}
-            </div>
-          )
-        })}
-      </div>
-    </div>
   )
 }

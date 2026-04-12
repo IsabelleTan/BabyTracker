@@ -310,7 +310,7 @@ function ActionCard({
   return (
     <button
       onClick={onClick}
-      className="flex flex-col items-center rounded-xl border border-primary/20 bg-card active:brightness-95 transition-all px-2 py-3 text-center w-full"
+      className="flex flex-col items-center rounded-xl bg-card shadow-sm active:brightness-95 active:shadow-none transition-all px-2 py-3 text-center w-full"
     >
       <div className="flex-1 w-full flex flex-col gap-2 pb-2">
         {visibleStats.map((s, i) => (

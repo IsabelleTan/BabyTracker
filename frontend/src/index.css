@@ -100,7 +100,7 @@ input, select, textarea {
   --popover: oklch(1.0 0.002 30);
   --popover-foreground: oklch(0.16 0.025 25);
   /* Surface (Today panel, containers) — warm but clearly distinct from background */
-  --surface: oklch(0.95 0.022 33);
+  --surface: oklch(0.95 0.013 33);
   /* Primary pushed to C=0.20: terracotta pops harder on a light background */
   --primary: oklch(0.50 0.20 18);
   --primary-foreground: oklch(0.99 0.004 25);

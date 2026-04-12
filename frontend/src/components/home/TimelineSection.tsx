@@ -82,12 +82,12 @@ export default function TimelineSection({ events, onDeleted }: Props) {
                 `${EVENT_LABELS[pendingDelete.type]} at ${formatTime(new Date(pendingDelete.timestamp))} logged by ${pendingDelete.display_name}`}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex-row gap-2 sm:gap-2">
+            <AlertDialogCancel disabled={deleting} className="flex-1 mt-0">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
             </AlertDialogAction>

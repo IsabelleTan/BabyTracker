@@ -243,7 +243,7 @@ function ChartCard({
   const gridDash = '3 3'
 
   return (
-    <div className="w-full rounded-xl border border-primary/35 bg-surface px-3 py-3 flex flex-col gap-3">
+    <div className="w-full rounded-xl border border-primary/35 bg-card px-3 py-3 flex flex-col gap-3">
       <span className="text-sm font-medium">{title}</span>
       <ResponsiveContainer width="100%" height={150}>
         <LineChart data={data} margin={{ top: 4, right: 12, left: -16, bottom: 0 }}>
