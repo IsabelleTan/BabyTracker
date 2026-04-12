@@ -16,6 +16,9 @@ from app.routers.leaderboards import router as leaderboards_router
 
 @asynccontextmanager
 async def lifespan(_: FastAPI):
+    # create_all creates missing tables on a fresh DB but does NOT run Alembic
+    # migrations. On an existing deployment, run `alembic upgrade head` before
+    # starting the server whenever new migrations are added.
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     yield

@@ -1,10 +1,11 @@
 from datetime import datetime, timezone
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, exists
 from sqlalchemy.dialects.sqlite import insert
 
 from app.db.database import get_db
+from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
 from app.models.user_baby import UserBaby
@@ -30,7 +31,9 @@ def _to_response(event: Event, display_name: str) -> EventResponse:
 
 
 @router.post("", status_code=201, response_model=EventResponse)
+@limiter.limit("60/minute")
 async def create_event(
+    request: Request,
     payload: EventCreate,
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
@@ -61,7 +64,9 @@ async def create_event(
 
 
 @router.get("", response_model=list[EventResponse])
+@limiter.limit("60/minute")
 async def get_events(
+    request: Request,
     from_: datetime | None = None,
     to: datetime | None = None,
     since: datetime | None = None,
@@ -99,11 +104,8 @@ async def get_events(
     events = result.scalars().all()
 
     user_ids = {e.logged_by for e in events}
-    users = {}
-    for uid in user_ids:
-        u = await db.get(User, uid)
-        if u:
-            users[uid] = u.display_name
+    users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
+    users = {u.id: u.display_name for u in users_result.scalars().all()}
 
     return [_to_response(e, users.get(e.logged_by, "")) for e in events]
 

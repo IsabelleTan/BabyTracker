@@ -24,6 +24,7 @@ export function useTimeSince(date: Date | null): string {
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
   useEffect(() => {
+    if (!date) return
     function start() {
       intervalRef.current = setInterval(() => setTick((t) => t + 1), 60_000)
     }
@@ -41,7 +42,7 @@ export function useTimeSince(date: Date | null): string {
       stop()
       document.removeEventListener('visibilitychange', onVisibility)
     }
-  }, [])
+  }, [date])
 
   if (!date) return '—'
   return formatAgo(date)

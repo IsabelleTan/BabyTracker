@@ -2,7 +2,7 @@ import enum
 from datetime import datetime
 from typing import Any
 from sqlalchemy.orm import Mapped, mapped_column, relationship
-from sqlalchemy import String, ForeignKey, DateTime, JSON, Enum as SAEnum
+from sqlalchemy import String, ForeignKey, DateTime, JSON, Enum as SAEnum, Index
 from app.db.database import Base
 
 
@@ -15,6 +15,10 @@ class EventType(str, enum.Enum):
 
 class Event(Base):
     __tablename__ = "events"
+    __table_args__ = (
+        # Covers the timestamp range filters used by every events/stats/leaderboards query
+        Index('ix_event_baby_timestamp', 'baby_id', 'timestamp'),
+    )
 
     id: Mapped[str] = mapped_column(String(36), primary_key=True)  # UUID set by client
     type: Mapped[EventType] = mapped_column(SAEnum(EventType), nullable=False)

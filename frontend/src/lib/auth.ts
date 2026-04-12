@@ -22,9 +22,22 @@ export function logout() {
 
 export function getUser(): AuthUser | null {
   const raw = localStorage.getItem('user')
-  return raw ? JSON.parse(raw) : null
+  if (!raw) return null
+  try {
+    return JSON.parse(raw)
+  } catch {
+    localStorage.removeItem('user')
+    return null
+  }
 }
 
 export function isAuthenticated(): boolean {
-  return !!localStorage.getItem('token')
+  const token = localStorage.getItem('token')
+  if (!token) return false
+  try {
+    const payload = JSON.parse(atob(token.split('.')[1]))
+    return payload.exp * 1000 > Date.now()
+  } catch {
+    return false
+  }
 }
