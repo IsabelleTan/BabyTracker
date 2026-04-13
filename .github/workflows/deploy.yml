@@ -78,6 +78,7 @@ jobs:
             git pull
             cd backend
             poetry install --without dev
+            poetry run alembic upgrade head
             cd ../frontend
             npm ci
             APP_VERSION=$APP_VERSION npm run build
