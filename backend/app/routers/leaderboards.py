@@ -137,7 +137,7 @@ async def get_leaderboards(
             overlap_start = max(start, night_start)
             overlap_end = min(end, night_end)
             if overlap_end > overlap_start:
-                night_sleep[night_start.date().isoformat()] += (
+                night_sleep[parenting_day(night_start, tz_offset)] += (
                     overlap_end - overlap_start
                 ).total_seconds() / 60
 
