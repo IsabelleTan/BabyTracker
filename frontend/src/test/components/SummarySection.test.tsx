@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import SummarySection from '@/components/home/SummarySection'
 import { currentDayStart, type BabyEvent } from '@/lib/events'
@@ -16,15 +16,20 @@ vi.mock('@/lib/auth', () => ({
   getUser: vi.fn().mockReturnValue({ user_id: 'u1', display_name: 'Parent 1' }),
 }))
 
-// todayAt: real local time at the given hour — hours ≥ 5 are always within the
-// current parenting day (5am boundary), so keep callers at h ≥ 5 to stay safe.
+// Pin "now" to June 20 2024 10:00am so currentDayStart() = 5am and all todayAt()
+// hours < now. shouldAdvanceTime lets real time flow so waitFor() doesn't stall.
+const PINNED_NOW = new Date(2024, 5, 20, 10, 0, 0)
+beforeEach(() => vi.useFakeTimers({ now: PINNED_NOW, shouldAdvanceTime: true }))
+afterEach(() => vi.useRealTimers())
+
+// todayAt: hour on the pinned day — hours 5–9 are within today's parenting window
+// and strictly before "now" (10am).
 function todayAt(hour: number, minuteOffset = 0): string {
-  const d = new Date()
+  const d = new Date(PINNED_NOW)
   d.setHours(hour, minuteOffset, 0, 0)
   return d.toISOString()
 }
-// daysAgoAt: offset from currentDayStart() so the result is always N parenting-days
-// before today's boundary, regardless of what time CI runs.
+// daysAgoAt: N parenting-days before the pinned day's boundary.
 function daysAgoAt(days: number, hour: number): string {
   const base = currentDayStart()
   base.setDate(base.getDate() - days)
