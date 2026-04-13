@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest'
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import {
   getBabyVoiceContext,
   getPartnerContext,
@@ -413,5 +413,72 @@ describe('getNewMilestone — additional milestones', () => {
     localStorage.setItem('logging_total_days', '7')
     markMilestoneSeen('logging_days_7')
     expect(getNewMilestone([makeEvent('feed', today(8))])).toBeNull()
+  })
+})
+
+// ── 5am parenting-day boundary ────────────────────────────────────────────────
+
+describe('partnerMessageAllowed — 5am parenting-day boundary', () => {
+  beforeEach(() => { localStorage.clear() })
+  afterEach(() => vi.useRealTimers())
+
+  it('blocks at 3am when message was already shown at 1am the same night (same parenting day)', () => {
+    vi.useFakeTimers()
+    // 1am June 20 — parenting day is June 19 (before 5am)
+    vi.setSystemTime(new Date(2024, 5, 20, 1, 0, 0))
+    recordPartnerMessageShown()
+
+    // 3am June 20 — still parenting day June 19
+    vi.setSystemTime(new Date(2024, 5, 20, 3, 0, 0))
+    expect(partnerMessageAllowed()).toBe(false)
+  })
+
+  it('allows after 3 full parenting days have passed since a pre-5am record', () => {
+    vi.useFakeTimers()
+    // Shown at 1am June 20 → stored as parenting day June 19
+    vi.setSystemTime(new Date(2024, 5, 20, 1, 0, 0))
+    recordPartnerMessageShown()
+
+    // 5am June 22 = parenting day June 22 (3 parenting days after June 19) → allowed
+    vi.setSystemTime(new Date(2024, 5, 22, 5, 0, 0))
+    expect(partnerMessageAllowed()).toBe(true)
+  })
+
+  it('still blocks at 4:59am the next calendar day (same parenting day as 9pm)', () => {
+    vi.useFakeTimers()
+    // Shown at 10pm June 19 → parenting day June 19
+    vi.setSystemTime(new Date(2024, 5, 19, 22, 0, 0))
+    recordPartnerMessageShown()
+
+    // 4:59am June 20 → still parenting day June 19 (< 5am)
+    vi.setSystemTime(new Date(2024, 5, 20, 4, 59, 0))
+    expect(partnerMessageAllowed()).toBe(false)
+  })
+})
+
+describe('nightMessageShouldShow — 5am parenting-day boundary', () => {
+  beforeEach(() => { localStorage.clear() })
+  afterEach(() => vi.useRealTimers())
+
+  it('blocks at 2am when already shown at 11pm the same night (same night session key)', () => {
+    vi.useFakeTimers()
+    // Mark shown at 11pm June 19 (nightSessionDate = June 19)
+    vi.setSystemTime(new Date(2024, 5, 19, 23, 0, 0))
+    markNightMessageShown()
+
+    // 2am June 20 — nightSessionDate still June 19 (before 7am)
+    vi.setSystemTime(new Date(2024, 5, 20, 2, 0, 0))
+    expect(nightMessageShouldShow(5)).toBe(false)
+  })
+
+  it('allows on the next evening (different night session key)', () => {
+    vi.useFakeTimers()
+    // Mark shown at 11pm June 19 (nightSessionDate = June 19)
+    vi.setSystemTime(new Date(2024, 5, 19, 23, 0, 0))
+    markNightMessageShown()
+
+    // 10pm June 20 — nightSessionDate = June 20, isNightHours = true
+    vi.setSystemTime(new Date(2024, 5, 20, 22, 0, 0))
+    expect(nightMessageShouldShow(5)).toBe(true)
   })
 })
