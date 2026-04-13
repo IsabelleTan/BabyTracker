@@ -74,12 +74,15 @@ jobs:
           envs: APP_VERSION
           script: |
             set -e
-            cd /var/www/babytracker/app
-            git pull
-            cd backend
-            poetry install --without dev
-            poetry run alembic upgrade head
-            cd ../frontend
-            npm ci
-            APP_VERSION=$APP_VERSION npm run build
-            sudo systemctl restart babytracker
+            su - babytracker -c "
+              set -e
+              cd /var/www/babytracker/app
+              git pull
+              cd backend
+              poetry install --without dev
+              poetry run alembic upgrade head
+              cd ../frontend
+              npm ci
+              APP_VERSION=$APP_VERSION npm run build
+            "
+            systemctl restart babytracker
