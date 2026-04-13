@@ -1,28 +1,35 @@
 """
 Seed realistic demo data for the BabyTracker user-manual screenshots.
 
-Usage (from the repo root):
-    cd backend
+Usage (from the backend/ directory):
+
+  First-time setup — creates both user accounts and seeds all data:
+    poetry run python ../scripts/seed_screenshots.py --create-users
+
+  Subsequent runs — re-seeds data without touching accounts:
     poetry run python ../scripts/seed_screenshots.py \
-        --user1-email mum@example.com  --user1-password <password> \
-        --user2-email dad@example.com  --user2-password <password> \
-        --base-url http://localhost:8000
+        --user1-email mum@example.com  --user1-password secret1 \
+        --user2-email dad@example.com  --user2-password secret2
+
+  --create-users writes directly to the database (no registration endpoint
+  exists). It uses fixed credentials: mum@example.com / secret1 and
+  dad@example.com / secret2. Run from the backend/ directory so the app
+  config (DATABASE_URL etc.) resolves correctly.
 
 What it creates:
-  • 28 days of historical data (for the stats charts and sleep-trend signal)
-  • Today's events  (for the home screen, timeline, and daily-story card)
-  • An evening cluster feeding sequence (for the cluster-chip screenshot)
-  • Events split across both users (for the leaderboards screenshot)
+  • Two user accounts sharing one baby (--create-users only)
+  • 28 days of historical data (stats charts, leaderboard records)
+  • Today's events (home screen, timeline, summary)
+  • Events split across both users (leaderboards, partner messages)
 
-All events are idempotent — re-running the script with the same arguments
-produces the same UUIDs so you won't get duplicates.
+All events are idempotent — re-running produces the same UUIDs.
 """
 
 import argparse
+import asyncio
 import hashlib
 import sys
 from datetime import date, datetime, timedelta, timezone
-from zoneinfo import ZoneInfo
 
 import httpx
 
@@ -39,6 +46,64 @@ def iso(dt: datetime) -> str:
 
 def utc(year: int, month: int, day: int, hour: int, minute: int = 0) -> datetime:
     return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
+
+# ── user creation (direct DB, no registration endpoint) ──────────────────────
+
+DEFAULT_USER1_EMAIL    = "mum@example.com"
+DEFAULT_USER1_PASSWORD = "secret1"
+DEFAULT_USER1_NAME     = "Mum"
+DEFAULT_USER2_EMAIL    = "dad@example.com"
+DEFAULT_USER2_PASSWORD = "secret2"
+DEFAULT_USER2_NAME     = "Dad"
+
+async def create_users_in_db() -> None:
+    """Create two users + one shared baby directly in the database."""
+    # Import here so the script still works without the app on PATH
+    # when --create-users is not used.
+    import os, sys
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/../backend")
+    from app.db.database import SessionLocal, engine
+    from app.models import Base  # ensures all models are registered
+    from app.models.user import User
+    from app.models.baby import Baby
+    from app.models.user_baby import UserBaby
+    from app.auth import hash_password
+    from sqlalchemy import select
+
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+
+    async with SessionLocal() as session:
+        # Skip if users already exist
+        existing = await session.execute(select(User).where(User.email == DEFAULT_USER1_EMAIL))
+        if existing.scalar_one_or_none():
+            print("  Users already exist — skipping creation.")
+            return
+
+        user1 = User(
+            id=deterministic_id("user", DEFAULT_USER1_EMAIL),
+            email=DEFAULT_USER1_EMAIL,
+            hashed_password=hash_password(DEFAULT_USER1_PASSWORD),
+            display_name=DEFAULT_USER1_NAME,
+        )
+        user2 = User(
+            id=deterministic_id("user", DEFAULT_USER2_EMAIL),
+            email=DEFAULT_USER2_EMAIL,
+            hashed_password=hash_password(DEFAULT_USER2_PASSWORD),
+            display_name=DEFAULT_USER2_NAME,
+        )
+        baby = Baby(
+            id=deterministic_id("baby", "screenshot-demo"),
+            name="Baby",
+        )
+        session.add_all([user1, user2, baby])
+        await session.flush()
+        session.add(UserBaby(user_id=user1.id, baby_id=baby.id))
+        session.add(UserBaby(user_id=user2.id, baby_id=baby.id))
+        await session.commit()
+        print(f"  Created: {DEFAULT_USER1_NAME} ({DEFAULT_USER1_EMAIL} / {DEFAULT_USER1_PASSWORD})")
+        print(f"  Created: {DEFAULT_USER2_NAME} ({DEFAULT_USER2_EMAIL} / {DEFAULT_USER2_PASSWORD})")
+        print(f"  Created: Baby (shared)")
 
 # ── auth ─────────────────────────────────────────────────────────────────────
 
@@ -207,12 +272,19 @@ def build_today_events(today: str) -> tuple[list[dict], list[dict]]:
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Seed demo data for BabyTracker screenshots")
-    parser.add_argument("--user1-email",    required=True)
-    parser.add_argument("--user1-password", required=True)
-    parser.add_argument("--user2-email",    required=True)
-    parser.add_argument("--user2-password", required=True)
+    parser.add_argument("--create-users", action="store_true",
+                        help="Create demo user accounts directly in the DB (run once, from backend/ dir)")
+    parser.add_argument("--user1-email",    default=DEFAULT_USER1_EMAIL)
+    parser.add_argument("--user1-password", default=DEFAULT_USER1_PASSWORD)
+    parser.add_argument("--user2-email",    default=DEFAULT_USER2_EMAIL)
+    parser.add_argument("--user2-password", default=DEFAULT_USER2_PASSWORD)
     parser.add_argument("--base-url",       default="http://localhost:8000")
     args = parser.parse_args()
+
+    if args.create_users:
+        print("Creating demo users in database...")
+        asyncio.run(create_users_in_db())
+        print("  OK")
 
     today = date.today()
 
@@ -246,16 +318,17 @@ def main() -> None:
 
     print()
     print("Done. Suggested screenshot order:")
-    print("  1. screenshots/home.png          — home screen (full page)")
-    print("  2. screenshots/feed-sheet-breast.png — tap Feed → select Breast → fill in 12 / 8 min")
-    print("  3. screenshots/timeline.png      — scroll to timeline, crop to card")
-    print("  4. screenshots/timeline-swipe.png — swipe any timeline row left")
-    print("  5. screenshots/cluster-chip.png  — scroll to cluster chip in timeline, crop to chip + row below")
-    print("  6. screenshots/daily-story.png   — daily story card (visible after 18:00 local time)")
-    print("  7. screenshots/sleep-trend.png   — crop to Today summary card showing trend signal")
-    print("  8. screenshots/stats.png         — Stats tab, set range to past 28 days")
-    print("  9. screenshots/leaderboards.png  — Leaderboards tab")
-    print(" 10. screenshots/night-mode.png    — tap moon icon, then screenshot home screen")
+    print("  1. screenshots/home.png             — full home screen")
+    print("  2. screenshots/summary.png          — crop to Today's summary card")
+    print("  3. screenshots/timeline.png         — crop to timeline card (5–6 events, two names)")
+    print("  4. screenshots/timeline-swipe.png   — swipe any row left to show delete button")
+    print("  5. screenshots/stats.png            — Stats tab, select '30 days'")
+    print("  6. screenshots/leaderboards.png     — Leaderboards tab (both Awards and Records visible)")
+    print("  7. screenshots/night-mode.png       — tap moon icon, then screenshot")
+    print("  --- no seed data needed ---")
+    print("  8. screenshots/feed-sheet-breast.png — Feed sheet, Breast selected, 12/8 min filled in")
+    print("  9. screenshots/time-picker.png      — any logging sheet, wheel picker visible")
+    print(" 10. screenshots/milestone.png        — see manual for DevTools trigger instructions")
 
 if __name__ == "__main__":
     main()
