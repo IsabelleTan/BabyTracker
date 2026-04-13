@@ -7,7 +7,6 @@ export interface DailyStat {
   total_sleep_min: number
   sleep_session_count: number
   avg_sleep_session_min: number | null
-  longest_sleep_session_min: number | null
   avg_wake_min: number | null
   diaper_count: number
 }
