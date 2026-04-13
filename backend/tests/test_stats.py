@@ -100,7 +100,7 @@ async def test_stats_longest_sleep_session(client_with_family):
         await client.post("/events", json={"id": sid, "type": "sleep_start", "timestamp": f"2024-01-15T{start}:00Z"}, headers=headers)
         await client.post("/events", json={"id": f"e{sid}", "type": "sleep_end", "timestamp": f"2024-01-15T{end}:00Z"}, headers=headers)
 
-    r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-15T00:00:00Z"}, headers=headers)
+    r = await client.get("/stats/daily", params={"from": "2024-01-15T05:00:00Z", "to": "2024-01-15T05:00:00Z"}, headers=headers)
     day = r.json()[0]
     assert day["longest_sleep_session_min"] == 120
     assert day["avg_sleep_session_min"] == 90.0
