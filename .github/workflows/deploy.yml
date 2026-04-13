@@ -1,0 +1,94 @@
+name: Deploy
+
+on:
+  push:
+    tags:
+      - '[0-9]+.[0-9]+.[0-9]+'
+      - 'v[0-9]+.[0-9]+.[0-9]+'
+
+jobs:
+  test:
+    name: Run tests before deploy
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.13"
+
+      - name: Install Poetry
+        uses: snok/install-poetry@v1
+        with:
+          virtualenvs-in-project: true
+
+      - name: Cache Poetry virtualenv
+        uses: actions/cache@v4
+        with:
+          path: backend/.venv
+          key: backend-venv-${{ hashFiles('backend/poetry.lock') }}
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: poetry install
+
+      - name: Run backend tests
+        working-directory: backend
+        run: poetry run pytest
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: "npm"
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install frontend dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Frontend type check & build
+        working-directory: frontend
+        run: npm run build
+
+      - name: Run frontend tests
+        working-directory: frontend
+        run: npm run test
+
+  deploy:
+    name: Deploy to VPS
+    runs-on: ubuntu-latest
+    needs: test
+    environment: production
+
+    steps:
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          APP_VERSION: ${{ github.ref_name }}
+        with:
+          host: ${{ secrets.VPS_HOST }}
+          username: ${{ secrets.VPS_USER }}
+          key: ${{ secrets.VPS_SSH_KEY }}
+          envs: APP_VERSION
+          script: |
+            set -e
+            # Validate tag format before using it in any shell command
+            if ! echo "$APP_VERSION" | grep -qE '^v?[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "ERROR: APP_VERSION '$APP_VERSION' is not a valid semver tag"
+              exit 1
+            fi
+            su - babytracker -c "
+              set -e
+              cd /var/www/babytracker/app
+              git pull
+              cd backend
+              poetry install --without dev
+              poetry run alembic upgrade head
+              cd ../frontend
+              npm ci
+              APP_VERSION=$APP_VERSION npm run build
+            "
+            systemctl restart babytracker
