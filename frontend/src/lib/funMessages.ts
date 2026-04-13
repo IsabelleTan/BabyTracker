@@ -88,7 +88,7 @@ const MILESTONE_MESSAGES: Record<MilestoneKey, string> = {
   // Diapers
   diaper_8:          "8 diapers in a day. Thorough logging, thorough parenting.",
   // Events / variety
-  all_event_types:   "Feeds, sleep, and diapers all logged today — the full picture.",
+  all_event_types:   "Feeds, diapers, and sleep all logged today — the full picture.",
   // Time of day
   night_survived:    "You were up at 3am and logged it. That level of dedication is something.",
   cluster_first:     "First cluster feeding logged. It's a lot — and it's completely normal.",

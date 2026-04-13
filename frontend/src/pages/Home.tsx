@@ -232,6 +232,16 @@ export default function Home() {
             ]}
           />
           <ActionCard
+            icon={Droplets}
+            label="Diaper"
+            onClick={() => setSheetType('diaper')}
+            stats={[
+              lastDiaperDate
+                ? { label: 'Last diaper', lines: [ago(lastDiaperDate), fmt(lastDiaperDate)] }
+                : null,
+            ]}
+          />
+          <ActionCard
             icon={isSleeping ? Sun : Moon}
             label={isSleeping ? 'Wake' : 'Sleep'}
             onClick={() => setSheetType(isSleeping ? 'sleep_end' : 'sleep_start')}
@@ -241,16 +251,6 @@ export default function Home() {
                     label: isSleeping ? 'Asleep since' : 'Awake since',
                     lines: [duration(sleepStatus.since), fmt(sleepStatus.since)],
                   }
-                : null,
-            ]}
-          />
-          <ActionCard
-            icon={Droplets}
-            label="Diaper"
-            onClick={() => setSheetType('diaper')}
-            stats={[
-              lastDiaperDate
-                ? { label: 'Last diaper', lines: [ago(lastDiaperDate), fmt(lastDiaperDate)] }
                 : null,
             ]}
           />

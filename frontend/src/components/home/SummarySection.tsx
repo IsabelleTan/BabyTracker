@@ -66,15 +66,6 @@ export default function SummarySection({ events }: Props) {
             max={stats.maxFeeds}
           />
           <StatBar
-            icon={Moon}
-            label="Sleep"
-            value={stats.totalSleepMs}
-            valueStr={stats.totalSleep}
-            avg={stats.avgSleepMs}
-
-            max={stats.maxSleepMs}
-          />
-          <StatBar
             icon={Droplets}
             label="Diapers"
             value={stats.diaperCount}
@@ -83,8 +74,17 @@ export default function SummarySection({ events }: Props) {
 
             max={stats.maxDiapers}
           />
+          <StatBar
+            icon={Moon}
+            label="Sleep"
+            value={stats.totalSleepMs}
+            valueStr={stats.totalSleep}
+            avg={stats.avgSleepMs}
+
+            max={stats.maxSleepMs}
+          />
         </div>
-        <p className="text-[10px] text-muted-foreground/60">│ vs 7-day avg</p>
+        <p className="text-[10px] text-muted-foreground/60">│ 7-day avg</p>
         {partnerMsg && (
           <div className="border-t border-primary/15 pt-3 flex items-center gap-2">
             <Users className="w-3.5 h-3.5 text-primary shrink-0" />

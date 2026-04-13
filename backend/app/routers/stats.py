@@ -24,6 +24,7 @@ class DailyStat(BaseModel):
     total_sleep_min: int
     sleep_session_count: int
     avg_sleep_session_min: float | None
+    longest_sleep_session_min: int | None
     avg_wake_min: float | None
     diaper_count: int
 
@@ -143,6 +144,10 @@ async def get_daily_stats(
         sessions = sleep_by_day.get(day, [])
         total_sleep = sum((e - s).total_seconds() / 60 for s, e in sessions)
         avg_sleep: float | None = round(total_sleep / len(sessions), 1) if sessions else None
+        longest_sleep: int | None = (
+            round(max((e - s).total_seconds() / 60 for s, e in sessions))
+            if sessions else None
+        )
 
         wakes = wake_by_day.get(day, [])
         avg_wake: float | None = round(sum(wakes) / len(wakes), 1) if wakes else None
@@ -155,6 +160,7 @@ async def get_daily_stats(
                 total_sleep_min=round(total_sleep),
                 sleep_session_count=len(sessions),
                 avg_sleep_session_min=avg_sleep,
+                longest_sleep_session_min=longest_sleep,
                 avg_wake_min=avg_wake,
                 diaper_count=len(diapers_by_day.get(day, [])),
             )

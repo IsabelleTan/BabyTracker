@@ -1,6 +1,13 @@
 # Baby Tracker
 
-A mobile-first PWA for two parents to track their baby's feeds, sleep, and diapers.
+The first weeks with a newborn are a blur of feeds, diaper changes, and broken sleep. BabyTracker is a shared log for two parents: tap once to record a feed, a sleep block, or a diaper change, and your partner sees it instantly. Over time the data becomes charts giving helpful insights and the app keeps the spirits up and lighthearted with playful awards and encouragement.
+
+<p align="center">
+  <img src="screenshots/home.png" width="160" alt="Home screen">
+  <img src="screenshots/stats.png" width="160" alt="Stats">
+  <img src="screenshots/leaderboards.png" width="160" alt="Leaderboards">
+  <img src="screenshots/night-mode.png" width="160" alt="Night mode">
+</p>
 
 [![CI](https://github.com/IsabelleTan/BabyTracker/actions/workflows/ci.yml/badge.svg)](https://github.com/IsabelleTan/BabyTracker/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/IsabelleTan/BabyTracker/branch/main/graph/badge.svg?token=T4UOKMWPJH&flag=backend)](https://codecov.io/gh/IsabelleTan/BabyTracker)
