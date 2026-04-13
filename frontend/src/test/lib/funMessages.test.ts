@@ -1,4 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
+import { currentDayStart } from '@/lib/events'
 import {
   getBabyVoiceContext,
   getPartnerContext,
@@ -275,9 +276,9 @@ describe('milestoneAllowedToday / recordMilestoneShownToday', () => {
   })
 
   it('returns true when shown 3 or more days ago', () => {
-    const threeDaysAgo = new Date()
+    const threeDaysAgo = currentDayStart()
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
-    localStorage.setItem('milestone_shown_date', threeDaysAgo.toISOString().slice(0, 10))
+    localStorage.setItem('milestone_shown_date', threeDaysAgo.toLocaleDateString('en-CA'))
     expect(milestoneAllowedToday()).toBe(true)
   })
 })
@@ -304,9 +305,9 @@ describe('babyVoiceShouldShow / dismissBabyVoice', () => {
   })
 
   it('returns true when shown 3 or more days ago', () => {
-    const threeDaysAgo = new Date()
+    const threeDaysAgo = currentDayStart()
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
-    localStorage.setItem('baby_voice_last_shown', threeDaysAgo.toISOString().slice(0, 10))
+    localStorage.setItem('baby_voice_last_shown', threeDaysAgo.toLocaleDateString('en-CA'))
     expect(babyVoiceShouldShow()).toBe(true)
   })
 })
@@ -334,9 +335,9 @@ describe('partnerMessageAllowed / recordPartnerMessageShown', () => {
   })
 
   it('returns true when shown 3 or more days ago', () => {
-    const threeDaysAgo = new Date()
+    const threeDaysAgo = currentDayStart()
     threeDaysAgo.setDate(threeDaysAgo.getDate() - 3)
-    localStorage.setItem('partner_msg_last_shown', threeDaysAgo.toISOString().slice(0, 10))
+    localStorage.setItem('partner_msg_last_shown', threeDaysAgo.toLocaleDateString('en-CA'))
     expect(partnerMessageAllowed()).toBe(true)
   })
 })
