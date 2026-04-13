@@ -90,6 +90,30 @@ async def test_stats_wake_time_between_sessions(client_with_family):
 
 
 @pytest.mark.asyncio
+async def test_stats_longest_sleep_session(client_with_family):
+    """longest_sleep_session_min is the max single session, not the total."""
+    client, headers = client_with_family
+    for sid, start, end in [
+        ("s1", "08:00", "09:00"),   # 60 min
+        ("s2", "10:00", "12:00"),   # 120 min  ← longest
+    ]:
+        await client.post("/events", json={"id": sid, "type": "sleep_start", "timestamp": f"2024-01-15T{start}:00Z"}, headers=headers)
+        await client.post("/events", json={"id": f"e{sid}", "type": "sleep_end", "timestamp": f"2024-01-15T{end}:00Z"}, headers=headers)
+
+    r = await client.get("/stats/daily", params={"from": "2024-01-15T05:00:00Z", "to": "2024-01-15T05:00:00Z"}, headers=headers)
+    day = r.json()[0]
+    assert day["longest_sleep_session_min"] == 120
+    assert day["avg_sleep_session_min"] == 90.0
+
+
+@pytest.mark.asyncio
+async def test_stats_longest_sleep_none_when_no_sessions(client_with_family):
+    client, headers = client_with_family
+    r = await client.get("/stats/daily", params={"from": "2024-01-15T05:00:00Z", "to": "2024-01-15T05:00:00Z"}, headers=headers)
+    assert r.json()[0]["longest_sleep_session_min"] is None
+
+
+@pytest.mark.asyncio
 async def test_stats_daily_rejects_range_over_366_days(client_with_family):
     client, headers = client_with_family
     r = await client.get("/stats/daily", params={
