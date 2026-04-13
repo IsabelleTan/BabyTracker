@@ -108,7 +108,7 @@ async def create_users_in_db() -> None:
 # ── auth ─────────────────────────────────────────────────────────────────────
 
 def login(client: httpx.Client, base_url: str, email: str, password: str) -> str:
-    r = client.post(f"{base_url}/auth/login", json={"email": email, "password": password})
+    r = client.post(f"{base_url}/auth/login", data={"username": email, "password": password})
     if r.status_code != 200:
         print(f"  Login failed for {email}: {r.status_code} {r.text}", file=sys.stderr)
         sys.exit(1)
