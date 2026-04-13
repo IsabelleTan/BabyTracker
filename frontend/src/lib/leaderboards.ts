@@ -30,7 +30,9 @@ export interface LeaderboardData {
 }
 
 export async function getLeaderboards(): Promise<LeaderboardData> {
-  const { data } = await api.get<LeaderboardData>('/leaderboards')
+  const { data } = await api.get<LeaderboardData>('/leaderboards', {
+    params: { tz_offset: -new Date().getTimezoneOffset() }, // minutes east of UTC (positive = UTC+)
+  })
   return data
 }
 

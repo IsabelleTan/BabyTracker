@@ -72,6 +72,7 @@ def _winner_uid(stats: dict[str, dict], key: str) -> str | None:
 @limiter.limit("30/minute")
 async def get_leaderboards(
     request: Request,
+    tz_offset: int = Query(default=0),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -79,17 +80,15 @@ async def get_leaderboards(
     family_user_ids = select(UserBaby.user_id).where(UserBaby.baby_id.in_(baby_ids))
 
     today_utc = datetime.now(timezone.utc)
-    # Parenting day starts at DAY_START_HOUR UTC; if we're before that, today's
-    # parenting day actually began at DAY_START_HOUR yesterday.
-    if today_utc.hour < DAY_START_HOUR:
-        today_start = (today_utc - timedelta(days=1)).replace(
-            hour=DAY_START_HOUR, minute=0, second=0, microsecond=0
-        )
-    else:
-        today_start = today_utc.replace(
-            hour=DAY_START_HOUR, minute=0, second=0, microsecond=0
-        )
-    today_str = parenting_day(today_utc)
+    today_str = parenting_day(today_utc, tz_offset)
+
+    # today_start: UTC moment when the current parenting day began (local 05:00 → UTC).
+    # local 05:00 on parenting-day date = UTC 05:00 - tz_offset_min
+    from datetime import date as date_type
+    pday = date_type.fromisoformat(today_str)
+    today_start = datetime(
+        pday.year, pday.month, pday.day, DAY_START_HOUR, 0, 0, tzinfo=timezone.utc
+    ) - timedelta(minutes=tz_offset)
 
     # Cap at 4 years — the realistic maximum lifetime of this app for any family.
     # The compound index on (baby_id, timestamp) makes this range scan fast even
@@ -126,7 +125,7 @@ async def get_leaderboards(
     if sleep_sessions:
         longest = max(sleep_sessions, key=lambda s: (s[1] - s[0]).total_seconds())
         longest_sleep_min = round((longest[1] - longest[0]).total_seconds() / 60, 1)
-        longest_sleep_date = longest[0].date().isoformat()
+        longest_sleep_date = parenting_day(longest[0], tz_offset)
 
     night_sleep: dict[str, float] = defaultdict(float)
     for start, end in sleep_sessions:
@@ -156,7 +155,7 @@ async def get_leaderboards(
     feeds_by_day: dict[str, int] = defaultdict(int)
     for e in events:
         if e.type == "feed":
-            feeds_by_day[parenting_day(e.timestamp)] += 1
+            feeds_by_day[parenting_day(e.timestamp, tz_offset)] += 1
 
     most_feeds_count: int | None = None
     most_feeds_date: str | None = None
@@ -170,7 +169,7 @@ async def get_leaderboards(
         if e.type == "diaper":
             meta = e.metadata_ or {}
             if meta.get("diaper_type") in ("dirty", "both"):
-                poop_by_day[parenting_day(e.timestamp)] += 1
+                poop_by_day[parenting_day(e.timestamp, tz_offset)] += 1
 
     most_poop_count: int | None = None
     most_poop_date: str | None = None

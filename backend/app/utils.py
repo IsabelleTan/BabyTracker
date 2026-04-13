@@ -14,13 +14,15 @@ def _utc(ts: datetime) -> datetime:
     return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
 
 
-def parenting_day(ts: datetime) -> str:
+def parenting_day(ts: datetime, tz_offset_min: int = 0) -> str:
     """Return the YYYY-MM-DD parenting-day this UTC timestamp belongs to.
 
-    Shifts the timestamp back by DAY_START_HOUR hours before taking the date,
-    so that events between 00:00–04:59 UTC are attributed to the previous day.
+    tz_offset_min: client UTC offset in minutes (positive = UTC+, e.g. +120 for UTC+2).
+    Converts the timestamp to local time first, then shifts back by DAY_START_HOUR so
+    that events between local 00:00–04:59 are attributed to the previous parenting day.
     """
-    return (_utc(ts) - timedelta(hours=DAY_START_HOUR)).date().isoformat()
+    local_ts = _utc(ts) + timedelta(minutes=tz_offset_min)
+    return (local_ts - timedelta(hours=DAY_START_HOUR)).date().isoformat()
 
 
 def pair_sleep_sessions(
