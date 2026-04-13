@@ -5,7 +5,7 @@ import pytest
 @pytest.mark.asyncio
 async def test_stats_zero_events(client_with_family):
     client, headers = client_with_family
-    r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-15T00:00:00Z"}, headers=headers)
+    r = await client.get("/stats/daily", params={"from": "2024-01-15T05:00:00Z", "to": "2024-01-15T05:00:00Z"}, headers=headers)
     assert r.status_code == 200
     data = r.json()
     assert len(data) == 1
@@ -30,7 +30,7 @@ async def test_stats_feed_interval(client_with_family):
             "metadata": {"feed_type": "bottle", "amount_ml": 100},
         }, headers=headers)
 
-    r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-15T00:00:00Z"}, headers=headers)
+    r = await client.get("/stats/daily", params={"from": "2024-01-15T05:00:00Z", "to": "2024-01-15T05:00:00Z"}, headers=headers)
     assert r.status_code == 200
     day = r.json()[0]
     assert day["feed_count"] == 2
@@ -47,7 +47,7 @@ async def test_stats_single_sleep_session(client_with_family):
         "id": "e1", "type": "sleep_end", "timestamp": "2024-01-15T22:00:00Z",
     }, headers=headers)
 
-    r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-15T00:00:00Z"}, headers=headers)
+    r = await client.get("/stats/daily", params={"from": "2024-01-15T05:00:00Z", "to": "2024-01-15T05:00:00Z"}, headers=headers)
     day = r.json()[0]
     assert day["sleep_session_count"] == 1
     assert day["total_sleep_min"] == 120
@@ -65,7 +65,7 @@ async def test_stats_sleep_spanning_midnight(client_with_family):
         "id": "e-mid", "type": "sleep_end", "timestamp": "2024-01-16T01:00:00Z",
     }, headers=headers)
 
-    r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-16T00:00:00Z"}, headers=headers)
+    r = await client.get("/stats/daily", params={"from": "2024-01-15T05:00:00Z", "to": "2024-01-16T05:00:00Z"}, headers=headers)
     days = {d["date"]: d for d in r.json()}
     # 120-minute session starts on Jan 15 → attributed to Jan 15
     assert days["2024-01-15"]["sleep_session_count"] == 1
@@ -84,7 +84,7 @@ async def test_stats_wake_time_between_sessions(client_with_family):
         await client.post("/events", json={"id": sid, "type": "sleep_start", "timestamp": f"2024-01-15T{start}:00Z"}, headers=headers)
         await client.post("/events", json={"id": f"e{sid}", "type": "sleep_end", "timestamp": f"2024-01-15T{end}:00Z"}, headers=headers)
 
-    r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-15T00:00:00Z"}, headers=headers)
+    r = await client.get("/stats/daily", params={"from": "2024-01-15T05:00:00Z", "to": "2024-01-15T05:00:00Z"}, headers=headers)
     day = r.json()[0]
     assert day["avg_wake_min"] == 60.0
 
@@ -182,7 +182,7 @@ async def test_stats_diaper_count(client_with_family):
         }, headers=headers)
 
     r = await client.get("/stats/daily", params={
-        "from": "2024-02-10T00:00:00Z",
+        "from": "2024-02-10T05:00:00Z",
         "to":   "2024-02-10T23:59:59Z",
     }, headers=headers)
     assert r.json()[0]["diaper_count"] == 3
