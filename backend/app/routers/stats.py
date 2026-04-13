@@ -12,7 +12,7 @@ from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
 from app.models.user_baby import UserBaby
-from app.utils import _utc, pair_sleep_sessions
+from app.utils import _utc, pair_sleep_sessions, parenting_day
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -92,7 +92,7 @@ async def get_daily_stats(
 
     for e in events:
         ts = _utc(e.timestamp)
-        day = ts.date().isoformat()
+        day = parenting_day(ts)
         if e.type == "feed":
             feeds_by_day[day].append(ts)
         elif e.type == "diaper":
@@ -104,14 +104,17 @@ async def get_daily_stats(
 
     from_utc = _utc(from_)
     to_utc = _utc(to)
+    from_day = parenting_day(from_utc)
+    to_day = parenting_day(to_utc)
 
-    # Group sessions by day, clamping sessions that started before the range
-    # to the first day so the first chart value isn't zero.
+    # Group sessions by parenting day, clamping sessions that started before the
+    # range to the first day so the first chart value isn't zero.
+    from datetime import date as date_type
     sleep_by_day: dict[str, list[tuple[datetime, datetime]]] = defaultdict(list)
     for start, end in sleep_sessions:
-        effective_day = max(start, from_utc).date()
-        if from_utc.date() <= effective_day <= to_utc.date():
-            sleep_by_day[effective_day.isoformat()].append((start, end))
+        effective_day = parenting_day(max(start, from_utc))
+        if from_day <= effective_day <= to_day:
+            sleep_by_day[effective_day].append((start, end))
 
     # Wake periods = gap between consecutive sessions
     wake_by_day: dict[str, list[float]] = defaultdict(list)
@@ -120,11 +123,11 @@ async def get_daily_stats(
         curr_start = sleep_sessions[i][0]
         wake_min = (curr_start - prev_end).total_seconds() / 60
         if wake_min >= 0:
-            wake_by_day[curr_start.date().isoformat()].append(wake_min)
+            wake_by_day[parenting_day(curr_start)].append(wake_min)
 
     results: list[DailyStat] = []
-    current = from_utc.date()
-    end_date = to_utc.date()
+    current = date_type.fromisoformat(from_day)
+    end_date = date_type.fromisoformat(to_day)
     while current <= end_date:
         day = current.isoformat()
 

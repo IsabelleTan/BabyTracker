@@ -12,7 +12,7 @@ from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
 from app.models.user_baby import UserBaby
-from app.utils import _utc, pair_sleep_sessions, NIGHT_SHIFT_START, NIGHT_SHIFT_END
+from app.utils import _utc, pair_sleep_sessions, parenting_day, DAY_START_HOUR, NIGHT_SHIFT_START, NIGHT_SHIFT_END
 
 router = APIRouter(prefix="/leaderboards", tags=["leaderboards"])
 
@@ -79,8 +79,17 @@ async def get_leaderboards(
     family_user_ids = select(UserBaby.user_id).where(UserBaby.baby_id.in_(baby_ids))
 
     today_utc = datetime.now(timezone.utc)
-    today_start = today_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_str = today_utc.date().isoformat()
+    # Parenting day starts at DAY_START_HOUR UTC; if we're before that, today's
+    # parenting day actually began at DAY_START_HOUR yesterday.
+    if today_utc.hour < DAY_START_HOUR:
+        today_start = (today_utc - timedelta(days=1)).replace(
+            hour=DAY_START_HOUR, minute=0, second=0, microsecond=0
+        )
+    else:
+        today_start = today_utc.replace(
+            hour=DAY_START_HOUR, minute=0, second=0, microsecond=0
+        )
+    today_str = parenting_day(today_utc)
 
     # Cap at 4 years — the realistic maximum lifetime of this app for any family.
     # The compound index on (baby_id, timestamp) makes this range scan fast even
@@ -147,7 +156,7 @@ async def get_leaderboards(
     feeds_by_day: dict[str, int] = defaultdict(int)
     for e in events:
         if e.type == "feed":
-            feeds_by_day[_utc(e.timestamp).date().isoformat()] += 1
+            feeds_by_day[parenting_day(e.timestamp)] += 1
 
     most_feeds_count: int | None = None
     most_feeds_date: str | None = None
@@ -161,7 +170,7 @@ async def get_leaderboards(
         if e.type == "diaper":
             meta = e.metadata_ or {}
             if meta.get("diaper_type") in ("dirty", "both"):
-                poop_by_day[_utc(e.timestamp).date().isoformat()] += 1
+                poop_by_day[parenting_day(e.timestamp)] += 1
 
     most_poop_count: int | None = None
     most_poop_date: str | None = None
