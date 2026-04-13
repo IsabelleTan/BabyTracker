@@ -62,8 +62,8 @@ async def create_users_in_db() -> None:
     # when --create-users is not used.
     import os, sys
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/../backend")
-    from app.db.database import SessionLocal, engine
-    from app.models import Base  # ensures all models are registered
+    from app.db.database import SessionLocal, engine, Base
+    import app.models  # noqa: F401 — registers all models against Base
     from app.models.user import User
     from app.models.baby import Baby
     from app.models.user_baby import UserBaby
