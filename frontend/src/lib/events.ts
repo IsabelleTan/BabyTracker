@@ -44,12 +44,19 @@ export async function getLast24HoursEvents(): Promise<BabyEvent[]> {
   return data
 }
 
-/** Events from the past N calendar days (midnight local N days ago → now), for averages. */
+/** Start of the current parenting day (05:00 local today, or 05:00 yesterday if before 05:00). */
+export function currentDayStart(base: Date = new Date()): Date {
+  const d = new Date(base)
+  if (d.getHours() < 5) d.setDate(d.getDate() - 1)
+  d.setHours(5, 0, 0, 0)
+  return d
+}
+
+/** Events from the past N parenting days (05:00 local N days ago → now). */
 export async function getEventsSince(days: number): Promise<BabyEvent[]> {
   const now = new Date()
-  const from = new Date(now)
+  const from = currentDayStart()
   from.setDate(from.getDate() - days)
-  from.setHours(0, 0, 0, 0)
   const { data } = await api.get<BabyEvent[]>('/events', {
     params: { from_: from.toISOString(), to: now.toISOString() },
   })

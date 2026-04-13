@@ -1,4 +1,5 @@
 import type { BabyEvent } from './events'
+import { currentDayStart } from './events'
 
 // ── message banks ─────────────────────────────────────────────────────────────
 
@@ -224,7 +225,7 @@ export function recordPartnerMessageShown(): void {
 export function trackDailyLogging(): void {
   const key = 'logging_total_days'
   const lastKey = 'logging_last_day'
-  const today = new Date().toISOString().slice(0, 10)
+  const today = todayDate()
   if (localStorage.getItem(lastKey) === today) return
   const current = parseInt(localStorage.getItem(key) ?? '0', 10)
   localStorage.setItem(key, String(current + 1))
@@ -343,8 +344,8 @@ export function markMilestoneSeen(key: MilestoneKey): void {
 // ── day-seeded rotation ───────────────────────────────────────────────────────
 
 function dayOfYear(): number {
-  const now = new Date()
-  return Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86_400_000)
+  const d = currentDayStart()
+  return Math.floor((d.getTime() - new Date(d.getFullYear(), 0, 0).getTime()) / 86_400_000)
 }
 
 function pickByDay<T>(bank: T[]): T {
@@ -361,19 +362,17 @@ export function getNightMessage(): string {
 
 // ── localStorage helpers ──────────────────────────────────────────────────────
 
+// Returns YYYY-MM-DD of the current parenting day (5am boundary, local time).
 function todayDate(): string {
-  return new Date().toISOString().slice(0, 10)
+  return currentDayStart().toLocaleDateString('en-CA')
 }
 
 // Night session spans 21:00–06:59. Key it to the evening date (before 7am = yesterday).
 function nightSessionDate(): string {
   const now = new Date()
-  if (now.getHours() < 7) {
-    const d = new Date(now)
-    d.setDate(d.getDate() - 1)
-    return d.toISOString().slice(0, 10)
-  }
-  return now.toISOString().slice(0, 10)
+  const d = new Date(now)
+  if (now.getHours() < 7) d.setDate(d.getDate() - 1)
+  return d.toLocaleDateString('en-CA')
 }
 
 /** Parse a YYYY-MM-DD string as local midnight (avoids UTC-offset day-shift). */
@@ -404,7 +403,7 @@ export function nightMessageShouldShow(nightEventCount: number): boolean {
 
 export function markNightMessageShown(): void {
   localStorage.setItem(`${NIGHT_SHOWN_KEY}_${nightSessionDate()}`, 'true')
-  localStorage.setItem('night_msg_last_shown', new Date().toISOString().slice(0, 10))
+  localStorage.setItem('night_msg_last_shown', todayDate())
 }
 
 const BABY_VOICE_LAST_KEY = 'baby_voice_last_shown'

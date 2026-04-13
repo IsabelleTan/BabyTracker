@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import SummarySection from '@/components/home/SummarySection'
-import type { BabyEvent } from '@/lib/events'
+import { currentDayStart, type BabyEvent } from '@/lib/events'
 
 vi.mock('@/contexts/LeaderboardContext', () => ({
   useLeaderboardData: vi.fn().mockReturnValue({ data: null, notifications: [], loading: false, error: false }),
@@ -16,18 +16,24 @@ vi.mock('@/lib/auth', () => ({
   getUser: vi.fn().mockReturnValue({ user_id: 'u1', display_name: 'Parent 1' }),
 }))
 
-// Build timestamps relative to NOW so the today-filter works regardless of
-// the host machine's local timezone.
+// Pin "now" to June 20 2024 10:00am so currentDayStart() = 5am and all todayAt()
+// hours < now. shouldAdvanceTime lets real time flow so waitFor() doesn't stall.
+const PINNED_NOW = new Date(2024, 5, 20, 10, 0, 0)
+beforeEach(() => vi.useFakeTimers({ now: PINNED_NOW, shouldAdvanceTime: true }))
+afterEach(() => vi.useRealTimers())
+
+// todayAt: hour on the pinned day — hours 5–9 are within today's parenting window
+// and strictly before "now" (10am).
 function todayAt(hour: number, minuteOffset = 0): string {
-  const d = new Date()
+  const d = new Date(PINNED_NOW)
   d.setHours(hour, minuteOffset, 0, 0)
   return d.toISOString()
 }
+// daysAgoAt: N parenting-days before the pinned day's boundary.
 function daysAgoAt(days: number, hour: number): string {
-  const d = new Date()
-  d.setDate(d.getDate() - days)
-  d.setHours(hour, 0, 0, 0)
-  return d.toISOString()
+  const base = currentDayStart()
+  base.setDate(base.getDate() - days)
+  return new Date(base.getTime() + (hour - 5) * 3_600_000).toISOString()
 }
 
 function makeEvent(overrides: Partial<BabyEvent> & { timestamp: string }): BabyEvent {
@@ -77,9 +83,9 @@ describe('SummarySection — today stats', () => {
   })
 
   it('computes total sleep from completed blocks today', async () => {
-    // 2-hour sleep block today
-    const start = todayAt(1)
-    const end   = todayAt(3)
+    // 2-hour sleep block today (hours ≥ 5 to stay within the parenting-day window)
+    const start = todayAt(6)
+    const end   = todayAt(8)
     const events: BabyEvent[] = [
       makeEvent({ type: 'sleep_start', timestamp: start }),
       makeEvent({ type: 'sleep_end',   timestamp: end }),
@@ -95,7 +101,7 @@ describe('SummarySection — today stats', () => {
   it('shows elapsed duration for an ongoing sleep session (no sleep_end yet)', async () => {
     const events: BabyEvent[] = [
       // Only a sleep_start, no matching sleep_end — ongoing session counts toward total
-      makeEvent({ type: 'sleep_start', timestamp: todayAt(2) }),
+      makeEvent({ type: 'sleep_start', timestamp: todayAt(6) }),
     ]
     render(<SummarySection events={events} />)
     // Should show a non-dash sleep duration for the in-progress session

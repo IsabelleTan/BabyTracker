@@ -1,4 +1,5 @@
 import { api } from './api'
+import { currentDayStart } from './events'
 
 export interface ParentStat {
   display_name: string
@@ -30,7 +31,9 @@ export interface LeaderboardData {
 }
 
 export async function getLeaderboards(): Promise<LeaderboardData> {
-  const { data } = await api.get<LeaderboardData>('/leaderboards')
+  const { data } = await api.get<LeaderboardData>('/leaderboards', {
+    params: { tz_offset: -new Date().getTimezoneOffset() }, // minutes east of UTC (positive = UTC+)
+  })
   return data
 }
 
@@ -70,7 +73,7 @@ export function buildNotifications(data: LeaderboardData): string[] {
   const msgs: string[] = []
   // Each category gets a seed derived from its event date + a per-category offset,
   // so the chosen message is stable for that specific event but varies across categories.
-  const today = new Date().toISOString().slice(0, 10)
+  const today = currentDayStart().toLocaleDateString('en-CA')
   const s = (date: string | null, offset: number) => dateHash((date ?? today) + offset)
 
   if (data.longest_sleep_new && data.longest_sleep_min != null) {

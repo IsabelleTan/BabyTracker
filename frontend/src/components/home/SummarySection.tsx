@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { Milk, Moon, Droplets, Sparkles, Users, type LucideIcon } from 'lucide-react'
 import { formatDuration } from '@/hooks/useTimeSince'
-import { getEventsSince, type BabyEvent } from '@/lib/events'
+import { getEventsSince, currentDayStart, type BabyEvent } from '@/lib/events'
 import { getUser } from '@/lib/auth'
 import { useLeaderboardData } from '@/contexts/LeaderboardContext'
 import {
@@ -170,8 +170,7 @@ function computeSleepMs(events: BabyEvent[], capAt: Date): number {
 
 function computeStats(events: BabyEvent[]) {
   const now = new Date()
-  const todayStart = new Date(now)
-  todayStart.setHours(0, 0, 0, 0)
+  const todayStart = currentDayStart(now)
 
   const todayEvents = events.filter((e) => new Date(e.timestamp) >= todayStart)
   const feedCount = todayEvents.filter((e) => e.type === 'feed').length
