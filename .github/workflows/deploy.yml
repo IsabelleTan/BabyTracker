@@ -61,6 +61,7 @@ jobs:
     name: Deploy to VPS
     runs-on: ubuntu-latest
     needs: test
+    environment: production
 
     steps:
       - name: Deploy via SSH
@@ -74,6 +75,11 @@ jobs:
           envs: APP_VERSION
           script: |
             set -e
+            # Validate tag format before using it in any shell command
+            if ! echo "$APP_VERSION" | grep -qE '^v?[0-9]+\.[0-9]+\.[0-9]+$'; then
+              echo "ERROR: APP_VERSION '$APP_VERSION' is not a valid semver tag"
+              exit 1
+            fi
             su - babytracker -c "
               set -e
               cd /var/www/babytracker/app
