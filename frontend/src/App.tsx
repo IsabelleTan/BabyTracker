@@ -10,7 +10,6 @@ import { LeaderboardProvider } from '@/contexts/LeaderboardContext'
 
 const Stats = lazy(() => import('@/pages/Stats'))
 const Leaderboards = lazy(() => import('@/pages/Leaderboards'))
-const Help = lazy(() => import('@/pages/Help'))
 
 interface NightModeCtx { night: boolean; toggle: () => void }
 const NightModeContext = createContext<NightModeCtx>({ night: false, toggle: () => {} })
@@ -25,7 +24,6 @@ function AppLayout() {
             <Route path="/" element={<Home />} />
             <Route path="/stats" element={<Suspense fallback={null}><Stats /></Suspense>} />
             <Route path="/leaderboards" element={<Suspense fallback={null}><Leaderboards /></Suspense>} />
-            <Route path="/help" element={<Suspense fallback={null}><Help /></Suspense>} />
             <Route path="*" element={<Navigate to="/" replace />} />
           </Routes>
         </main>

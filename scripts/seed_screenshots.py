@@ -19,19 +19,36 @@ Usage (from the backend/ directory):
 What it creates:
   • Two user accounts sharing one baby (--create-users only)
   • 28 days of historical data (stats charts, leaderboard records)
-  • Today's events (home screen, timeline, summary)
+  • Today's events up to 11:30am (home screen, timeline, summary)
   • Events split across both users (leaderboards, partner messages)
 
 All events are idempotent — re-running produces the same UUIDs.
+
+Timezone note: today's events are generated in local time so that
+timestamps display correctly when screenshots are taken at ~11:30am.
 """
 
 import argparse
 import asyncio
 import hashlib
+import random
 import sys
+import time as _time
 from datetime import date, datetime, timedelta, timezone
 
 import httpx
+
+# ── timezone helpers ──────────────────────────────────────────────────────────
+
+# Local UTC offset in hours (e.g. +2 for CEST, -5 for EST)
+_LOCAL_UTC_OFFSET_HOURS = -(_time.timezone if not _time.daylight else _time.altzone) / 3600
+
+
+def local_to_utc(d: date, hour: int, minute: int = 0) -> datetime:
+    """Convert a local wall-clock time on date d to a UTC datetime."""
+    local_midnight = datetime(d.year, d.month, d.day, tzinfo=timezone.utc)
+    return local_midnight + timedelta(hours=hour + minute / 60 - _LOCAL_UTC_OFFSET_HOURS)
+
 
 # ── helpers ──────────────────────────────────────────────────────────────────
 
@@ -41,11 +58,14 @@ def deterministic_id(*parts: str) -> str:
     h = hashlib.sha1(raw.encode()).hexdigest()
     return f"{h[:8]}-{h[8:12]}-{h[12:16]}-{h[16:20]}-{h[20:32]}"
 
+
 def iso(dt: datetime) -> str:
     return dt.isoformat().replace("+00:00", "Z")
 
+
 def utc(year: int, month: int, day: int, hour: int, minute: int = 0) -> datetime:
     return datetime(year, month, day, hour, minute, tzinfo=timezone.utc)
+
 
 # ── user creation (direct DB, no registration endpoint) ──────────────────────
 
@@ -56,10 +76,9 @@ DEFAULT_USER2_EMAIL    = "dad@example.com"
 DEFAULT_USER2_PASSWORD = "secret2"
 DEFAULT_USER2_NAME     = "Dad"
 
+
 async def create_users_in_db() -> None:
     """Create two users + one shared baby directly in the database."""
-    # Import here so the script still works without the app on PATH
-    # when --create-users is not used.
     import os, sys
     sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)) + "/../backend")
     from app.db.database import SessionLocal, engine, Base
@@ -74,7 +93,6 @@ async def create_users_in_db() -> None:
         await conn.run_sync(Base.metadata.create_all)
 
     async with SessionLocal() as session:
-        # Skip if users already exist
         existing = await session.execute(select(User).where(User.email == DEFAULT_USER1_EMAIL))
         if existing.scalar_one_or_none():
             print("  Users already exist — skipping creation.")
@@ -105,6 +123,7 @@ async def create_users_in_db() -> None:
         print(f"  Created: {DEFAULT_USER2_NAME} ({DEFAULT_USER2_EMAIL} / {DEFAULT_USER2_PASSWORD})")
         print(f"  Created: Baby (shared)")
 
+
 # ── auth ─────────────────────────────────────────────────────────────────────
 
 def login(client: httpx.Client, base_url: str, email: str, password: str) -> str:
@@ -114,8 +133,10 @@ def login(client: httpx.Client, base_url: str, email: str, password: str) -> str
         sys.exit(1)
     return r.json()["access_token"]
 
+
 def headers(token: str) -> dict:
     return {"Authorization": f"Bearer {token}"}
+
 
 # ── event posting ─────────────────────────────────────────────────────────────
 
@@ -124,7 +145,55 @@ def post_event(client: httpx.Client, base_url: str, token: str, event: dict) -> 
     if r.status_code not in (200, 201, 409):  # 409 = already exists (idempotent)
         print(f"  Warning: event {event['id']} returned {r.status_code}: {r.text}", file=sys.stderr)
 
-# ── data builders ─────────────────────────────────────────────────────────────
+
+# ── event builders (accept pre-computed UTC datetime) ─────────────────────────
+
+def feed_bottle_at(ts: datetime, amount_ml: int, uid_tag: str) -> dict:
+    return {
+        "id": deterministic_id("feed", iso(ts), uid_tag),
+        "type": "feed",
+        "timestamp": iso(ts),
+        "metadata": {"feed_type": "bottle", "amount_ml": amount_ml},
+    }
+
+
+def feed_breast_at(ts: datetime, left: int, right: int, uid_tag: str) -> dict:
+    return {
+        "id": deterministic_id("feed", iso(ts), uid_tag),
+        "type": "feed",
+        "timestamp": iso(ts),
+        "metadata": {"feed_type": "breast", "left_duration_min": left, "right_duration_min": right},
+    }
+
+
+def sleep_start_at(ts: datetime, uid_tag: str) -> dict:
+    return {
+        "id": deterministic_id("sleep_start", iso(ts), uid_tag),
+        "type": "sleep_start",
+        "timestamp": iso(ts),
+        "metadata": None,
+    }
+
+
+def sleep_end_at(ts: datetime, uid_tag: str) -> dict:
+    return {
+        "id": deterministic_id("sleep_end", iso(ts), uid_tag),
+        "type": "sleep_end",
+        "timestamp": iso(ts),
+        "metadata": None,
+    }
+
+
+def diaper_at(ts: datetime, diaper_type: str, uid_tag: str) -> dict:
+    return {
+        "id": deterministic_id("diaper", iso(ts), uid_tag),
+        "type": "diaper",
+        "timestamp": iso(ts),
+        "metadata": {"diaper_type": diaper_type},
+    }
+
+
+# ── historical data builders (UTC, used for charts not display times) ─────────
 
 def feed_bottle(day_str: str, hour: int, minute: int, amount_ml: int, user_tag: str) -> dict:
     ts = utc(*[int(x) for x in day_str.split("-")], hour, minute)
@@ -135,14 +204,6 @@ def feed_bottle(day_str: str, hour: int, minute: int, amount_ml: int, user_tag: 
         "metadata": {"feed_type": "bottle", "amount_ml": amount_ml},
     }
 
-def feed_breast(day_str: str, hour: int, minute: int, left: int, right: int, user_tag: str) -> dict:
-    ts = utc(*[int(x) for x in day_str.split("-")], hour, minute)
-    return {
-        "id": deterministic_id("feed", day_str, str(hour), str(minute), user_tag),
-        "type": "feed",
-        "timestamp": iso(ts),
-        "metadata": {"feed_type": "breast", "left_duration_min": left, "right_duration_min": right},
-    }
 
 def sleep_start(day_str: str, hour: int, minute: int, user_tag: str) -> dict:
     ts = utc(*[int(x) for x in day_str.split("-")], hour, minute)
@@ -153,6 +214,7 @@ def sleep_start(day_str: str, hour: int, minute: int, user_tag: str) -> dict:
         "metadata": None,
     }
 
+
 def sleep_end(day_str: str, hour: int, minute: int, user_tag: str) -> dict:
     ts = utc(*[int(x) for x in day_str.split("-")], hour, minute)
     return {
@@ -161,6 +223,7 @@ def sleep_end(day_str: str, hour: int, minute: int, user_tag: str) -> dict:
         "timestamp": iso(ts),
         "metadata": None,
     }
+
 
 def diaper(day_str: str, hour: int, minute: int, diaper_type: str, user_tag: str) -> dict:
     ts = utc(*[int(x) for x in day_str.split("-")], hour, minute)
@@ -171,102 +234,139 @@ def diaper(day_str: str, hour: int, minute: int, diaper_type: str, user_tag: str
         "metadata": {"diaper_type": diaper_type},
     }
 
+
 # ── historical data (28 days) ─────────────────────────────────────────────────
+# Call random.seed(42) before the loop in main() — all variation below comes
+# from Python's Mersenne Twister so curves look organic, not periodic.
 
-def build_historical_day(day_str: str, day_index: int) -> tuple[list[dict], list[dict]]:
+def build_historical_day(day: date, day_index: int) -> tuple[list[dict], list[dict]]:
     """
-    Returns (user1_events, user2_events) for a historical day.
+    Returns (user1_events, user2_events) for one historical day.
 
-    Sleep trend: longest stretch grows from ~2.5h (day 0) to ~4.5h (day 27)
-    so the sleep-trend signal fires in the stats view.
-    Feed count: 9–11 per day with natural variation.
+    Uses interval-based feeds, cursor-based naps, and Gaussian timing noise
+    (same technique as gen_scenario_data.py) for natural-looking chart curves.
+
+    Award targets over 28 days:
+      Night Shift Ninja → Mum (u1): owns night-hour events (UTC h<7 or h≥21)
+      Chief Log Officer → Dad (u2): slightly more events per day overall
+      Number One at Number Two → Dad (u2): ~63% of dirty/both diapers
     """
-    # Longest night stretch grows linearly: 150 min → 270 min over 28 days
-    longest_night_min = 150 + (day_index * 4)  # +4 min per day
+    u1: list[dict] = []  # Mum
+    u2: list[dict] = []  # Dad
+
+    day_base = datetime(day.year, day.month, day.day, 0, 0, tzinfo=timezone.utc)
+
+    # ── Night sleep ───────────────────────────────────────────────────────────
+    # Upward trend (150→258 min) with Gaussian noise and regression dips every
+    # ~8 days to simulate growth spurts — produces a noisy but rising curve.
+    trend      = 150 + day_index * 4
+    regression = -50 if day_index % 8 == 7 else 0
+    night_min  = max(90, trend + regression + random.gauss(0, 20))
+
+    night_end   = day_base + timedelta(hours=random.uniform(5.0, 7.0) + random.gauss(0, 0.2))
+    night_start = night_end - timedelta(minutes=night_min)
+
+    u1.append(sleep_start_at(night_start, "u1"))  # Mum logs start — night shift
+    u2.append(sleep_end_at(night_end,     "u2"))  # Dad logs end   — night shift
+
+    # ── Daytime naps (cursor-based) ───────────────────────────────────────────
+    nap_cursor  = night_end
+    nap_count   = random.randint(2, 3)
+    for nap_i in range(nap_count):
+        nap_start = nap_cursor + timedelta(minutes=random.uniform(60, 130))
+        if nap_start.hour >= 19:
+            break
+        nap_dur = random.uniform(35, 105)
+        nap_end = nap_start + timedelta(minutes=nap_dur)
+        if nap_i % 2 == 0:
+            u2.append(sleep_start_at(nap_start, "u2"))  # Dad
+            u1.append(sleep_end_at(nap_end,     "u1"))  # Mum
+        else:
+            u1.append(sleep_start_at(nap_start, "u1"))  # Mum
+            u2.append(sleep_end_at(nap_end,     "u2"))  # Dad
+        nap_cursor = nap_end
+
+    # ── Feeds (interval-based with Gaussian noise) ────────────────────────────
+    interval     = random.uniform(130, 185)  # ~2–3h for a newborn
+    feed_cursor  = night_end + timedelta(minutes=random.uniform(0, 30))
+    day_end      = day_base + timedelta(hours=24)
+
+    while feed_cursor < day_end - timedelta(hours=1):
+        t   = feed_cursor + timedelta(minutes=random.gauss(0, interval * 0.10))
+        amt = round(random.uniform(65, 130) / 5) * 5
+        if day_base <= t < day_end:
+            is_night = t.hour >= 21 or t.hour < 7
+            if is_night:
+                owner = "u1" if random.random() < 0.70 else "u2"  # Mum owns most night feeds
+            else:
+                owner = "u2" if random.random() < 0.62 else "u1"  # Dad owns most day feeds
+            (u1 if owner == "u1" else u2).append(feed_bottle_at(t, amt, owner))
+        feed_cursor += timedelta(minutes=interval + random.gauss(0, 12))
+
+    # ── Diapers ───────────────────────────────────────────────────────────────
+    diaper_count = random.randint(5, 7)
+    # One in the early-morning night window (Mum), rest spread through the day
+    times = sorted(
+        [day_base + timedelta(hours=random.uniform(2, 5))]
+        + [day_base + timedelta(hours=random.uniform(7, 22)) for _ in range(diaper_count - 1)]
+    )
+    for t in times:
+        dtype = random.choices(["wet", "dirty", "both"], weights=[0.55, 0.30, 0.15])[0]
+        is_night = t.hour >= 21 or t.hour < 7
+        if is_night:
+            owner = "u1"  # Mum owns all night diapers → boosts her night shifts
+        elif dtype in ("dirty", "both"):
+            owner = "u2" if random.random() < 0.63 else "u1"  # Dad leads poop changes
+        else:
+            owner = "u2" if random.random() < 0.55 else "u1"
+        (u1 if owner == "u1" else u2).append(diaper_at(t, dtype, owner))
+
+    return u1, u2
+
+
+# ── today's events (local time → UTC, realistic 11:30am snapshot) ────────────
+
+def build_today_events(today: date) -> tuple[list[dict], list[dict]]:
+    """
+    Creates today's events in LOCAL time, converted to UTC, so that
+    timestamps display correctly when screenshots are taken at ~11:30am.
+
+    Timeline (local time):
+      05:30  Dad   — sleep_end (overnight ends)
+      06:00  Mum   — feed breast 12L / 8R
+      06:30  Dad   — diaper wet
+      07:15  Dad   — feed bottle 90ml
+      07:45  Dad   — sleep_start (morning nap)
+      08:00  Mum   — diaper dirty
+      09:15  Mum   — sleep_end (90min nap ends)
+      09:30  Mum   — feed breast 10L / 7R
+      10:00  Dad   — diaper wet
+      10:45  Dad   — feed bottle 100ml
+      11:15  Mum   — diaper wet
+
+    At 11:30am: 4 feeds, 1 sleep session (90min), 4 diapers.
+    Last feed 45min ago, last diaper 15min ago. Baby currently awake.
+    """
+    def lts(hour: int, minute: int = 0) -> datetime:
+        return local_to_utc(today, hour, minute)
 
     u1: list[dict] = []
     u2: list[dict] = []
 
-    # Night stretch: starts at 22:00, ends after longest_night_min
-    night_end_h = 22 + longest_night_min // 60
-    night_end_m = longest_night_min % 60
-    u1.append(sleep_start(day_str, 22, 0, "u1"))
-    # If night sleep ends the same day (unlikely here since it will roll into next day,
-    # we just log the end on the same day string for simplicity)
-    end_hour = (22 * 60 + longest_night_min) // 60 % 24
-    end_min   = longest_night_min % 60
-    u2.append(sleep_end(day_str, end_hour, end_min, "u2"))
-
-    # Daytime naps
-    u1.append(sleep_start(day_str, 9, 30, "u1"))
-    u2.append(sleep_end(day_str, 10, 45, "u2"))  # 75 min nap
-    u1.append(sleep_start(day_str, 13, 0, "u1"))
-    u2.append(sleep_end(day_str, 14, 15, "u2"))  # 75 min nap
-
-    # Feeds: alternate between users; vary count 9–11
-    feed_count = 9 + (day_index % 3)
-    feed_hours = [1, 4, 7, 9, 11, 13, 16, 18, 21][:feed_count]
-    amounts    = [90, 80, 100, 85, 95, 90, 100, 85, 90, 95, 80]
-    for i, h in enumerate(feed_hours):
-        events = u1 if i % 2 == 0 else u2
-        events.append(feed_bottle(day_str, h, 0, amounts[i % len(amounts)], "u1" if i % 2 == 0 else "u2"))
-
-    # Diapers: 5–6 per day, alternating users
-    diaper_hours = [2, 6, 10, 14, 18, 22]
-    types = ["wet", "wet", "dirty", "wet", "wet", "dirty"]
-    for i, (h, t) in enumerate(zip(diaper_hours, types)):
-        events = u1 if i % 2 == 0 else u2
-        events.append(diaper(day_str, h, 30, t, "u1" if i % 2 == 0 else "u2"))
+    u2.append(sleep_end_at(lts(5, 30), "u2"))           # Dad: overnight ends
+    u1.append(feed_breast_at(lts(6, 0), 12, 8, "u1"))   # Mum: breast feed
+    u2.append(diaper_at(lts(6, 30), "wet", "u2"))        # Dad: wet nappy
+    u2.append(feed_bottle_at(lts(7, 15), 90, "u2"))      # Dad: bottle
+    u2.append(sleep_start_at(lts(7, 45), "u2"))          # Dad: nap starts
+    u1.append(diaper_at(lts(8, 0), "dirty", "u1"))       # Mum: dirty nappy
+    u1.append(sleep_end_at(lts(9, 15), "u1"))            # Mum: nap ends (90min)
+    u1.append(feed_breast_at(lts(9, 30), 10, 7, "u1"))  # Mum: breast feed
+    u2.append(diaper_at(lts(10, 0), "wet", "u2"))        # Dad: wet nappy
+    u2.append(feed_bottle_at(lts(10, 45), 100, "u2"))    # Dad: bottle
+    u1.append(diaper_at(lts(11, 15), "wet", "u1"))       # Mum: wet nappy
 
     return u1, u2
 
-# ── today's events ────────────────────────────────────────────────────────────
-
-def build_today_events(today: str) -> tuple[list[dict], list[dict]]:
-    """
-    Creates today's events for the home/timeline/daily-story screenshots.
-
-    User 1 (Mum): 5 events   User 2 (Dad): 4 events + cluster feeds
-    Timeline shows a mix of types and two display names.
-    Cluster feeds at 19:00, 19:45, 20:30 trigger the cluster chip.
-    """
-    u1: list[dict] = []
-    u2: list[dict] = []
-
-    # Overnight sleep (started yesterday, ended this morning)
-    u2.append(sleep_end(today, 5, 45, "u2"))          # Dad logged wake-up
-
-    # Morning feeds & diapers
-    u1.append(feed_breast(today, 6, 0, 12, 8, "u1"))  # Mum: breast feed
-    u2.append(diaper(today, 6, 30, "dirty", "u2"))    # Dad: dirty nappy
-    u2.append(feed_bottle(today, 8, 30, 90, "u2"))    # Dad: bottle
-    u1.append(diaper(today, 9, 0, "wet", "u1"))       # Mum: wet nappy
-
-    # Nap
-    u1.append(sleep_start(today, 9, 30, "u1"))        # Mum logged sleep
-    u2.append(sleep_end(today, 10, 50, "u2"))         # Dad logged wake
-
-    # Midday
-    u1.append(feed_breast(today, 11, 0, 10, 10, "u1"))
-    u2.append(diaper(today, 11, 30, "wet", "u2"))
-    u1.append(feed_bottle(today, 13, 15, 85, "u1"))
-
-    # Afternoon nap
-    u2.append(sleep_start(today, 13, 45, "u2"))
-    u1.append(sleep_end(today, 15, 0, "u1"))          # 75 min nap
-
-    # Afternoon feeds
-    u2.append(feed_bottle(today, 15, 30, 100, "u2"))
-    u1.append(diaper(today, 16, 0, "dirty", "u1"))
-    u1.append(feed_breast(today, 17, 30, 8, 9, "u1"))
-    u2.append(diaper(today, 18, 0, "wet", "u2"))
-
-    # Evening cluster feeds — triggers the cluster chip (19:00, 19:45, 20:30)
-    u1.append(feed_breast(today, 19, 0, 7, 5, "u1"))
-    u2.append(feed_bottle(today, 19, 45, 60, "u2"))
-    u1.append(feed_breast(today, 20, 30, 8, 0, "u1"))
-
-    return u1, u2
 
 # ── main ──────────────────────────────────────────────────────────────────────
 
@@ -296,20 +396,19 @@ def main() -> None:
 
         # ── 28 days of historical data ────────────────────────────────────────
         print("Seeding 28 days of historical data...")
+        random.seed(42)  # fixed seed → same data every run
         for i in range(28):
             day = today - timedelta(days=28 - i)
-            day_str = day.isoformat()
-            u1_events, u2_events = build_historical_day(day_str, i)
+            u1_events, u2_events = build_historical_day(day, i)
             for e in u1_events:
                 post_event(client, args.base_url, token1, e)
             for e in u2_events:
                 post_event(client, args.base_url, token2, e)
         print("  OK")
 
-        # ── today ─────────────────────────────────────────────────────────────
-        print("Seeding today's events...")
-        today_str = today.isoformat()
-        u1_today, u2_today = build_today_events(today_str)
+        # ── today (up to 11:30am local) ───────────────────────────────────────
+        print(f"Seeding today's events (local UTC offset: {_LOCAL_UTC_OFFSET_HOURS:+.1f}h)...")
+        u1_today, u2_today = build_today_events(today)
         for e in u1_today:
             post_event(client, args.base_url, token1, e)
         for e in u2_today:
@@ -318,17 +417,18 @@ def main() -> None:
 
     print()
     print("Done. Suggested screenshot order:")
-    print("  1. screenshots/home.png             — full home screen")
-    print("  2. screenshots/summary.png          — crop to Today's summary card")
-    print("  3. screenshots/timeline.png         — crop to timeline card (5–6 events, two names)")
-    print("  4. screenshots/timeline-swipe.png   — swipe any row left to show delete button")
-    print("  5. screenshots/stats.png            — Stats tab, select '30 days'")
-    print("  6. screenshots/leaderboards.png     — Leaderboards tab (both Awards and Records visible)")
-    print("  7. screenshots/night-mode.png       — tap moon icon, then screenshot")
+    print("  1. screenshots/home.png              — full home screen (~11:30am)")
+    print("  2. screenshots/summary.png           — crop to Today's summary card")
+    print("  3. screenshots/timeline.png          — crop to timeline card (mixed names)")
+    print("  4. screenshots/timeline-swipe.png    — swipe any row left to show delete button")
+    print("  5. screenshots/stats.png             — Stats tab, select '30 days'")
+    print("  6. screenshots/leaderboards.png      — Leaderboards tab (Awards and Records)")
+    print("  7. screenshots/night-mode.png        — tap moon icon, then screenshot")
     print("  --- no seed data needed ---")
     print("  8. screenshots/feed-sheet-breast.png — Feed sheet, Breast selected, 12/8 min filled in")
-    print("  9. screenshots/time-picker.png      — any logging sheet, wheel picker visible")
-    print(" 10. screenshots/milestone.png        — see manual for DevTools trigger instructions")
+    print("  9. screenshots/time-picker.png       — any logging sheet, wheel picker visible")
+    print(" 10. screenshots/milestone.png         — see manual for DevTools trigger instructions")
+
 
 if __name__ == "__main__":
     main()

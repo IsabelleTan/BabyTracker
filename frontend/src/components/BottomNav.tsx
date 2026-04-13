@@ -1,11 +1,10 @@
 import { NavLink } from 'react-router-dom'
-import { Home, BarChart2, Trophy, HelpCircle, type LucideIcon } from 'lucide-react'
+import { Home, BarChart2, Trophy, type LucideIcon } from 'lucide-react'
 
 const tabs: { to: string; label: string; icon: LucideIcon }[] = [
   { to: '/', label: 'Home', icon: Home },
   { to: '/stats', label: 'Stats', icon: BarChart2 },
   { to: '/leaderboards', label: 'Leaderboards', icon: Trophy },
-  { to: '/help', label: 'Guide', icon: HelpCircle },
 ]
 
 export default function BottomNav() {
