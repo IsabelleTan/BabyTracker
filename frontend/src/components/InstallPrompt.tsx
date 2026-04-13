@@ -1,20 +1,39 @@
 import { useEffect, useState } from 'react'
 import { useRegisterSW } from 'virtual:pwa-register/react'
 
-interface BeforeInstallPromptEvent extends Event {
-  prompt(): Promise<void>
-  userChoice: Promise<{ outcome: 'accepted' | 'dismissed' }>
+const IOS_DISMISSED_KEY = 'ios_install_dismissed'
+
+function isIOSSafari(): boolean {
+  const ua = navigator.userAgent
+  const isIOS = /iPhone|iPad|iPod/.test(ua)
+  // Chrome and Firefox on iOS include their own identifiers; exclude them so
+  // we only show the Safari-specific instructions in Safari.
+  const isSafari = isIOS && !/CriOS|FxiOS|EdgiOS/.test(ua)
+  return isSafari
+}
+
+function isStandalone(): boolean {
+  return (
+    window.matchMedia('(display-mode: standalone)').matches ||
+    (navigator as { standalone?: boolean }).standalone === true
+  )
 }
 
 export default function InstallPrompt() {
-  const [installEvent, setInstallEvent] = useState<BeforeInstallPromptEvent | null>(null)
+  // main.tsx captures beforeinstallprompt before React mounts; read it here.
+  const [installEvent, setInstallEvent] = useState<Window['__pwaInstallEvent']>(
+    () => window.__pwaInstallEvent,
+  )
   const [dismissed, setDismissed] = useState(false)
+  const [iosDismissed, setIosDismissed] = useState(
+    () => localStorage.getItem(IOS_DISMISSED_KEY) === 'true',
+  )
 
-  // Capture the browser's install prompt so we can trigger it ourselves
+  // Also listen for the event in case it fires after mount (e.g. re-triggered).
   useEffect(() => {
     function handler(e: Event) {
       e.preventDefault()
-      setInstallEvent(e as BeforeInstallPromptEvent)
+      setInstallEvent(e as Window['__pwaInstallEvent'])
     }
     window.addEventListener('beforeinstallprompt', handler)
     return () => window.removeEventListener('beforeinstallprompt', handler)
@@ -48,6 +67,7 @@ export default function InstallPrompt() {
     )
   }
 
+  // Android / desktop Chrome: native install prompt
   if (installEvent) {
     return (
       <div className="fixed bottom-20 left-4 right-4 z-50 rounded-xl border border-primary/40 bg-card shadow-lg px-4 py-3 flex items-center justify-between gap-3">
@@ -69,6 +89,28 @@ export default function InstallPrompt() {
             Install
           </button>
         </div>
+      </div>
+    )
+  }
+
+  // iOS Safari: no beforeinstallprompt — show manual instructions instead
+  if (isIOSSafari() && !isStandalone() && !iosDismissed) {
+    return (
+      <div className="fixed bottom-20 left-4 right-4 z-50 rounded-xl border border-primary/40 bg-card shadow-lg px-4 py-3 flex items-start justify-between gap-3">
+        <p className="text-sm leading-snug">
+          Tap <span className="font-medium">Share</span> <span aria-hidden>⎋</span> then{' '}
+          <span className="font-medium">Add to Home Screen</span> to install Baby Tracker.
+        </p>
+        <button
+          onClick={() => {
+            try { localStorage.setItem(IOS_DISMISSED_KEY, 'true') } catch { /* quota */ }
+            setIosDismissed(true)
+          }}
+          className="text-muted-foreground hover:text-foreground text-xs shrink-0 leading-none pt-0.5"
+          aria-label="Dismiss"
+        >
+          ✕
+        </button>
       </div>
     )
   }

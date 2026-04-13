@@ -1,7 +1,7 @@
 from collections import defaultdict
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -12,7 +12,7 @@ from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
 from app.models.user_baby import UserBaby
-from app.utils import _utc, pair_sleep_sessions, NIGHT_SHIFT_START, NIGHT_SHIFT_END
+from app.utils import _utc, pair_sleep_sessions, parenting_day, DAY_START_HOUR, NIGHT_SHIFT_START, NIGHT_SHIFT_END
 
 router = APIRouter(prefix="/leaderboards", tags=["leaderboards"])
 
@@ -72,15 +72,32 @@ def _winner_uid(stats: dict[str, dict], key: str) -> str | None:
 @limiter.limit("30/minute")
 async def get_leaderboards(
     request: Request,
+    tz_offset: int = Query(default=0),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     baby_ids = select(UserBaby.baby_id).where(UserBaby.user_id == current_user.id)
     family_user_ids = select(UserBaby.user_id).where(UserBaby.baby_id.in_(baby_ids))
 
+    today_utc = datetime.now(timezone.utc)
+    today_str = parenting_day(today_utc, tz_offset)
+
+    # today_start: UTC moment when the current parenting day began (local 05:00 → UTC).
+    # local 05:00 on parenting-day date = UTC 05:00 - tz_offset_min
+    from datetime import date as date_type
+    pday = date_type.fromisoformat(today_str)
+    today_start = datetime(
+        pday.year, pday.month, pday.day, DAY_START_HOUR, 0, 0, tzinfo=timezone.utc
+    ) - timedelta(minutes=tz_offset)
+
+    # Cap at 4 years — the realistic maximum lifetime of this app for any family.
+    # The compound index on (baby_id, timestamp) makes this range scan fast even
+    # at the upper bound (~25k events).
+    MAX_LEADERBOARD_DAYS = 4 * 365
+    cutoff = today_utc - timedelta(days=MAX_LEADERBOARD_DAYS)
     events_result = await db.execute(
         select(Event)
-        .where(Event.baby_id.in_(baby_ids))
+        .where(Event.baby_id.in_(baby_ids), Event.timestamp >= cutoff)
         .order_by(Event.timestamp)
     )
     events = events_result.scalars().all()
@@ -90,11 +107,6 @@ async def get_leaderboards(
     )
     users = {u.id: u.display_name for u in users_result.scalars().all()}
 
-    today_utc = datetime.now(timezone.utc)
-    today_start = today_utc.replace(hour=0, minute=0, second=0, microsecond=0)
-    today_str = today_utc.date().isoformat()
-
-    # Require at least 7 days of data before surfacing notifications/awards
     earliest_ts = min((_utc(e.timestamp) for e in events), default=None)
     has_enough_data = (
         earliest_ts is not None and (today_utc - earliest_ts).days >= 7
@@ -113,7 +125,7 @@ async def get_leaderboards(
     if sleep_sessions:
         longest = max(sleep_sessions, key=lambda s: (s[1] - s[0]).total_seconds())
         longest_sleep_min = round((longest[1] - longest[0]).total_seconds() / 60, 1)
-        longest_sleep_date = longest[0].date().isoformat()
+        longest_sleep_date = parenting_day(longest[0], tz_offset)
 
     night_sleep: dict[str, float] = defaultdict(float)
     for start, end in sleep_sessions:
@@ -125,7 +137,7 @@ async def get_leaderboards(
             overlap_start = max(start, night_start)
             overlap_end = min(end, night_end)
             if overlap_end > overlap_start:
-                night_sleep[night_start.date().isoformat()] += (
+                night_sleep[parenting_day(night_start, tz_offset)] += (
                     overlap_end - overlap_start
                 ).total_seconds() / 60
 
@@ -143,7 +155,7 @@ async def get_leaderboards(
     feeds_by_day: dict[str, int] = defaultdict(int)
     for e in events:
         if e.type == "feed":
-            feeds_by_day[_utc(e.timestamp).date().isoformat()] += 1
+            feeds_by_day[parenting_day(e.timestamp, tz_offset)] += 1
 
     most_feeds_count: int | None = None
     most_feeds_date: str | None = None
@@ -157,7 +169,7 @@ async def get_leaderboards(
         if e.type == "diaper":
             meta = e.metadata_ or {}
             if meta.get("diaper_type") in ("dirty", "both"):
-                poop_by_day[_utc(e.timestamp).date().isoformat()] += 1
+                poop_by_day[parenting_day(e.timestamp, tz_offset)] += 1
 
     most_poop_count: int | None = None
     most_poop_date: str | None = None

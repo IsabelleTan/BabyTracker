@@ -12,8 +12,9 @@ vi.mock('@/lib/db', () => ({
 
 vi.mock('@/lib/events', () => ({
   logEvent: vi.fn(),
-  getTodayEvents: vi.fn().mockResolvedValue([]),
+  getLast24HoursEvents: vi.fn().mockResolvedValue([]),
   getLastFeeds: vi.fn().mockResolvedValue([]),
+  getNightSessionEvents: vi.fn().mockResolvedValue([]),
   deleteEvent: vi.fn(),
 }))
 
@@ -40,7 +41,7 @@ const MOCK_RESPONSE = {
 describe('useSync.sync — pending queue flush order', () => {
   beforeEach(() => {
     vi.clearAllMocks()
-    vi.mocked(events.getTodayEvents).mockResolvedValue([])
+    vi.mocked(events.getLast24HoursEvents).mockResolvedValue([])
     vi.mocked(events.getLastFeeds).mockResolvedValue([])
   })
 
@@ -85,7 +86,7 @@ describe('useSync.log — pending count behaviour', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(db.getAllPending).mockResolvedValue([])
-    vi.mocked(events.getTodayEvents).mockResolvedValue([])
+    vi.mocked(events.getLast24HoursEvents).mockResolvedValue([])
     vi.mocked(events.getLastFeeds).mockResolvedValue([])
   })
 

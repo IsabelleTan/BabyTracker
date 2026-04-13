@@ -14,7 +14,11 @@ export interface DailyStat {
 
 export async function getDailyStats(from: Date, to: Date): Promise<DailyStat[]> {
   const { data } = await api.get<DailyStat[]>('/stats/daily', {
-    params: { from: from.toISOString(), to: to.toISOString() },
+    params: {
+      from: from.toISOString(),
+      to: to.toISOString(),
+      tz_offset: -new Date().getTimezoneOffset(), // minutes east of UTC (positive = UTC+)
+    },
   })
   return data
 }

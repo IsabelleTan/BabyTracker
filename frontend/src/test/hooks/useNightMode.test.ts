@@ -2,13 +2,17 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { renderHook, act } from '@testing-library/react'
 import { useNightMode } from '@/hooks/useNightMode'
 
+const OVERRIDE_KEY = 'night_mode_override'
+
 describe('useNightMode', () => {
   beforeEach(() => {
     vi.useFakeTimers()
+    localStorage.clear()
   })
 
   afterEach(() => {
     vi.useRealTimers()
+    localStorage.clear()
   })
 
   it('is active at 21:00', () => {
@@ -71,5 +75,37 @@ describe('useNightMode', () => {
     // With override cleared, toggling off should now stick
     act(() => result.current.toggle())
     expect(result.current.night).toBe(false)
+  })
+
+  it('persists override to localStorage on toggle', () => {
+    vi.setSystemTime(new Date('2024-01-15T12:00:00'))
+    const { result } = renderHook(() => useNightMode())
+    expect(localStorage.getItem(OVERRIDE_KEY)).toBeNull()
+
+    act(() => result.current.toggle())
+    expect(localStorage.getItem(OVERRIDE_KEY)).toBe('true')
+
+    act(() => result.current.toggle())
+    expect(localStorage.getItem(OVERRIDE_KEY)).toBe('false')
+  })
+
+  it('reads override from localStorage on mount (simulates page refresh)', () => {
+    // Simulate a previous session: user forced night mode during daytime
+    localStorage.setItem(OVERRIDE_KEY, 'true')
+    vi.setSystemTime(new Date('2024-01-15T12:00:00'))
+    const { result } = renderHook(() => useNightMode())
+    expect(result.current.night).toBe(true)
+  })
+
+  it('clears localStorage when override matches auto at boundary', () => {
+    vi.setSystemTime(new Date('2024-01-15T12:00:00'))
+    const { result } = renderHook(() => useNightMode())
+    act(() => result.current.toggle()) // force night during day
+    expect(localStorage.getItem(OVERRIDE_KEY)).toBe('true')
+
+    // Clock hits 21:00 — auto=true matches override=true → override cleared
+    act(() => vi.setSystemTime(new Date('2024-01-15T21:00:00')))
+    act(() => vi.advanceTimersByTime(60_000))
+    expect(localStorage.getItem(OVERRIDE_KEY)).toBeNull()
   })
 })

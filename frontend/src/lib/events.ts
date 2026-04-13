@@ -35,12 +35,42 @@ export async function getLastFeeds(n: number): Promise<BabyEvent[]> {
   return [...data].reverse()
 }
 
-export async function getTodayEvents(): Promise<BabyEvent[]> {
+export async function getLast24HoursEvents(): Promise<BabyEvent[]> {
   const now = new Date()
-  const start = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const end = new Date(start.getTime() + 24 * 60 * 60 * 1000)
+  const from = new Date(now.getTime() - 24 * 60 * 60 * 1000)
   const { data } = await api.get<BabyEvent[]>('/events', {
-    params: { from_: start.toISOString(), to: end.toISOString() },
+    params: { from_: from.toISOString(), to: now.toISOString() },
+  })
+  return data
+}
+
+/** Start of the current parenting day (05:00 local today, or 05:00 yesterday if before 05:00). */
+export function currentDayStart(base: Date = new Date()): Date {
+  const d = new Date(base)
+  if (d.getHours() < 5) d.setDate(d.getDate() - 1)
+  d.setHours(5, 0, 0, 0)
+  return d
+}
+
+/** Events from the past N parenting days (05:00 local N days ago → now). */
+export async function getEventsSince(days: number): Promise<BabyEvent[]> {
+  const now = new Date()
+  const from = currentDayStart()
+  from.setDate(from.getDate() - days)
+  const { data } = await api.get<BabyEvent[]>('/events', {
+    params: { from_: from.toISOString(), to: now.toISOString() },
+  })
+  return data
+}
+
+/** Events from the current night session: 21:00 tonight (or yesterday if before 07:00) to now. */
+export async function getNightSessionEvents(): Promise<BabyEvent[]> {
+  const now = new Date()
+  const sessionStart = new Date(now)
+  if (now.getHours() < 7) sessionStart.setDate(sessionStart.getDate() - 1)
+  sessionStart.setHours(21, 0, 0, 0)
+  const { data } = await api.get<BabyEvent[]>('/events', {
+    params: { from_: sessionStart.toISOString(), to: now.toISOString() },
   })
   return data
 }

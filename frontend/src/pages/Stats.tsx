@@ -10,6 +10,7 @@ import {
   ReferenceLine,
 } from 'recharts'
 import { getDailyStats, getEarliestEventDate, type DailyStat } from '@/lib/stats'
+import { currentDayStart } from '@/lib/events'
 
 type Range = '7d' | '30d' | 'all'
 
@@ -21,10 +22,9 @@ const RANGES: { label: string; value: Range }[] = [
 
 function getFixedRangeDates(range: '7d' | '30d'): { from: Date; to: Date } {
   const to = new Date()
-  const from = new Date()
-  if (range === '7d') from.setDate(to.getDate() - 6)
-  else from.setDate(to.getDate() - 29)
-  from.setHours(0, 0, 0, 0)
+  const from = currentDayStart()
+  if (range === '7d') from.setDate(from.getDate() - 6)
+  else from.setDate(from.getDate() - 29)
   to.setHours(23, 59, 59, 999)
   return { from, to }
 }
@@ -58,8 +58,7 @@ export default function Stats() {
       let from: Date
       if (range === 'all') {
         const earliest = await getEarliestEventDate()
-        from = earliest ?? new Date()
-        from.setHours(0, 0, 0, 0)
+        from = currentDayStart(earliest ?? new Date())
       } else {
         from = getFixedRangeDates(range).from
       }
@@ -243,7 +242,7 @@ function ChartCard({
   const gridDash = '3 3'
 
   return (
-    <div className="w-full rounded-xl border border-primary/35 bg-surface px-3 py-3 flex flex-col gap-3">
+    <div className="w-full rounded-xl border border-primary/35 bg-card px-3 py-3 flex flex-col gap-3">
       <span className="text-sm font-medium">{title}</span>
       <ResponsiveContainer width="100%" height={150}>
         <LineChart data={data} margin={{ top: 4, right: 12, left: -16, bottom: 0 }}>

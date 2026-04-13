@@ -55,10 +55,10 @@ export default function TimelineSection({ events, onDeleted }: Props) {
     <>
       <div className="flex flex-col gap-1">
         <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
-          Today's timeline
+          Last 24 hours
         </h2>
         {sorted.length === 0 ? (
-          <p className="text-sm text-muted-foreground text-center py-6">No events yet today</p>
+          <p className="text-sm text-muted-foreground text-center py-6">No events in the last 24 hours</p>
         ) : (
           <div className="rounded-xl border border-primary/35 overflow-hidden">
             {sorted.map((event, i) => (
@@ -82,12 +82,12 @@ export default function TimelineSection({ events, onDeleted }: Props) {
                 `${EVENT_LABELS[pendingDelete.type]} at ${formatTime(new Date(pendingDelete.timestamp))} logged by ${pendingDelete.display_name}`}
             </AlertDialogDescription>
           </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel disabled={deleting}>Cancel</AlertDialogCancel>
+          <AlertDialogFooter className="flex-row gap-2 sm:gap-2">
+            <AlertDialogCancel disabled={deleting} className="flex-1 mt-0">Cancel</AlertDialogCancel>
             <AlertDialogAction
               onClick={confirmDelete}
               disabled={deleting}
-              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              className="flex-1 bg-destructive text-destructive-foreground hover:bg-destructive/90"
             >
               Delete
             </AlertDialogAction>
