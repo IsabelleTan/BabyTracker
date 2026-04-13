@@ -12,6 +12,8 @@ The first weeks with a newborn are a blur of feeds, diaper changes, and broken s
 [![CI](https://github.com/IsabelleTan/BabyTracker/actions/workflows/ci.yml/badge.svg)](https://github.com/IsabelleTan/BabyTracker/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/IsabelleTan/BabyTracker/branch/main/graph/badge.svg?token=T4UOKMWPJH&flag=backend)](https://codecov.io/gh/IsabelleTan/BabyTracker)
 
+See [CHANGELOG.md](CHANGELOG.md) for release history.
+
 ## Stack
 
 | Layer | Technology |
@@ -57,6 +59,19 @@ npm install
 npm run dev
 ```
 App available at `http://localhost:5173`.
+
+## Deploying
+
+Deployments are automated via GitHub Actions. Push a semver tag to trigger a full test run followed by deployment to the VPS:
+
+```bash
+git tag 1.0.0
+git push origin 1.0.0
+```
+
+The deploy job requires approval in the GitHub Actions UI (via the `production` environment) before it SSHes into the server. See [`.github/workflows/deploy.yml`](.github/workflows/deploy.yml) for the full pipeline.
+
+Required repository secrets: `VPS_HOST`, `VPS_USER`, `VPS_SSH_KEY`.
 
 ## Features
 

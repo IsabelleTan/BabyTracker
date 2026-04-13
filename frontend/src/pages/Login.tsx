@@ -28,9 +28,12 @@ export default function Login() {
   return (
     <div className="flex flex-col items-center justify-center min-h-svh p-6 bg-background">
       <div className="w-full max-w-sm space-y-6">
-        <div className="text-center space-y-1">
-          <h1 className="text-2xl font-semibold">Baby Tracker</h1>
-          <p className="text-sm text-muted-foreground">Sign in to continue</p>
+        <div className="text-center space-y-3">
+          <img src="/pwa-192x192.png" alt="" className="w-20 h-20 mx-auto rounded-2xl" />
+          <div className="space-y-1">
+            <h1 className="text-2xl font-semibold">Baby Tracker</h1>
+            <p className="text-sm text-muted-foreground">Sign in to continue</p>
+          </div>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
