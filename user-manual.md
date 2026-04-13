@@ -1,12 +1,6 @@
 # BabyTracker — User Manual
 
-The first weeks with a newborn are relentless. Feeds blur into each other, sleep happens in fragments, and at 3 am you genuinely cannot remember whether the last nappy was an hour ago or three. You're both exhausted. You're both trying. And a lot of the effort — the night shifts, the extra nappy changes, the 4 am feeds handled so your partner could sleep — goes completely unacknowledged, not out of carelessness but because there's no way to see it.
-
-BabyTracker is a shared log built for exactly this. One place where both parents record every feed, sleep block, and diaper change. Visible to both of you in real time, no matter who's holding the baby. Tap once to log. Hand off without a word — your partner opens the app and sees everything you saw.
-
-Over time the data becomes something more: charts that show whether sleep is genuinely improving, averages that put a rough day in context, and quiet acknowledgements when your partner pulls more than their share. The leaderboards aren't about competition — they're about making invisible effort visible. The encouragement messages aren't generic — they're based on what actually happened today.
-
-And at 3 am, when you don't want a bright screen in your face, night mode dims everything to a warm amber so you can log and go back to what matters.
+A calm, shared log for two parents — tap once to record a feed, sleep, or diaper; see what your partner logged; watch the patterns emerge. Built for the hard weeks, designed to be kind about it.
 
 <!-- SCREENSHOT: screenshots/home.png — see screenshots section at the bottom -->
 ![Home screen](screenshots/home.png)
