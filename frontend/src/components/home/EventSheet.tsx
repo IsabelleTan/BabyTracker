@@ -475,13 +475,18 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
                       <button
                         type="button"
                         onClick={toggleLeftTimer}
-                        className={`h-11 px-2.5 rounded-md text-sm font-medium border tabular-nums transition-colors ${
+                        className={`h-11 px-2.5 rounded-md text-sm font-medium border transition-colors flex flex-col items-center justify-center ${
                           leftRunning
                             ? 'bg-primary text-primary-foreground border-primary'
                             : 'bg-background border-input text-foreground'
                         }`}
                       >
-                        {leftRunning ? formatTimer(leftElapsedMs) : 'Start'}
+                        {leftRunning ? (
+                          <>
+                            <span>Stop</span>
+                            <span className="text-[10px] tabular-nums leading-none">{formatTimer(leftElapsedMs)}</span>
+                          </>
+                        ) : 'Start'}
                       </button>
                     </div>
                   </div>
@@ -500,13 +505,18 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
                       <button
                         type="button"
                         onClick={toggleRightTimer}
-                        className={`h-11 px-2.5 rounded-md text-sm font-medium border tabular-nums transition-colors ${
+                        className={`h-11 px-2.5 rounded-md text-sm font-medium border transition-colors flex flex-col items-center justify-center ${
                           rightRunning
                             ? 'bg-primary text-primary-foreground border-primary'
                             : 'bg-background border-input text-foreground'
                         }`}
                       >
-                        {rightRunning ? formatTimer(rightElapsedMs) : 'Start'}
+                        {rightRunning ? (
+                          <>
+                            <span>Stop</span>
+                            <span className="text-[10px] tabular-nums leading-none">{formatTimer(rightElapsedMs)}</span>
+                          </>
+                        ) : 'Start'}
                       </button>
                     </div>
                   </div>
