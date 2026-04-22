@@ -351,7 +351,7 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
       setLeftRunning(false)
       const elapsed = Date.now() - leftStartMsRef.current
       setLeftElapsedMs(elapsed)
-      setLeftMin(String(Math.round(elapsed / 60000 * 10) / 10))
+      setLeftMin(String(Math.round(elapsed / 60000)))
     } else {
       leftStartMsRef.current = Date.now()
       setLeftRunning(true)
@@ -367,7 +367,7 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
       setRightRunning(false)
       const elapsed = Date.now() - rightStartMsRef.current
       setRightElapsedMs(elapsed)
-      setRightMin(String(Math.round(elapsed / 60000 * 10) / 10))
+      setRightMin(String(Math.round(elapsed / 60000)))
     } else {
       rightStartMsRef.current = Date.now()
       setRightRunning(true)
@@ -382,10 +382,10 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
       if (feedType === 'breast') {
         // If a timer is still running when saving, use its current elapsed value
         const lMin = leftRunning
-          ? (Date.now() - leftStartMsRef.current) / 60000
+          ? Math.round((Date.now() - leftStartMsRef.current) / 60000)
           : (leftMin ? Number(leftMin) : null)
         const rMin = rightRunning
-          ? (Date.now() - rightStartMsRef.current) / 60000
+          ? Math.round((Date.now() - rightStartMsRef.current) / 60000)
           : (rightMin ? Number(rightMin) : null)
         return {
           feed_type: 'breast',
