@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
 import SummarySection from '@/components/home/SummarySection'
-import { currentDayStart, type BabyEvent } from '@/lib/events'
+import { type BabyEvent } from '@/lib/events'
 
 vi.mock('@/contexts/LeaderboardContext', () => ({
   useLeaderboardData: vi.fn().mockReturnValue({ data: null, notifications: [], loading: false, error: false }),
@@ -29,13 +29,11 @@ function todayAt(hour: number, minuteOffset = 0): string {
   d.setHours(hour, minuteOffset, 0, 0)
   return d.toISOString()
 }
-// daysAgoAt: places a timestamp N parenting-days before today's 5am boundary.
-// daysAgoAt(1, 8) = June 19 8am, which is before the window start (June 19 10am)
+// hoursAgoAt: places a timestamp N*24 + offset hours before PINNED_NOW.
+// hoursAgo(25) = June 19 9am, which is before the 24h window start (June 19 10am)
 // and therefore correctly excluded from the rolling 24h stats.
-function daysAgoAt(days: number, hour: number): string {
-  const base = currentDayStart()
-  base.setDate(base.getDate() - days)
-  return new Date(base.getTime() + (hour - 5) * 3_600_000).toISOString()
+function hoursAgo(hours: number): string {
+  return new Date(PINNED_NOW.getTime() - hours * 3_600_000).toISOString()
 }
 
 function makeEvent(overrides: Partial<BabyEvent> & { timestamp: string }): BabyEvent {
@@ -59,9 +57,9 @@ describe('SummarySection — today stats', () => {
       makeEvent({ type: 'feed',   timestamp: todayAt(9),  metadata: { feed_type: 'bottle', amount_ml: 80 } }),
       makeEvent({ type: 'diaper', timestamp: todayAt(8),  metadata: { diaper_type: 'wet' } }),
       makeEvent({ type: 'diaper', timestamp: todayAt(9),  metadata: { diaper_type: 'wet' } }),
-      // Yesterday — must not count
-      makeEvent({ type: 'feed',   timestamp: daysAgoAt(1, 8), metadata: { feed_type: 'bottle', amount_ml: 999 } }),
-      makeEvent({ type: 'diaper', timestamp: daysAgoAt(1, 9), metadata: { diaper_type: 'wet' } }),
+      // Outside 24h window — must not count
+      makeEvent({ type: 'feed',   timestamp: hoursAgo(25), metadata: { feed_type: 'bottle', amount_ml: 999 } }),
+      makeEvent({ type: 'diaper', timestamp: hoursAgo(25), metadata: { diaper_type: 'wet' } }),
     ]
     render(<SummarySection events={events} />)
     // Bottle total = 160ml today only; wet count = 2
@@ -73,8 +71,8 @@ describe('SummarySection — today stats', () => {
 
   it('shows zeros when all events are from previous days', async () => {
     const events: BabyEvent[] = [
-      makeEvent({ type: 'feed',   timestamp: daysAgoAt(2, 8) }),
-      makeEvent({ type: 'diaper', timestamp: daysAgoAt(2, 9) }),
+      makeEvent({ type: 'feed',   timestamp: hoursAgo(49) }),
+      makeEvent({ type: 'diaper', timestamp: hoursAgo(49) }),
     ]
     render(<SummarySection events={events} />)
     await waitFor(() => expect(screen.getAllByText('0')).toHaveLength(2))
@@ -86,7 +84,7 @@ describe('SummarySection — today stats', () => {
   })
 
   it('computes total sleep from completed blocks today', async () => {
-    // 2-hour sleep block today (hours ≥ 5 to stay within the parenting-day window)
+    // 2-hour sleep block today (within the rolling 24h window)
     const start = todayAt(6)
     const end   = todayAt(8)
     const events: BabyEvent[] = [

@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { Milk, Moon, Droplet, CirclePile, Venus, Sparkles, Users, type LucideIcon } from 'lucide-react'
 import { formatDuration } from '@/hooks/useTimeSince'
-import { getEventsSince, currentDayStart, type BabyEvent } from '@/lib/events'
+import { getEventsSince, type BabyEvent } from '@/lib/events'
 import { getUser } from '@/lib/auth'
 import { useLeaderboardData } from '@/contexts/LeaderboardContext'
 import {
@@ -202,7 +202,6 @@ function diaperType(e: BabyEvent): string | undefined {
 function computeStats(events: BabyEvent[]) {
   const now = new Date()
   const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000) // rolling 24-hour window
-  const todayStart = currentDayStart(now) // used only for 7-day avg day boundaries
 
   const todayEvents = events.filter((e) => new Date(e.timestamp) >= windowStart)
 
@@ -231,7 +230,7 @@ function computeStats(events: BabyEvent[]) {
 
   const totalSleepMs = computeSleepMs(todayEvents, now)
 
-  // 7-day daily totals (days 1–7 before today)
+  // 7-day rolling averages: each "day" is a 24h window ending N×24h before now
   const dailyWets: number[] = []
   const dailyDirtys: number[] = []
   const dailyBreastMins: number[] = []
@@ -239,10 +238,8 @@ function computeStats(events: BabyEvent[]) {
   const dailySleepMs: number[] = []
 
   for (let d = 1; d <= 7; d++) {
-    const dayStart = new Date(todayStart)
-    dayStart.setDate(dayStart.getDate() - d)
-    const dayEnd = new Date(todayStart)
-    dayEnd.setDate(dayEnd.getDate() - d + 1)
+    const dayEnd = new Date(now.getTime() - (d - 1) * 24 * 60 * 60 * 1000)
+    const dayStart = new Date(now.getTime() - d * 24 * 60 * 60 * 1000)
     const dayEvents = events.filter((e) => {
       const t = new Date(e.timestamp)
       return t >= dayStart && t < dayEnd
