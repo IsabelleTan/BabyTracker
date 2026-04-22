@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useRef, useState } from 'react'
-import { Milk, Moon, Droplets, Sparkles, Users, type LucideIcon } from 'lucide-react'
+import { Milk, Moon, Droplet, CirclePile, Venus, Sparkles, Users, type LucideIcon } from 'lucide-react'
 import { formatDuration } from '@/hooks/useTimeSince'
 import { getEventsSince, currentDayStart, type BabyEvent } from '@/lib/events'
 import { getUser } from '@/lib/auth'
@@ -55,32 +55,53 @@ export default function SummarySection({ events }: Props) {
         Today
       </h2>
       <div className="rounded-xl border border-primary/35 bg-surface p-4 flex flex-col gap-3">
-        <div className="flex flex-col gap-2.5">
-          <StatBar
-            icon={Milk}
-            label="Feeds"
-            value={stats.feedCount}
-            valueStr={String(stats.feedCount)}
-            avg={stats.avgFeeds}
+        <div className="flex flex-col gap-2">
+          {/* Feed group: breast + bottle */}
+          <div className="flex flex-col gap-2 bg-muted/20 rounded-lg px-2 pt-1.5 pb-2">
+            <StatBar
+              icon={Venus}
+              label="Breast"
+              value={stats.breastMinTotal}
+              valueStr={stats.breastMinTotal > 0 ? `${Math.round(stats.breastMinTotal)} min` : '—'}
+              avg={stats.avgBreastMin}
+              max={stats.maxBreastMin}
+            />
+            <StatBar
+              icon={Milk}
+              label="Bottle"
+              value={stats.bottleMlTotal}
+              valueStr={stats.bottleMlTotal > 0 ? `${Math.round(stats.bottleMlTotal)} ml` : '—'}
+              avg={stats.avgBottleMl}
+              max={stats.maxBottleMl}
+            />
+          </div>
 
-            max={stats.maxFeeds}
-          />
-          <StatBar
-            icon={Droplets}
-            label="Diapers"
-            value={stats.diaperCount}
-            valueStr={String(stats.diaperCount)}
-            avg={stats.avgDiapers}
+          {/* Diaper group: wet + dirty */}
+          <div className="flex flex-col gap-2 bg-muted/20 rounded-lg px-2 pt-1.5 pb-2">
+            <StatBar
+              icon={Droplet}
+              label="Wet"
+              value={stats.wetCount}
+              valueStr={String(stats.wetCount)}
+              avg={stats.avgWet}
+              max={stats.maxDiapers}
+            />
+            <StatBar
+              icon={CirclePile}
+              label="Dirty"
+              value={stats.dirtyCount}
+              valueStr={String(stats.dirtyCount)}
+              avg={stats.avgDirty}
+              max={stats.maxDiapers}
+            />
+          </div>
 
-            max={stats.maxDiapers}
-          />
           <StatBar
             icon={Moon}
             label="Sleep"
             value={stats.totalSleepMs}
             valueStr={stats.totalSleep}
             avg={stats.avgSleepMs}
-
             max={stats.maxSleepMs}
           />
         </div>
@@ -143,7 +164,7 @@ function StatBar({
           />
         )}
       </div>
-      <span className="text-sm font-semibold w-14 text-right shrink-0">{valueStr}</span>
+      <span className="text-sm font-semibold w-16 text-right shrink-0">{valueStr}</span>
     </div>
   )
 }
@@ -168,18 +189,46 @@ function computeSleepMs(events: BabyEvent[], capAt: Date): number {
   return total
 }
 
+function diaperType(e: BabyEvent): string | undefined {
+  return (e.metadata as { diaper_type?: string } | null)?.diaper_type
+}
+
 function computeStats(events: BabyEvent[]) {
   const now = new Date()
   const todayStart = currentDayStart(now)
 
   const todayEvents = events.filter((e) => new Date(e.timestamp) >= todayStart)
-  const feedCount = todayEvents.filter((e) => e.type === 'feed').length
-  const diaperCount = todayEvents.filter((e) => e.type === 'diaper').length
+
+  // Diaper breakdown (wet/dirty both count towards each)
+  const todayDiapers = todayEvents.filter((e) => e.type === 'diaper')
+  const wetCount = todayDiapers.filter((e) => {
+    const t = diaperType(e)
+    return t === 'wet' || t === 'both'
+  }).length
+  const dirtyCount = todayDiapers.filter((e) => {
+    const t = diaperType(e)
+    return t === 'dirty' || t === 'both'
+  }).length
+
+  // Feed breakdown: total breast minutes and bottle ml
+  let breastMinTotal = 0
+  let bottleMlTotal = 0
+  for (const e of todayEvents.filter((e) => e.type === 'feed')) {
+    const m = e.metadata as Record<string, unknown> | null
+    if (m?.feed_type === 'breast') {
+      breastMinTotal += ((m.left_duration_min as number) ?? 0) + ((m.right_duration_min as number) ?? 0)
+    } else if (m?.feed_type === 'bottle') {
+      bottleMlTotal += (m.amount_ml as number) ?? 0
+    }
+  }
+
   const totalSleepMs = computeSleepMs(todayEvents, now)
 
   // 7-day daily totals (days 1–7 before today)
-  const dailyFeeds: number[] = []
-  const dailyDiapers: number[] = []
+  const dailyWets: number[] = []
+  const dailyDirtys: number[] = []
+  const dailyBreastMins: number[] = []
+  const dailyBottleMls: number[] = []
   const dailySleepMs: number[] = []
 
   for (let d = 1; d <= 7; d++) {
@@ -191,32 +240,57 @@ function computeStats(events: BabyEvent[]) {
       const t = new Date(e.timestamp)
       return t >= dayStart && t < dayEnd
     })
-    dailyFeeds.push(dayEvents.filter((e) => e.type === 'feed').length)
-    dailyDiapers.push(dayEvents.filter((e) => e.type === 'diaper').length)
+
+    const dayDiapers = dayEvents.filter((e) => e.type === 'diaper')
+    dailyWets.push(dayDiapers.filter((e) => { const t = diaperType(e); return t === 'wet' || t === 'both' }).length)
+    dailyDirtys.push(dayDiapers.filter((e) => { const t = diaperType(e); return t === 'dirty' || t === 'both' }).length)
+
+    let dBreastMin = 0
+    let dBottleMl = 0
+    for (const e of dayEvents.filter((e) => e.type === 'feed')) {
+      const m = e.metadata as Record<string, unknown> | null
+      if (m?.feed_type === 'breast') {
+        dBreastMin += ((m.left_duration_min as number) ?? 0) + ((m.right_duration_min as number) ?? 0)
+      } else if (m?.feed_type === 'bottle') {
+        dBottleMl += (m.amount_ml as number) ?? 0
+      }
+    }
+    dailyBreastMins.push(dBreastMin)
+    dailyBottleMls.push(dBottleMl)
+
     dailySleepMs.push(computeSleepMs(dayEvents, dayEnd))
   }
 
   const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length
 
-  const avgFeeds = avg(dailyFeeds)
-  const avgDiapers = avg(dailyDiapers)
+  const avgWet = avg(dailyWets)
+  const avgDirty = avg(dailyDirtys)
+  const avgBreastMin = avg(dailyBreastMins)
+  const avgBottleMl = avg(dailyBottleMls)
   const avgSleepMs = avg(dailySleepMs)
 
-  // Scale: max across today + past 7 days so the bar never overflows
-  const maxFeeds = Math.max(feedCount, ...dailyFeeds, 1)
-  const maxDiapers = Math.max(diaperCount, ...dailyDiapers, 1)
+  // Diapers share a max (same unit: count) so bars are comparable
+  const maxDiapers = Math.max(wetCount, dirtyCount, ...dailyWets, ...dailyDirtys, 1)
+  // Feeds use separate maxes (different units: min vs ml)
+  const maxBreastMin = Math.max(breastMinTotal, ...dailyBreastMins, 1)
+  const maxBottleMl = Math.max(bottleMlTotal, ...dailyBottleMls, 1)
   const maxSleepMs = Math.max(totalSleepMs, ...dailySleepMs, 1)
 
   return {
-    feedCount,
-    diaperCount,
+    wetCount,
+    dirtyCount,
+    breastMinTotal,
+    bottleMlTotal,
     totalSleepMs,
     totalSleep: totalSleepMs > 0 ? formatDuration(totalSleepMs) : '—',
-    avgFeeds,
-    avgDiapers,
+    avgWet,
+    avgDirty,
+    avgBreastMin,
+    avgBottleMl,
     avgSleepMs,
-    maxFeeds,
     maxDiapers,
+    maxBreastMin,
+    maxBottleMl,
     maxSleepMs,
   }
 }
