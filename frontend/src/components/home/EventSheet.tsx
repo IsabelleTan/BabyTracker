@@ -263,6 +263,15 @@ function SegmentedControl<T extends string>({
   )
 }
 
+// ─── Timer helpers ────────────────────────────────────────────────────────────
+
+function formatTimer(ms: number): string {
+  const totalSecs = Math.floor(ms / 1000)
+  const mins = Math.floor(totalSecs / 60)
+  const secs = totalSecs % 60
+  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
+}
+
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps) {
@@ -277,6 +286,24 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
   const [rightMin,   setRightMin]   = useState('')
   const [amountMl,   setAmountMl]   = useState('')
   const [diaperType, setDiaperType] = useState<'wet' | 'dirty' | 'both'>('wet')
+
+  // Breastfeed timers
+  const [leftRunning,    setLeftRunning]    = useState(false)
+  const [rightRunning,   setRightRunning]   = useState(false)
+  const [leftElapsedMs,  setLeftElapsedMs]  = useState(0)
+  const [rightElapsedMs, setRightElapsedMs] = useState(0)
+  const leftStartMsRef    = useRef(0)
+  const rightStartMsRef   = useRef(0)
+  const leftIntervalRef   = useRef<ReturnType<typeof setInterval> | null>(null)
+  const rightIntervalRef  = useRef<ReturnType<typeof setInterval> | null>(null)
+
+  // Cleanup intervals on unmount
+  useEffect(() => {
+    return () => {
+      if (leftIntervalRef.current)  clearInterval(leftIntervalRef.current)
+      if (rightIntervalRef.current) clearInterval(rightIntervalRef.current)
+    }
+  }, [])
 
   const days = useMemo(() => daysArray(selMonth, selYear), [selMonth, selYear])
 
@@ -299,6 +326,13 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
       setRightMin('')
       setAmountMl('')
       setDiaperType('wet')
+      // Reset timers
+      if (leftIntervalRef.current)  { clearInterval(leftIntervalRef.current);  leftIntervalRef.current  = null }
+      if (rightIntervalRef.current) { clearInterval(rightIntervalRef.current); rightIntervalRef.current = null }
+      setLeftRunning(false)
+      setRightRunning(false)
+      setLeftElapsedMs(0)
+      setRightElapsedMs(0)
     }
   }, [type])
 
@@ -311,13 +345,52 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
     setSelMinute(now.getMinutes())
   }
 
+  function toggleLeftTimer() {
+    if (leftRunning) {
+      if (leftIntervalRef.current) { clearInterval(leftIntervalRef.current); leftIntervalRef.current = null }
+      setLeftRunning(false)
+      const elapsed = Date.now() - leftStartMsRef.current
+      setLeftElapsedMs(elapsed)
+      setLeftMin(String(Math.round(elapsed / 60000)))
+    } else {
+      leftStartMsRef.current = Date.now()
+      setLeftRunning(true)
+      leftIntervalRef.current = setInterval(() => {
+        setLeftElapsedMs(Date.now() - leftStartMsRef.current)
+      }, 100)
+    }
+  }
+
+  function toggleRightTimer() {
+    if (rightRunning) {
+      if (rightIntervalRef.current) { clearInterval(rightIntervalRef.current); rightIntervalRef.current = null }
+      setRightRunning(false)
+      const elapsed = Date.now() - rightStartMsRef.current
+      setRightElapsedMs(elapsed)
+      setRightMin(String(Math.round(elapsed / 60000)))
+    } else {
+      rightStartMsRef.current = Date.now()
+      setRightRunning(true)
+      rightIntervalRef.current = setInterval(() => {
+        setRightElapsedMs(Date.now() - rightStartMsRef.current)
+      }, 100)
+    }
+  }
+
   function buildMetadata(): Record<string, unknown> | null {
     if (type === 'feed') {
       if (feedType === 'breast') {
+        // If a timer is still running when saving, use its current elapsed value
+        const lMin = leftRunning
+          ? Math.round((Date.now() - leftStartMsRef.current) / 60000)
+          : (leftMin ? Number(leftMin) : null)
+        const rMin = rightRunning
+          ? Math.round((Date.now() - rightStartMsRef.current) / 60000)
+          : (rightMin ? Number(rightMin) : null)
         return {
           feed_type: 'breast',
-          left_duration_min:  leftMin   ? Number(leftMin)   : null,
-          right_duration_min: rightMin  ? Number(rightMin)  : null,
+          left_duration_min:  lMin,
+          right_duration_min: rMin,
         }
       }
       return { feed_type: 'bottle', amount_ml: amountMl ? Number(amountMl) : null }
@@ -389,27 +462,63 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
                 <div className="grid grid-cols-2 gap-3">
                   <div className="space-y-1.5">
                     <label htmlFor="left-min" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Left (min)</label>
-                    <input
-                      id="left-min"
-                      type="number"
-                      min="0"
-                      placeholder="—"
-                      value={leftMin}
-                      onChange={(e) => setLeftMin(e.target.value)}
-                      className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                    />
+                    <div className="flex gap-1.5">
+                      <input
+                        id="left-min"
+                        type="number"
+                        min="0"
+                        placeholder="—"
+                        value={leftMin}
+                        onChange={(e) => setLeftMin(e.target.value)}
+                        className="flex-1 min-w-0 h-11 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      <button
+                        type="button"
+                        onClick={toggleLeftTimer}
+                        className={`h-11 px-2.5 rounded-md text-sm font-medium border transition-colors flex flex-col items-center justify-center ${
+                          leftRunning
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background border-input text-foreground'
+                        }`}
+                      >
+                        {leftRunning ? (
+                          <>
+                            <span>Stop</span>
+                            <span className="text-[10px] tabular-nums leading-none">{formatTimer(leftElapsedMs)}</span>
+                          </>
+                        ) : 'Start'}
+                      </button>
+                    </div>
                   </div>
                   <div className="space-y-1.5">
                     <label htmlFor="right-min" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Right (min)</label>
-                    <input
-                      id="right-min"
-                      type="number"
-                      min="0"
-                      placeholder="—"
-                      value={rightMin}
-                      onChange={(e) => setRightMin(e.target.value)}
-                      className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                    />
+                    <div className="flex gap-1.5">
+                      <input
+                        id="right-min"
+                        type="number"
+                        min="0"
+                        placeholder="—"
+                        value={rightMin}
+                        onChange={(e) => setRightMin(e.target.value)}
+                        className="flex-1 min-w-0 h-11 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                      />
+                      <button
+                        type="button"
+                        onClick={toggleRightTimer}
+                        className={`h-11 px-2.5 rounded-md text-sm font-medium border transition-colors flex flex-col items-center justify-center ${
+                          rightRunning
+                            ? 'bg-primary text-primary-foreground border-primary'
+                            : 'bg-background border-input text-foreground'
+                        }`}
+                      >
+                        {rightRunning ? (
+                          <>
+                            <span>Stop</span>
+                            <span className="text-[10px] tabular-nums leading-none">{formatTimer(rightElapsedMs)}</span>
+                          </>
+                        ) : 'Start'}
+                      </button>
+                    </div>
                   </div>
                 </div>
               ) : (
