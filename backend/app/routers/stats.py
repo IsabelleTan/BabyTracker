@@ -26,6 +26,10 @@ class DailyStat(BaseModel):
     avg_sleep_session_min: float | None
     avg_wake_min: float | None
     diaper_count: int
+    wet_count: int
+    dirty_count: int
+    breast_min: float
+    bottle_ml: float
 
 
 class StatsRange(BaseModel):
@@ -89,15 +93,30 @@ async def get_daily_stats(
 
     feeds_by_day: dict[str, list[datetime]] = defaultdict(list)
     diapers_by_day: dict[str, list[datetime]] = defaultdict(list)
+    wet_by_day: dict[str, int] = defaultdict(int)
+    dirty_by_day: dict[str, int] = defaultdict(int)
+    breast_min_by_day: dict[str, float] = defaultdict(float)
+    bottle_ml_by_day: dict[str, float] = defaultdict(float)
     raw_sleep_events: list[tuple[str, datetime]] = []
 
     for e in events:
         ts = _utc(e.timestamp)
         day = parenting_day(ts, tz_offset)
+        meta = e.metadata_ or {}
         if e.type == "feed":
             feeds_by_day[day].append(ts)
+            ft = meta.get("feed_type")
+            if ft == "breast":
+                breast_min_by_day[day] += (meta.get("left_duration_min") or 0) + (meta.get("right_duration_min") or 0)
+            elif ft == "bottle":
+                bottle_ml_by_day[day] += meta.get("amount_ml") or 0
         elif e.type == "diaper":
             diapers_by_day[day].append(ts)
+            dtype = meta.get("diaper_type", "")
+            if dtype in ("wet", "both"):
+                wet_by_day[day] += 1
+            if dtype in ("dirty", "both"):
+                dirty_by_day[day] += 1
         elif e.type in ("sleep_start", "sleep_end"):
             raw_sleep_events.append((e.type, ts))
 
@@ -157,6 +176,10 @@ async def get_daily_stats(
                 avg_sleep_session_min=avg_sleep,
                 avg_wake_min=avg_wake,
                 diaper_count=len(diapers_by_day.get(day, [])),
+                wet_count=wet_by_day.get(day, 0),
+                dirty_count=dirty_by_day.get(day, 0),
+                breast_min=round(breast_min_by_day.get(day, 0.0), 1),
+                bottle_ml=round(bottle_ml_by_day.get(day, 0.0), 1),
             )
         )
         current += timedelta(days=1)

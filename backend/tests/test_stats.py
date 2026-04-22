@@ -186,3 +186,53 @@ async def test_stats_diaper_count(client_with_family):
         "to":   "2024-02-10T23:59:59Z",
     }, headers=headers)
     assert r.json()[0]["diaper_count"] == 3
+
+
+@pytest.mark.asyncio
+async def test_stats_wet_dirty_breakdown(client_with_family):
+    """wet and both count toward wet_count; dirty and both count toward dirty_count."""
+    client, headers = client_with_family
+    for i, dtype in enumerate(["wet", "dirty", "both"]):
+        await client.post("/events", json={
+            "id": f"wdb-{i}", "type": "diaper",
+            "timestamp": f"2024-03-05T{8 + i:02d}:00:00Z",
+            "metadata": {"diaper_type": dtype},
+        }, headers=headers)
+
+    r = await client.get("/stats/daily", params={
+        "from": "2024-03-05T05:00:00Z",
+        "to":   "2024-03-05T23:59:59Z",
+    }, headers=headers)
+    day = r.json()[0]
+    assert day["wet_count"]   == 2  # "wet" + "both"
+    assert day["dirty_count"] == 2  # "dirty" + "both"
+
+
+@pytest.mark.asyncio
+async def test_stats_breast_min_and_bottle_ml(client_with_family):
+    """breast_min sums left+right durations; bottle_ml sums amount_ml."""
+    client, headers = client_with_family
+    await client.post("/events", json={
+        "id": "bf1", "type": "feed", "timestamp": "2024-03-06T07:00:00Z",
+        "metadata": {"feed_type": "breast", "left_duration_min": 10, "right_duration_min": 8},
+    }, headers=headers)
+    await client.post("/events", json={
+        "id": "bf2", "type": "feed", "timestamp": "2024-03-06T10:00:00Z",
+        "metadata": {"feed_type": "breast", "left_duration_min": 5, "right_duration_min": None},
+    }, headers=headers)
+    await client.post("/events", json={
+        "id": "bt1", "type": "feed", "timestamp": "2024-03-06T13:00:00Z",
+        "metadata": {"feed_type": "bottle", "amount_ml": 120},
+    }, headers=headers)
+    await client.post("/events", json={
+        "id": "bt2", "type": "feed", "timestamp": "2024-03-06T16:00:00Z",
+        "metadata": {"feed_type": "bottle", "amount_ml": 90},
+    }, headers=headers)
+
+    r = await client.get("/stats/daily", params={
+        "from": "2024-03-06T05:00:00Z",
+        "to":   "2024-03-06T23:59:59Z",
+    }, headers=headers)
+    day = r.json()[0]
+    assert day["breast_min"] == 23.0  # 10+8 + 5+0
+    assert day["bottle_ml"]  == 210.0  # 120 + 90

@@ -9,6 +9,10 @@ export interface DailyStat {
   avg_sleep_session_min: number | null
   avg_wake_min: number | null
   diaper_count: number
+  wet_count: number
+  dirty_count: number
+  breast_min: number
+  bottle_ml: number
 }
 
 export async function getDailyStats(from: Date, to: Date): Promise<DailyStat[]> {

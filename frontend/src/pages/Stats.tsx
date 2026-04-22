@@ -150,14 +150,50 @@ export default function Stats() {
               formatTick={fmtMins}
               tickStep={60}
             />
+            <MultiLineChartCard
+              title="Feed volume"
+              data={chartData}
+              lines={[
+                {
+                  dataKey: 'breast_min',
+                  name: 'Breast',
+                  color: 'var(--color-primary)',
+                  yAxisId: 'left',
+                  formatValue: (v) => `${Math.round(v)} min`,
+                },
+                {
+                  dataKey: 'bottle_ml',
+                  name: 'Bottle',
+                  color: 'oklch(0.52 0.16 165)',
+                  dashed: true,
+                  yAxisId: 'right',
+                  formatValue: (v) => `${Math.round(v)} ml`,
+                },
+              ]}
+              formatLeftTick={(v) => v == null ? '' : `${v}m`}
+              formatRightTick={(v) => v == null ? '' : `${v}ml`}
+            />
           </Section>
 
           <Section title="Diapers">
-            <ChartCard
+            <MultiLineChartCard
               title="Diapers per day"
               data={chartData}
-              dataKey="diaper_count"
-              color="oklch(0.65 0.15 85)"
+              lines={[
+                {
+                  dataKey: 'wet_count',
+                  name: 'Wet',
+                  color: 'oklch(0.52 0.17 225)',
+                  yAxisId: 'left',
+                },
+                {
+                  dataKey: 'dirty_count',
+                  name: 'Dirty',
+                  color: 'oklch(0.52 0.11 55)',
+                  yAxisId: 'left',
+                },
+              ]}
+              leftTickStep={1}
             />
           </Section>
         </>
@@ -191,6 +227,22 @@ function niceStep(max: number): number {
   return 10 * pow
 }
 
+function computeYTicksMulti(
+  data: Record<string, unknown>[],
+  dataKeys: string[],
+  tickStep?: number,
+): { ticks: number[]; domain: [number, number] } {
+  const values = data
+    .flatMap((d) => dataKeys.map((k) => d[k] as number | null | undefined))
+    .filter((v): v is number => v != null && !isNaN(v))
+  const max = values.length > 0 ? Math.max(...values) : 0
+  const step = tickStep ?? niceStep(max)
+  const domainMax = Math.ceil(max / step) * step || step
+  const ticks: number[] = []
+  for (let t = 0; t <= domainMax; t += step) ticks.push(t)
+  return { ticks, domain: [0, domainMax] }
+}
+
 function computeYTicks(
   data: Record<string, unknown>[],
   dataKey: string,
@@ -205,6 +257,153 @@ function computeYTicks(
   const ticks: number[] = []
   for (let t = 0; t <= domainMax; t += step) ticks.push(t)
   return { ticks, domain: [0, domainMax] }
+}
+
+type ChartLine = {
+  dataKey: string
+  color: string
+  dashed?: boolean
+  name: string
+  yAxisId?: 'left' | 'right'
+  formatValue?: (v: number) => string
+}
+
+function MultiLineChartCard({
+  title,
+  data,
+  lines,
+  formatLeftTick,
+  leftTickStep,
+  formatRightTick,
+  rightTickStep,
+}: {
+  title: string
+  data: Record<string, unknown>[]
+  lines: ChartLine[]
+  formatLeftTick?: (v: number | null) => string
+  leftTickStep?: number
+  formatRightTick?: (v: number | null) => string
+  rightTickStep?: number
+}) {
+  const leftKeys  = lines.filter((l) => l.yAxisId !== 'right').map((l) => l.dataKey)
+  const rightKeys = lines.filter((l) => l.yAxisId === 'right').map((l) => l.dataKey)
+  const hasDualAxis = rightKeys.length > 0
+
+  const yLeft  = useMemo(() => computeYTicksMulti(data, leftKeys,  leftTickStep),  [data, leftTickStep])  // eslint-disable-line react-hooks/exhaustive-deps
+  const yRight = useMemo(() => computeYTicksMulti(data, rightKeys, rightTickStep), [data, rightTickStep]) // eslint-disable-line react-hooks/exhaustive-deps
+
+  const xTicks = useMemo(() => {
+    const n = data.length
+    if (n === 0) return []
+    const dates = data.map((d) => d.date as string)
+    if (n <= 8) return dates
+    const k = 7
+    const indices = new Set<number>()
+    for (let i = 0; i < k; i++) indices.add(Math.round((i * (n - 1)) / (k - 1)))
+    return [...indices].sort((a, b) => a - b).map((i) => dates[i])
+  }, [data])
+
+  const gridColor = 'oklch(0.7 0.02 27 / 40%)'
+  const gridDash  = '3 3'
+
+  return (
+    <div className="w-full rounded-xl border border-primary/35 bg-card px-3 py-3 flex flex-col gap-2">
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-sm font-medium">{title}</span>
+        <div className="flex items-center gap-3 shrink-0">
+          {lines.map((line) => (
+            <div key={line.dataKey} className="flex items-center gap-1.5">
+              <svg width="16" height="8" aria-hidden="true">
+                <line
+                  x1="0" y1="4" x2="16" y2="4"
+                  stroke={line.color}
+                  strokeWidth="2"
+                  strokeDasharray={line.dashed ? '4 2' : undefined}
+                />
+              </svg>
+              <span className="text-[10px] text-muted-foreground">{line.name}</span>
+            </div>
+          ))}
+        </div>
+      </div>
+      <ResponsiveContainer width="100%" height={150}>
+        <LineChart
+          data={data}
+          margin={{ top: 4, right: hasDualAxis ? 48 : 12, left: -16, bottom: 0 }}
+        >
+          {yLeft.ticks.map((t) => (
+            <ReferenceLine key={`yl${t}`} y={t} yAxisId="left" stroke={gridColor} strokeDasharray={gridDash} />
+          ))}
+          {xTicks.map((t) => (
+            <ReferenceLine key={`x${t}`} x={t} stroke={gridColor} strokeDasharray={gridDash} />
+          ))}
+          <XAxis
+            dataKey="date"
+            tick={{ fontSize: 10 }}
+            tickLine={false}
+            axisLine={false}
+            ticks={xTicks}
+            interval={0}
+          />
+          <YAxis
+            yAxisId="left"
+            tick={{ fontSize: 10 }}
+            tickLine={false}
+            axisLine={false}
+            tickFormatter={formatLeftTick ?? String}
+            width={48}
+            ticks={yLeft.ticks}
+            domain={yLeft.domain}
+            interval={0}
+          />
+          {hasDualAxis && (
+            <YAxis
+              yAxisId="right"
+              orientation="right"
+              tick={{ fontSize: 10 }}
+              tickLine={false}
+              axisLine={false}
+              tickFormatter={formatRightTick ?? String}
+              width={48}
+              ticks={yRight.ticks}
+              domain={yRight.domain}
+              interval={0}
+            />
+          )}
+          <Tooltip
+            formatter={(value, name) => {
+              const line = lines.find((l) => l.name === name)
+              const formatted = line?.formatValue
+                ? line.formatValue(value as number)
+                : String(value)
+              return [formatted, line?.name ?? String(name)]
+            }}
+            contentStyle={{
+              fontSize: 12,
+              borderRadius: 8,
+              border: '1px solid oklch(0.7 0.04 27)',
+              background: 'var(--color-card)',
+            }}
+          />
+          {lines.map((line) => (
+            <Line
+              key={line.dataKey}
+              type="monotone"
+              dataKey={line.dataKey}
+              name={line.name}
+              stroke={line.color}
+              strokeWidth={2}
+              strokeDasharray={line.dashed ? '5 3' : undefined}
+              yAxisId={line.yAxisId ?? 'left'}
+              dot={false}
+              activeDot={{ r: 4 }}
+              connectNulls
+            />
+          ))}
+        </LineChart>
+      </ResponsiveContainer>
+    </div>
+  )
 }
 
 function ChartCard({
