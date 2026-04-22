@@ -201,9 +201,10 @@ function diaperType(e: BabyEvent): string | undefined {
 
 function computeStats(events: BabyEvent[]) {
   const now = new Date()
-  const todayStart = currentDayStart(now)
+  const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000) // rolling 24-hour window
+  const todayStart = currentDayStart(now) // used only for 7-day avg day boundaries
 
-  const todayEvents = events.filter((e) => new Date(e.timestamp) >= todayStart)
+  const todayEvents = events.filter((e) => new Date(e.timestamp) >= windowStart)
 
   // Diaper breakdown (wet/dirty both count towards each)
   const todayDiapers = todayEvents.filter((e) => e.type === 'diaper')

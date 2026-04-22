@@ -16,20 +16,22 @@ vi.mock('@/lib/auth', () => ({
   getUser: vi.fn().mockReturnValue({ user_id: 'u1', display_name: 'Parent 1' }),
 }))
 
-// Pin "now" to June 20 2024 10:00am so currentDayStart() = 5am and all todayAt()
-// hours < now. shouldAdvanceTime lets real time flow so waitFor() doesn't stall.
+// Pin "now" to June 20 2024 10:00am. The rolling 24-hour window is
+// June 19 10:00am → June 20 10:00am. shouldAdvanceTime lets real time
+// flow so waitFor() doesn't stall.
 const PINNED_NOW = new Date(2024, 5, 20, 10, 0, 0)
 beforeEach(() => vi.useFakeTimers({ now: PINNED_NOW, shouldAdvanceTime: true }))
 afterEach(() => vi.useRealTimers())
 
-// todayAt: hour on the pinned day — hours 5–9 are within today's parenting window
-// and strictly before "now" (10am).
+// todayAt: hours 0–9 on June 20 fall inside the 24h window (after June 19 10am).
 function todayAt(hour: number, minuteOffset = 0): string {
   const d = new Date(PINNED_NOW)
   d.setHours(hour, minuteOffset, 0, 0)
   return d.toISOString()
 }
-// daysAgoAt: N parenting-days before the pinned day's boundary.
+// daysAgoAt: places a timestamp N parenting-days before today's 5am boundary.
+// daysAgoAt(1, 8) = June 19 8am, which is before the window start (June 19 10am)
+// and therefore correctly excluded from the rolling 24h stats.
 function daysAgoAt(days: number, hour: number): string {
   const base = currentDayStart()
   base.setDate(base.getDate() - days)
