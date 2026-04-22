@@ -52,12 +52,13 @@ export default function SummarySection({ events }: Props) {
   return (
     <div className="flex flex-col gap-1">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
-        Today
+        Past 24h
       </h2>
       <div className="rounded-xl border border-primary/35 bg-surface p-4 flex flex-col gap-3">
-        <div className="flex flex-col gap-2">
-          {/* Feed group: breast + bottle */}
-          <div className="flex flex-col gap-2 bg-muted/20 rounded-lg px-2 pt-1.5 pb-2">
+        <div className="flex flex-col gap-3">
+          {/* Feed section */}
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Feed</span>
             <StatBar
               icon={Venus}
               label="Breast"
@@ -76,8 +77,9 @@ export default function SummarySection({ events }: Props) {
             />
           </div>
 
-          {/* Diaper group: wet + dirty */}
-          <div className="flex flex-col gap-2 bg-muted/20 rounded-lg px-2 pt-1.5 pb-2">
+          {/* Diaper section */}
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Diaper</span>
             <StatBar
               icon={Droplet}
               label="Wet"
@@ -96,14 +98,18 @@ export default function SummarySection({ events }: Props) {
             />
           </div>
 
-          <StatBar
-            icon={Moon}
-            label="Sleep"
-            value={stats.totalSleepMs}
-            valueStr={stats.totalSleep}
-            avg={stats.avgSleepMs}
-            max={stats.maxSleepMs}
-          />
+          {/* Sleep section */}
+          <div className="flex flex-col gap-2">
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Sleep</span>
+            <StatBar
+              icon={Moon}
+              label="Sleep"
+              value={stats.totalSleepMs}
+              valueStr={stats.totalSleep}
+              avg={stats.avgSleepMs}
+              max={stats.maxSleepMs}
+            />
+          </div>
         </div>
         <p className="text-[10px] text-muted-foreground/60">│ 7-day avg</p>
         {partnerMsg && (
