@@ -52,20 +52,21 @@ describe('SummarySection — today stats', () => {
 
   it('counts feeds and diapers from today only', async () => {
     const events: BabyEvent[] = [
-      makeEvent({ type: 'feed',   timestamp: todayAt(8) }),
-      makeEvent({ type: 'feed',   timestamp: todayAt(11) }),
-      makeEvent({ type: 'diaper', timestamp: todayAt(9) }),
-      // yesterday — should not count
-      makeEvent({ type: 'feed',   timestamp: daysAgoAt(1, 8) }),
-      makeEvent({ type: 'diaper', timestamp: daysAgoAt(1, 9) }),
+      // Today: 2 bottle feeds (80ml each = 160ml total) + 2 wet diapers
+      makeEvent({ type: 'feed',   timestamp: todayAt(7),  metadata: { feed_type: 'bottle', amount_ml: 80 } }),
+      makeEvent({ type: 'feed',   timestamp: todayAt(9),  metadata: { feed_type: 'bottle', amount_ml: 80 } }),
+      makeEvent({ type: 'diaper', timestamp: todayAt(8),  metadata: { diaper_type: 'wet' } }),
+      makeEvent({ type: 'diaper', timestamp: todayAt(9),  metadata: { diaper_type: 'wet' } }),
+      // Yesterday — must not count
+      makeEvent({ type: 'feed',   timestamp: daysAgoAt(1, 8), metadata: { feed_type: 'bottle', amount_ml: 999 } }),
+      makeEvent({ type: 'diaper', timestamp: daysAgoAt(1, 9), metadata: { diaper_type: 'wet' } }),
     ]
     render(<SummarySection events={events} />)
-    // Wait for the leaderboards effect to resolve
-    await waitFor(() => expect(screen.getByText('2')).toBeInTheDocument())
-    // feed count = 2 (today only), diaper count = 1
-    const numbers = screen.getAllByText(/^\d+$/).map((el) => el.textContent)
-    expect(numbers).toContain('2')
-    expect(numbers).toContain('1')
+    // Bottle total = 160ml today only; wet count = 2
+    await waitFor(() => expect(screen.getByText('160 ml')).toBeInTheDocument())
+    expect(screen.getByText('2')).toBeInTheDocument()
+    // Yesterday's 999ml must not appear
+    expect(screen.queryByText('999 ml')).not.toBeInTheDocument()
   })
 
   it('shows zeros when all events are from previous days', async () => {
@@ -91,9 +92,9 @@ describe('SummarySection — today stats', () => {
       makeEvent({ type: 'sleep_end',   timestamp: end }),
     ]
     render(<SummarySection events={events} />)
-    // Should show a non-dash sleep duration (e.g. "2h" or "120m")
+    // Should show a non-dash sleep duration (e.g. "2h", "2h 30m", "45m")
     await waitFor(() => {
-      const sleepEl = screen.getByText(/\d+h|\d+m/)
+      const sleepEl = screen.getByText(/^\d+h( \d+m)?$|^\d+m$/)
       expect(sleepEl).toBeInTheDocument()
     })
   })
@@ -106,7 +107,7 @@ describe('SummarySection — today stats', () => {
     render(<SummarySection events={events} />)
     // Should show a non-dash sleep duration for the in-progress session
     await waitFor(() => {
-      const sleepEl = screen.getByText(/\d+h|\d+m/)
+      const sleepEl = screen.getByText(/^\d+h( \d+m)?$|^\d+m$/)
       expect(sleepEl).toBeInTheDocument()
     })
   })
