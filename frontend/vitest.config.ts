@@ -9,6 +9,8 @@ export default defineConfig({
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
+      // The PWA virtual module only exists during a Vite build; stub it for tests.
+      'virtual:pwa-register/react': path.resolve(__dirname, './src/test/__mocks__/pwa-register.ts'),
     },
   },
   test: {

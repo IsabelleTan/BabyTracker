@@ -40,4 +40,19 @@ describe('RequireAuth', () => {
     expect(screen.getByText('Protected content')).toBeInTheDocument()
     expect(screen.queryByText('Login page')).not.toBeInTheDocument()
   })
+
+  it('redirects to /login when token is expired', () => {
+    const pastExp = Math.floor(Date.now() / 1000) - 1
+    const jwt = `header.${btoa(JSON.stringify({ exp: pastExp }))}.sig`
+    localStorage.setItem('token', jwt)
+    renderWithRouter('/')
+    expect(screen.getByText('Login page')).toBeInTheDocument()
+    expect(screen.queryByText('Protected content')).not.toBeInTheDocument()
+  })
+
+  it('redirects to /login when token payload is corrupted JSON', () => {
+    localStorage.setItem('token', 'header.!!!notbase64!!!.sig')
+    renderWithRouter('/')
+    expect(screen.getByText('Login page')).toBeInTheDocument()
+  })
 })

@@ -38,9 +38,13 @@ async def client_with_family():
     async with session_factory() as session:
         session.add(User(id="user-1", email="p1@test.com", hashed_password=hash_password("pass"), display_name="Parent 1"))
         session.add(User(id="user-2", email="p2@test.com", hashed_password=hash_password("pass"), display_name="Parent 2"))
+        # user-3 belongs to a separate family (baby-2) — used for isolation tests
+        session.add(User(id="user-3", email="p3@test.com", hashed_password=hash_password("pass"), display_name="Other Parent"))
         session.add(Baby(id="baby-1", name="Baby"))
+        session.add(Baby(id="baby-2", name="Other Baby"))
         session.add(UserBaby(user_id="user-1", baby_id="baby-1"))
         session.add(UserBaby(user_id="user-2", baby_id="baby-1"))
+        session.add(UserBaby(user_id="user-3", baby_id="baby-2"))
         await session.commit()
 
     async def override_get_db():

@@ -199,3 +199,65 @@ async def test_leaderboards_most_poop_record(client_with_family):
     # "dirty" and "both" count; "wet" does not
     assert data["most_poop_count"] == 2
     assert data["most_poop_date"] == base_date.isoformat()
+
+
+# ── Night sleep overlap edge cases ────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_leaderboards_sleep_crossing_midnight_counts_toward_night(client_with_family):
+    """A sleep session from 23:00 to 02:00 overlaps the night window and is counted."""
+    client, headers = client_with_family
+    base = (datetime.now(timezone.utc) - timedelta(days=30)).replace(
+        hour=23, minute=0, second=0, microsecond=0
+    )
+    end = base + timedelta(hours=3)  # 02:00 next day
+    await client.post("/events", json={"id": "night-s", "type": "sleep_start", "timestamp": base.isoformat()}, headers=headers)
+    await client.post("/events", json={"id": "night-e", "type": "sleep_end",   "timestamp": end.isoformat()},  headers=headers)
+
+    r = await client.get("/leaderboards", headers=headers)
+    data = r.json()
+    assert data["best_night_min"] is not None
+    assert data["best_night_min"] > 0
+
+
+@pytest.mark.asyncio
+async def test_leaderboards_daytime_only_sleep_yields_no_best_night(client_with_family):
+    """A sleep session entirely within the day window (09:00–11:00) contributes 0 to night sleep."""
+    client, headers = client_with_family
+    base = (datetime.now(timezone.utc) - timedelta(days=30)).replace(
+        hour=9, minute=0, second=0, microsecond=0
+    )
+    end = base + timedelta(hours=2)
+    await client.post("/events", json={"id": "day-s", "type": "sleep_start", "timestamp": base.isoformat()}, headers=headers)
+    await client.post("/events", json={"id": "day-e", "type": "sleep_end",   "timestamp": end.isoformat()},  headers=headers)
+
+    r = await client.get("/leaderboards", headers=headers)
+    data = r.json()
+    # No night overlap → best_night_min should be None or 0
+    assert data["best_night_min"] is None or data["best_night_min"] == 0
+
+
+@pytest.mark.asyncio
+async def test_leaderboards_best_and_worst_night_differ_across_sessions(client_with_family):
+    """With two nights of very different sleep, best and worst night dates differ."""
+    client, headers = client_with_family
+    # Good night: 6 h from 21:00 (30 days ago)
+    good_start = (datetime.now(timezone.utc) - timedelta(days=30)).replace(
+        hour=21, minute=0, second=0, microsecond=0
+    )
+    await client.post("/events", json={"id": "gs", "type": "sleep_start", "timestamp": good_start.isoformat()}, headers=headers)
+    await client.post("/events", json={"id": "ge", "type": "sleep_end",   "timestamp": (good_start + timedelta(hours=6)).isoformat()}, headers=headers)
+
+    # Poor night: 1 h from 21:00 (20 days ago)
+    bad_start = (datetime.now(timezone.utc) - timedelta(days=20)).replace(
+        hour=21, minute=0, second=0, microsecond=0
+    )
+    await client.post("/events", json={"id": "bs", "type": "sleep_start", "timestamp": bad_start.isoformat()}, headers=headers)
+    await client.post("/events", json={"id": "be", "type": "sleep_end",   "timestamp": (bad_start + timedelta(hours=1)).isoformat()}, headers=headers)
+
+    r = await client.get("/leaderboards", headers=headers)
+    data = r.json()
+    assert data["best_night_min"] is not None
+    assert data["worst_night_min"] is not None
+    assert data["best_night_min"] > data["worst_night_min"]
+    assert data["best_night_date"] != data["worst_night_date"]
