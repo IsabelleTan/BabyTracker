@@ -29,7 +29,8 @@ class DailyStat(BaseModel):
     wet_count: int
     dirty_count: int
     breast_min: float
-    bottle_ml: float
+    pumped_ml: float
+    formula_ml: float
 
 
 class StatsRange(BaseModel):
@@ -96,7 +97,8 @@ async def get_daily_stats(
     wet_by_day: dict[str, int] = defaultdict(int)
     dirty_by_day: dict[str, int] = defaultdict(int)
     breast_min_by_day: dict[str, float] = defaultdict(float)
-    bottle_ml_by_day: dict[str, float] = defaultdict(float)
+    pumped_ml_by_day: dict[str, float] = defaultdict(float)
+    formula_ml_by_day: dict[str, float] = defaultdict(float)
     raw_sleep_events: list[tuple[str, datetime]] = []
 
     for e in events:
@@ -109,7 +111,11 @@ async def get_daily_stats(
             if ft == "breast":
                 breast_min_by_day[day] += (meta.get("left_duration_min") or 0) + (meta.get("right_duration_min") or 0)
             elif ft == "bottle":
-                bottle_ml_by_day[day] += meta.get("amount_ml") or 0
+                ml = meta.get("amount_ml") or 0
+                if meta.get("bottle_type") == "formula":
+                    formula_ml_by_day[day] += ml
+                else:
+                    pumped_ml_by_day[day] += ml  # "pumped" or legacy entries without bottle_type
         elif e.type == "diaper":
             diapers_by_day[day].append(ts)
             dtype = meta.get("diaper_type", "")
@@ -179,7 +185,8 @@ async def get_daily_stats(
                 wet_count=wet_by_day.get(day, 0),
                 dirty_count=dirty_by_day.get(day, 0),
                 breast_min=round(breast_min_by_day.get(day, 0.0), 1),
-                bottle_ml=round(bottle_ml_by_day.get(day, 0.0), 1),
+                pumped_ml=round(pumped_ml_by_day.get(day, 0.0), 1),
+                formula_ml=round(formula_ml_by_day.get(day, 0.0), 1),
             )
         )
         current += timedelta(days=1)

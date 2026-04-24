@@ -162,9 +162,17 @@ export default function Stats() {
                   formatValue: (v) => `${Math.round(v)} min`,
                 },
                 {
-                  dataKey: 'bottle_ml',
-                  name: 'Bottle',
+                  dataKey: 'pumped_ml',
+                  name: 'Pumped',
                   color: 'oklch(0.52 0.16 165)',
+                  dashed: true,
+                  yAxisId: 'right',
+                  formatValue: (v) => `${Math.round(v)} ml`,
+                },
+                {
+                  dataKey: 'formula_ml',
+                  name: 'Formula',
+                  color: 'oklch(0.60 0.15 50)',
                   dashed: true,
                   yAxisId: 'right',
                   formatValue: (v) => `${Math.round(v)} ml`,
@@ -329,7 +337,7 @@ function MultiLineChartCard({
       <ResponsiveContainer width="100%" height={150}>
         <LineChart
           data={data}
-          margin={{ top: 4, right: hasDualAxis ? 48 : 12, left: -16, bottom: 0 }}
+          margin={{ top: 4, right: 4, left: -8, bottom: 0 }}
         >
           {yLeft.ticks.map((t) => (
             <ReferenceLine key={`yl${t}`} y={t} yAxisId="left" stroke={gridColor} strokeDasharray={gridDash} />

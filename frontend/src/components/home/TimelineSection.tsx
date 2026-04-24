@@ -186,7 +186,10 @@ function buildSubtext(event: BabyEvent): string | null {
   const m = event.metadata
   if (!m) return null
   if (event.type === 'feed') {
-    if (m.feed_type === 'bottle') return `Bottle · ${m.amount_ml ?? '?'} ml`
+    if (m.feed_type === 'bottle') {
+      const label = m.bottle_type === 'formula' ? 'Formula' : 'Pumped'
+      return `${label} · ${m.amount_ml ?? '?'} ml`
+    }
     if (m.feed_type === 'breast') {
       const parts: string[] = []
       if (m.left_duration_min) parts.push(`L ${m.left_duration_min}m`)

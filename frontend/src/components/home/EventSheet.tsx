@@ -6,7 +6,7 @@ import {
   DrawerTitle,
   DrawerFooter,
 } from '@/components/ui/drawer'
-import { Droplet, Droplets, CirclePile, Milk, Venus } from 'lucide-react'
+import { Droplet, Droplets, CirclePile, Milk, CircleDot, Cylinder } from 'lucide-react'
 import { fromDateTimeLocal, type EventType } from '@/lib/events'
 
 interface EventSheetProps {
@@ -311,7 +311,7 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
   const [selHour,   setSelHour]   = useState(0)
   const [selMinute, setSelMinute] = useState(0)
 
-  const [feedType,   setFeedType]   = useState<'breast' | 'bottle'>('breast')
+  const [feedType,   setFeedType]   = useState<'breast' | 'pumped' | 'formula'>('breast')
   const [leftMin,    setLeftMin]    = useState('')
   const [rightMin,   setRightMin]   = useState('')
   const [amountMl,   setAmountMl]   = useState('')
@@ -423,7 +423,7 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
           right_duration_min: rMin,
         }
       }
-      return { feed_type: 'bottle', amount_ml: amountMl ? Number(amountMl) : null }
+      return { feed_type: 'bottle', bottle_type: feedType, amount_ml: amountMl ? Number(amountMl) : null }
     }
     if (type === 'diaper') return { diaper_type: diaperType }
     return null
@@ -505,12 +505,13 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
               <div className="space-y-1.5">
                 <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Type</label>
                 <SegmentedControl
-                  options={['breast', 'bottle'] as const}
+                  options={['breast', 'pumped', 'formula'] as const}
                   value={feedType}
                   onChange={setFeedType}
                   labels={{
-                    breast: <span className="flex items-center justify-center gap-1.5"><Venus className="w-3.5 h-3.5" />Breast</span>,
-                    bottle: <span className="flex items-center justify-center gap-1.5"><Milk  className="w-3.5 h-3.5" />Bottle</span>,
+                    breast:  <span className="flex items-center justify-center gap-1.5"><CircleDot className="w-3.5 h-3.5" />Breast</span>,
+                    pumped:  <span className="flex items-center justify-center gap-1.5"><Milk  className="w-3.5 h-3.5" />Pumped</span>,
+                    formula: <span className="flex items-center justify-center gap-1.5"><Cylinder className="w-3.5 h-3.5" />Formula</span>,
                   }}
                 />
               </div>

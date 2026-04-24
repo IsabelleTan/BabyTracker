@@ -47,28 +47,44 @@ describe('EventSheet — feed', () => {
     expect(metadata).toMatchObject({ feed_type: 'breast', left_duration_min: 10, right_duration_min: 8 })
   })
 
-  it('switching to bottle shows ml field and hides breast fields', () => {
+  it('switching to pumped shows ml field and hides breast fields', () => {
     render(<EventSheet type="feed" onSave={onSave} onDismiss={onDismiss} />)
-    fireEvent.click(screen.getByRole('button', { name: /bottle/i }))
+    fireEvent.click(screen.getByRole('button', { name: /pumped/i }))
     expect(screen.queryByLabelText('Left (min)')).not.toBeInTheDocument()
     expect(screen.getByLabelText('Amount (ml)')).toBeInTheDocument()
   })
 
-  it('save as bottle sends amount_ml in metadata', () => {
+  it('switching to formula shows ml field and hides breast fields', () => {
     render(<EventSheet type="feed" onSave={onSave} onDismiss={onDismiss} />)
-    fireEvent.click(screen.getByRole('button', { name: /bottle/i }))
+    fireEvent.click(screen.getByRole('button', { name: /formula/i }))
+    expect(screen.queryByLabelText('Left (min)')).not.toBeInTheDocument()
+    expect(screen.getByLabelText('Amount (ml)')).toBeInTheDocument()
+  })
+
+  it('save as pumped sends bottle_type pumped and amount_ml in metadata', () => {
+    render(<EventSheet type="feed" onSave={onSave} onDismiss={onDismiss} />)
+    fireEvent.click(screen.getByRole('button', { name: /pumped/i }))
     fireEvent.change(screen.getByLabelText('Amount (ml)'), { target: { value: '120' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     const [, metadata] = onSave.mock.calls[0]
-    expect(metadata).toMatchObject({ feed_type: 'bottle', amount_ml: 120 })
+    expect(metadata).toMatchObject({ feed_type: 'bottle', bottle_type: 'pumped', amount_ml: 120 })
   })
 
-  it('save as bottle with empty ml sends null', () => {
+  it('save as formula sends bottle_type formula and amount_ml in metadata', () => {
     render(<EventSheet type="feed" onSave={onSave} onDismiss={onDismiss} />)
-    fireEvent.click(screen.getByRole('button', { name: /bottle/i }))
+    fireEvent.click(screen.getByRole('button', { name: /formula/i }))
+    fireEvent.change(screen.getByLabelText('Amount (ml)'), { target: { value: '90' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     const [, metadata] = onSave.mock.calls[0]
-    expect(metadata).toMatchObject({ feed_type: 'bottle', amount_ml: null })
+    expect(metadata).toMatchObject({ feed_type: 'bottle', bottle_type: 'formula', amount_ml: 90 })
+  })
+
+  it('save as pumped with empty ml sends null', () => {
+    render(<EventSheet type="feed" onSave={onSave} onDismiss={onDismiss} />)
+    fireEvent.click(screen.getByRole('button', { name: /pumped/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    const [, metadata] = onSave.mock.calls[0]
+    expect(metadata).toMatchObject({ feed_type: 'bottle', bottle_type: 'pumped', amount_ml: null })
   })
 })
 
