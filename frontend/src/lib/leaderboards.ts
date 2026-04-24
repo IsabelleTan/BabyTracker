@@ -6,6 +6,7 @@ export interface ParentStat {
   night_shifts: number
   total_logs: number
   poop_changes: number
+  potty_assists: number
 }
 
 export interface LeaderboardData {
@@ -27,6 +28,7 @@ export interface LeaderboardData {
   night_shift_claimed_today: boolean
   chief_log_claimed_today: boolean
   poop_award_claimed_today: boolean
+  potty_award_claimed_today: boolean
   parents: ParentStat[]
 }
 
@@ -189,6 +191,18 @@ export function buildNotifications(data: LeaderboardData): string[] {
         `${w.winner.display_name} has ${w.winnerScore} poop changes to ${w.loser.display_name}'s ${w.loserScore}. Number One at Number Two title claimed.`,
         `${w.winner.display_name} is the reigning poop champion! ${w.winnerScore} vs ${w.loserScore}. ${w.loser.display_name} remains spiritually present.`,
       ], s(null, 6), 0))
+  }
+
+  if (data.potty_award_claimed_today) {
+    const w = awardWinner(data.parents, (p) => p.potty_assists)
+    if (w)
+      msgs.push(seededPick([
+        `${w.winner.display_name} is the new Potty Whisperer! ${w.winnerScore} potty assists vs ${w.loserScore} from ${w.loser.display_name}. Patience of a saint.`,
+        `Potty Whisperer title goes to ${w.winner.display_name}! ${w.winnerScore} potty trips vs ${w.loserScore} from ${w.loser.display_name}. The training is working.`,
+        `${w.winner.display_name} claimed Potty Whisperer with ${w.winnerScore} assists. ${w.loser.display_name} has ${w.loserScore}. True dedication.`,
+        `New Potty Whisperer: ${w.winner.display_name}! ${w.winnerScore} potty events vs ${w.loserScore} from ${w.loser.display_name}. Worth celebrating.`,
+        `${w.winner.display_name} leads potty assists: ${w.winnerScore} vs ${w.loserScore} from ${w.loser.display_name}. Potty Whisperer earned.`,
+      ], s(null, 7), 0))
   }
 
   return msgs

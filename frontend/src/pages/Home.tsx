@@ -1,5 +1,5 @@
 import { useState, useRef, useMemo, useEffect } from 'react'
-import { Milk, Moon, Sun, Droplets, Baby, Star, LogOut, type LucideIcon } from 'lucide-react'
+import { Milk, Moon, Sun, Droplets, Baby, Star, LogOut, Flame, type LucideIcon } from 'lucide-react'
 import NightToggle from '@/components/NightToggle'
 import EventSheet from '@/components/home/EventSheet'
 import SummarySection from '@/components/home/SummarySection'
@@ -25,6 +25,9 @@ import {
   milestoneAllowedToday,
   recordMilestoneShownToday,
   trackDailyLogging,
+  trackPottyCount,
+  getPottyStreak,
+  updatePottyStreak,
   type MilestoneKey,
 } from '@/lib/funMessages'
 
@@ -135,6 +138,7 @@ export default function Home() {
   const [nightCardVisible, setNightCardVisible] = useState(false)
   const [babyVoiceVisible, setBabyVoiceVisible] = useState(false)
   const [milestone, setMilestone] = useState<MilestoneKey | null>(null)
+  const [pottyStreak, setPottyStreak] = useState(() => getPottyStreak())
   const isNight = isNightHours()
 
   // Night event count spans the full 22:00–06:00 session (includes pre-midnight events)
@@ -155,10 +159,12 @@ export default function Home() {
     if (babyVoiceShouldShow()) setBabyVoiceVisible(true)
   }, [events])
 
-  // Milestones: per-day gate prevents flooding on repeated syncs
+  // Milestones + potty tracking: per-day gate prevents flooding on repeated syncs
   useEffect(() => {
     if (events.length === 0) return
     trackDailyLogging()
+    trackPottyCount(events)
+    setPottyStreak(updatePottyStreak(events))
     if (milestoneAllowedToday()) {
       const key = getNewMilestone(events)
       if (key) {
@@ -257,6 +263,14 @@ export default function Home() {
         </div>
 
         {loaded && <SummarySection events={events} />}
+
+        {/* Potty streak — shown when ≥2 consecutive days with potty events */}
+        {pottyStreak >= 2 && (
+          <div className="flex items-center gap-1.5 px-1">
+            <Flame className="w-3.5 h-3.5 text-orange-500" />
+            <span className="text-xs font-medium text-orange-500">{pottyStreak}-day potty streak</span>
+          </div>
+        )}
 
         {/* Baby voice — once per day, suppressed at night */}
         {showBabyVoice && (
