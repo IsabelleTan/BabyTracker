@@ -41,23 +41,43 @@ function daysArray(monthIdx: number, yearOffset: number): string[] {
 // ─── WheelPicker ─────────────────────────────────────────────────────────────
 
 const ITEM_H = 40
+const CYCLIC_REPEAT = 3  // middle repetition is index 1; 1 cycle of padding each side
 
 function WheelPicker({
   values,
   selectedIndex,
   onChange,
   width = 52,
+  cyclic = false,
 }: {
   values: string[]
   selectedIndex: number
   onChange: (index: number) => void
   width?: number
+  cyclic?: boolean
 }) {
-  const maxOffset = (values.length - 1) * ITEM_H
+  const n = values.length
+  const HALF = cyclic ? Math.floor(CYCLIC_REPEAT / 2) : 0
+
+  // For cyclic pickers expand to a large virtual list; otherwise use values as-is
+  const virtualValues = useMemo(
+    () => cyclic
+      ? Array.from({ length: CYCLIC_REPEAT * n }, (_, i) => values[i % n])
+      : values,
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [cyclic, n, values.join(',')]
+  )
+
+  // Map external index → virtual index (always in the middle section)
+  const toVirtual  = (idx: number) => cyclic ? HALF * n + idx : idx
+  // Map virtual index → external index
+  const toExternal = (vIdx: number) => cyclic ? ((vIdx % n) + n) % n : vIdx
+
+  const maxOffset = (virtualValues.length - 1) * ITEM_H
 
   const startYRef      = useRef<number | null>(null)
-  const startOffsetRef = useRef(selectedIndex * ITEM_H)
-  const currentOffRef  = useRef(selectedIndex * ITEM_H)
+  const startOffsetRef = useRef(toVirtual(selectedIndex) * ITEM_H)
+  const currentOffRef  = useRef(toVirtual(selectedIndex) * ITEM_H)
   const isDraggingRef  = useRef(false)
   const onChangeRef    = useRef(onChange)
   onChangeRef.current  = onChange
@@ -67,13 +87,23 @@ function WheelPicker({
   const rafRef         = useRef<number | null>(null)
   const momentumRef    = useRef(false)
 
-  const [displayOffset, setDisplayOffset] = useState(selectedIndex * ITEM_H)
+  const [displayOffset, setDisplayOffset] = useState(toVirtual(selectedIndex) * ITEM_H)
   const [dragging, setDragging] = useState(false)
 
-  // Sync display when selectedIndex or maxOffset changes externally (reset / month length change)
+  // Sync display when selectedIndex changes externally (reset / month length change)
   useEffect(() => {
     if (!isDraggingRef.current && !momentumRef.current) {
-      const clamped = Math.max(0, Math.min(maxOffset, selectedIndex * ITEM_H))
+      // For cyclic, find the virtual index nearest to the current scroll position
+      // that maps to the new selectedIndex, to avoid large jumps
+      let targetVirtual: number
+      if (cyclic) {
+        const currentVirtualIdx = Math.round(currentOffRef.current / ITEM_H)
+        const k = Math.round((currentVirtualIdx - selectedIndex) / n)
+        targetVirtual = Math.max(0, Math.min(virtualValues.length - 1, selectedIndex + k * n))
+      } else {
+        targetVirtual = selectedIndex
+      }
+      const clamped = Math.max(0, Math.min(maxOffset, targetVirtual * ITEM_H))
       currentOffRef.current = clamped
       setDisplayOffset(clamped)
     }
@@ -88,10 +118,10 @@ function WheelPicker({
   }
 
   function snapToNearest() {
-    const snapped = Math.max(0, Math.min(values.length - 1, Math.round(currentOffRef.current / ITEM_H)))
+    const snapped = Math.max(0, Math.min(virtualValues.length - 1, Math.round(currentOffRef.current / ITEM_H)))
     currentOffRef.current = snapped * ITEM_H
     setDisplayOffset(snapped * ITEM_H)
-    onChangeRef.current(snapped)
+    onChangeRef.current(toExternal(snapped))
     momentumRef.current = false
   }
 
@@ -199,7 +229,7 @@ function WheelPicker({
             transition: (dragging || momentumRef.current) ? 'none' : 'transform 150ms ease-out',
           }}
         >
-          {values.map((v, i) => {
+          {virtualValues.map((v, i) => {
             const dist     = Math.abs(i * ITEM_H - displayOffset) / ITEM_H
             const isCenter = dist < 0.4
             return (
@@ -209,7 +239,7 @@ function WheelPicker({
                 style={{
                   height:     ITEM_H,
                   opacity:    Math.max(0.2, 1 - dist * 0.45),
-                  fontSize:   '0.95rem',
+                  fontSize:   isCenter ? '1.2rem' : '1.05rem',
                   fontWeight: isCenter ? 600 : 400,
                   color:      isCenter ? 'var(--foreground)' : 'var(--muted-foreground)',
                 }}
@@ -428,9 +458,9 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
             <div className="w-4" />
 
             {/* Time group */}
-            <WheelPicker values={HOURS}   selectedIndex={selHour}   onChange={setSelHour}   width={44} />
+            <WheelPicker values={HOURS}   selectedIndex={selHour}   onChange={setSelHour}   width={44} cyclic />
             <div className="text-xl font-semibold text-muted-foreground">:</div>
-            <WheelPicker values={MINUTES} selectedIndex={selMinute} onChange={setSelMinute} width={44} />
+            <WheelPicker values={MINUTES} selectedIndex={selMinute} onChange={setSelMinute} width={44} cyclic />
 
             {/* Now reset */}
             <button
@@ -441,6 +471,33 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
               Now
             </button>
           </div>
+
+          {/* Date/time warning */}
+          {(() => {
+            const selected = new Date(
+              BASE_YEAR - 1 + selYear,
+              selMonth,
+              selDay + 1,
+              selHour,
+              selMinute,
+            )
+            const diffMs = selected.getTime() - Date.now()
+            if (diffMs > 0) {
+              return (
+                <p className="text-sm text-amber-500">
+                  Selected time is in the future, is it correct?
+                </p>
+              )
+            }
+            if (diffMs < -3 * 60 * 60 * 1000) {
+              return (
+                <p className="text-sm text-amber-500">
+                  Selected time is more than 3 hours ago, is it correct?
+                </p>
+              )
+            }
+            return null
+          })()}
 
           {/* Feed-specific */}
           {type === 'feed' && (
