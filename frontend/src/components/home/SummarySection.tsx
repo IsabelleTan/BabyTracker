@@ -1,5 +1,5 @@
 import { useMemo, useEffect, useRef, useState } from 'react'
-import { Milk, Moon, Droplet, CirclePile, Venus, Sparkles, Users, type LucideIcon } from 'lucide-react'
+import { Milk, Moon, Droplet, CirclePile, CircleDot, Cylinder, Sparkles, Users, type LucideIcon } from 'lucide-react'
 import { formatDuration } from '@/hooks/useTimeSince'
 import { getEventsSince, type BabyEvent } from '@/lib/events'
 import { getUser } from '@/lib/auth'
@@ -60,7 +60,7 @@ export default function SummarySection({ events }: Props) {
           <div className="flex flex-col gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Feed</span>
             <StatBar
-              icon={Venus}
+              icon={CircleDot}
               label="Breast"
               value={stats.breastMinTotal}
               valueStr={stats.breastMinTotal > 0 ? `${Math.round(stats.breastMinTotal)} min` : '—'}
@@ -70,11 +70,20 @@ export default function SummarySection({ events }: Props) {
             />
             <StatBar
               icon={Milk}
-              label="Bottle"
-              value={stats.bottleMlTotal}
-              valueStr={stats.bottleMlTotal > 0 ? `${Math.round(stats.bottleMlTotal)} ml` : '—'}
-              avg={stats.avgBottleMl}
-              avgStr={stats.avgBottleMl > 0 ? `${Math.round(stats.avgBottleMl)}ml` : ''}
+              label="Pumped"
+              value={stats.pumpedMlTotal}
+              valueStr={stats.pumpedMlTotal > 0 ? `${Math.round(stats.pumpedMlTotal)} ml` : '—'}
+              avg={stats.avgPumpedMl}
+              avgStr={stats.avgPumpedMl > 0 ? `${Math.round(stats.avgPumpedMl)}ml` : ''}
+              max={stats.maxBottleMl}
+            />
+            <StatBar
+              icon={Cylinder}
+              label="Formula"
+              value={stats.formulaMlTotal}
+              valueStr={stats.formulaMlTotal > 0 ? `${Math.round(stats.formulaMlTotal)} ml` : '—'}
+              avg={stats.avgFormulaMl}
+              avgStr={stats.avgFormulaMl > 0 ? `${Math.round(stats.avgFormulaMl)}ml` : ''}
               max={stats.maxBottleMl}
             />
           </div>
@@ -230,15 +239,18 @@ export function computeStats(events: BabyEvent[], now = new Date()) {
     return t === 'dirty' || t === 'both'
   }).length
 
-  // Feed breakdown: total breast minutes and bottle ml
+  // Feed breakdown: total breast minutes, pumped ml and formula ml
   let breastMinTotal = 0
-  let bottleMlTotal = 0
+  let pumpedMlTotal = 0
+  let formulaMlTotal = 0
   for (const e of todayEvents.filter((e) => e.type === 'feed')) {
     const m = e.metadata as Record<string, unknown> | null
     if (m?.feed_type === 'breast') {
       breastMinTotal += ((m.left_duration_min as number) ?? 0) + ((m.right_duration_min as number) ?? 0)
     } else if (m?.feed_type === 'bottle') {
-      bottleMlTotal += (m.amount_ml as number) ?? 0
+      const ml = (m.amount_ml as number) ?? 0
+      if (m.bottle_type === 'formula') formulaMlTotal += ml
+      else pumpedMlTotal += ml  // 'pumped' or legacy entries without bottle_type
     }
   }
 
@@ -254,7 +266,8 @@ export function computeStats(events: BabyEvent[], now = new Date()) {
   const dailyWets: number[] = []
   const dailyDirtys: number[] = []
   const dailyBreastMins: number[] = []
-  const dailyBottleMls: number[] = []
+  const dailyPumpedMls: number[] = []
+  const dailyFormulaMls: number[] = []
   const dailySleepMs: number[] = []
 
   for (let d = 1; d <= nAvgDays; d++) {
@@ -270,17 +283,21 @@ export function computeStats(events: BabyEvent[], now = new Date()) {
     dailyDirtys.push(dayDiapers.filter((e) => { const t = diaperType(e); return t === 'dirty' || t === 'both' }).length)
 
     let dBreastMin = 0
-    let dBottleMl = 0
+    let dPumpedMl = 0
+    let dFormulaMl = 0
     for (const e of dayEvents.filter((e) => e.type === 'feed')) {
       const m = e.metadata as Record<string, unknown> | null
       if (m?.feed_type === 'breast') {
         dBreastMin += ((m.left_duration_min as number) ?? 0) + ((m.right_duration_min as number) ?? 0)
       } else if (m?.feed_type === 'bottle') {
-        dBottleMl += (m.amount_ml as number) ?? 0
+        const ml = (m.amount_ml as number) ?? 0
+        if (m.bottle_type === 'formula') dFormulaMl += ml
+        else dPumpedMl += ml
       }
     }
     dailyBreastMins.push(dBreastMin)
-    dailyBottleMls.push(dBottleMl)
+    dailyPumpedMls.push(dPumpedMl)
+    dailyFormulaMls.push(dFormulaMl)
 
     dailySleepMs.push(computeSleepMs(dayEvents, dayEnd))
   }
@@ -290,27 +307,30 @@ export function computeStats(events: BabyEvent[], now = new Date()) {
   const avgWet = avg(dailyWets)
   const avgDirty = avg(dailyDirtys)
   const avgBreastMin = avg(dailyBreastMins)
-  const avgBottleMl = avg(dailyBottleMls)
+  const avgPumpedMl = avg(dailyPumpedMls)
+  const avgFormulaMl = avg(dailyFormulaMls)
   const avgSleepMs = avg(dailySleepMs)
 
   // Diapers share a max (same unit: count) so bars are comparable
   const maxDiapers = Math.max(wetCount, dirtyCount, ...dailyWets, ...dailyDirtys, 1)
-  // Feeds use separate maxes (different units: min vs ml)
+  // Feeds use separate maxes (different units: min vs ml); pumped + formula share a max so bars are comparable
   const maxBreastMin = Math.max(breastMinTotal, ...dailyBreastMins, 1)
-  const maxBottleMl = Math.max(bottleMlTotal, ...dailyBottleMls, 1)
+  const maxBottleMl = Math.max(pumpedMlTotal, formulaMlTotal, ...dailyPumpedMls, ...dailyFormulaMls, 1)
   const maxSleepMs = Math.max(totalSleepMs, ...dailySleepMs, 1)
 
   return {
     wetCount,
     dirtyCount,
     breastMinTotal,
-    bottleMlTotal,
+    pumpedMlTotal,
+    formulaMlTotal,
     totalSleepMs,
     totalSleep: totalSleepMs > 0 ? formatDuration(totalSleepMs) : '—',
     avgWet,
     avgDirty,
     avgBreastMin,
-    avgBottleMl,
+    avgPumpedMl,
+    avgFormulaMl,
     avgSleepMs,
     maxDiapers,
     maxBreastMin,

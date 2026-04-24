@@ -12,7 +12,8 @@ export interface DailyStat {
   wet_count: number
   dirty_count: number
   breast_min: number
-  bottle_ml: number
+  pumped_ml: number
+  formula_ml: number
 }
 
 export async function getDailyStats(from: Date, to: Date): Promise<DailyStat[]> {

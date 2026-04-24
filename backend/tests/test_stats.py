@@ -210,7 +210,7 @@ async def test_stats_wet_dirty_breakdown(client_with_family):
 
 @pytest.mark.asyncio
 async def test_stats_breast_min_and_bottle_ml(client_with_family):
-    """breast_min sums left+right durations; bottle_ml sums amount_ml."""
+    """breast_min sums left+right durations; pumped_ml and formula_ml are split by bottle_type."""
     client, headers = client_with_family
     await client.post("/events", json={
         "id": "bf1", "type": "feed", "timestamp": "2024-03-06T07:00:00Z",
@@ -222,11 +222,11 @@ async def test_stats_breast_min_and_bottle_ml(client_with_family):
     }, headers=headers)
     await client.post("/events", json={
         "id": "bt1", "type": "feed", "timestamp": "2024-03-06T13:00:00Z",
-        "metadata": {"feed_type": "bottle", "amount_ml": 120},
+        "metadata": {"feed_type": "bottle", "bottle_type": "pumped", "amount_ml": 120},
     }, headers=headers)
     await client.post("/events", json={
         "id": "bt2", "type": "feed", "timestamp": "2024-03-06T16:00:00Z",
-        "metadata": {"feed_type": "bottle", "amount_ml": 90},
+        "metadata": {"feed_type": "bottle", "bottle_type": "formula", "amount_ml": 90},
     }, headers=headers)
 
     r = await client.get("/stats/daily", params={
@@ -234,5 +234,24 @@ async def test_stats_breast_min_and_bottle_ml(client_with_family):
         "to":   "2024-03-06T23:59:59Z",
     }, headers=headers)
     day = r.json()[0]
-    assert day["breast_min"] == 23.0  # 10+8 + 5+0
-    assert day["bottle_ml"]  == 210.0  # 120 + 90
+    assert day["breast_min"]  == 23.0   # 10+8 + 5+0
+    assert day["pumped_ml"]   == 120.0
+    assert day["formula_ml"]  == 90.0
+
+
+@pytest.mark.asyncio
+async def test_stats_legacy_bottle_counts_as_pumped(client_with_family):
+    """Bottle events without bottle_type (legacy) are counted in pumped_ml."""
+    client, headers = client_with_family
+    await client.post("/events", json={
+        "id": "legacy-bt", "type": "feed", "timestamp": "2024-03-07T09:00:00Z",
+        "metadata": {"feed_type": "bottle", "amount_ml": 100},
+    }, headers=headers)
+
+    r = await client.get("/stats/daily", params={
+        "from": "2024-03-07T05:00:00Z",
+        "to":   "2024-03-07T23:59:59Z",
+    }, headers=headers)
+    day = r.json()[0]
+    assert day["pumped_ml"]  == 100.0
+    assert day["formula_ml"] == 0.0
