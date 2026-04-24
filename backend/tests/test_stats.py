@@ -240,6 +240,36 @@ async def test_stats_breast_min_and_bottle_ml(client_with_family):
 
 
 @pytest.mark.asyncio
+async def test_stats_cross_family_isolation(client_with_family):
+    """User-3 (separate family, baby-2) must not see user-1's events on baby-1."""
+    from app.auth import create_access_token
+    client, headers = client_with_family
+    user3_headers = {"Authorization": f"Bearer {create_access_token('user-3')}"}
+
+    # user-1 logs an event on baby-1
+    await client.post("/events", json={
+        "id": "isolation-feed", "type": "feed",
+        "timestamp": "2024-01-15T10:00:00Z",
+        "metadata": {"feed_type": "bottle", "amount_ml": 100},
+    }, headers=headers)
+
+    # user-1 sees it in their stats
+    r1 = await client.get("/stats/daily", params={
+        "from": "2024-01-15T05:00:00Z",
+        "to":   "2024-01-15T23:59:59Z",
+    }, headers=headers)
+    assert r1.json()[0]["feed_count"] == 1
+
+    # user-3 queries the same range — must see 0 (scoped to baby-2 only)
+    r3 = await client.get("/stats/daily", params={
+        "from": "2024-01-15T05:00:00Z",
+        "to":   "2024-01-15T23:59:59Z",
+    }, headers=user3_headers)
+    assert r3.status_code == 200
+    assert r3.json()[0]["feed_count"] == 0
+
+
+@pytest.mark.asyncio
 async def test_stats_legacy_bottle_counts_as_pumped(client_with_family):
     """Bottle events without bottle_type (legacy) are counted in pumped_ml."""
     client, headers = client_with_family

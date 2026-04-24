@@ -267,7 +267,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-function niceStep(max: number): number {
+export function niceStep(max: number): number {
   if (max === 0) return 1
   if (max <= 5) return 1
   if (max <= 10) return 2
@@ -281,7 +281,7 @@ function niceStep(max: number): number {
   return 10 * pow
 }
 
-function computeYTicksMulti(
+export function computeYTicksMulti(
   data: Record<string, unknown>[],
   dataKeys: string[],
   tickStep?: number,
@@ -297,7 +297,7 @@ function computeYTicksMulti(
   return { ticks, domain: [0, domainMax] }
 }
 
-function computeYTicks(
+export function computeYTicks(
   data: Record<string, unknown>[],
   dataKey: string,
   tickStep?: number,

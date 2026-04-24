@@ -33,7 +33,7 @@ import {
 
 const PULL_THRESHOLD = 72
 
-function nextFeedEstimate(lastFeeds: BabyEvent[]): Date | null {
+export function nextFeedEstimate(lastFeeds: BabyEvent[]): Date | null {
   if (lastFeeds.length < 2) return null
   const intervals: number[] = []
   for (let i = 1; i < lastFeeds.length; i++) {
