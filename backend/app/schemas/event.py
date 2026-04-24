@@ -9,6 +9,7 @@ from app.models.event import EventType
 class BottleFeedMetadata(BaseModel):
     feed_type: Literal["bottle"]
     amount_ml: float
+    bottle_type: Literal["pumped", "formula"] | None = None
 
 
 class BreastFeedMetadata(BaseModel):

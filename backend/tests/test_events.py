@@ -264,3 +264,34 @@ async def test_delete_event_by_unrelated_user_is_forbidden(client, auth_headers)
     user3_headers = {"Authorization": f"Bearer {create_access_token('user-3')}"}
     r = await client.delete("/events/evt-001", headers=user3_headers)
     assert r.status_code == 403
+
+
+async def test_bottle_event_with_invalid_bottle_type_rejected(client, auth_headers):
+    """bottle_type must be 'pumped' or 'formula'; anything else should return 422."""
+    r = await client.post(
+        "/events",
+        json={"id": "bad-bottle", "type": "feed", "timestamp": "2024-01-15T10:00:00Z",
+              "metadata": {"feed_type": "bottle", "amount_ml": 100, "bottle_type": "banana"}},
+        headers=auth_headers,
+    )
+    assert r.status_code == 422
+
+
+async def test_bottle_event_with_valid_pumped_type_accepted(client, auth_headers):
+    r = await client.post(
+        "/events",
+        json={"id": "pumped-bottle", "type": "feed", "timestamp": "2024-01-15T10:00:00Z",
+              "metadata": {"feed_type": "bottle", "amount_ml": 120, "bottle_type": "pumped"}},
+        headers=auth_headers,
+    )
+    assert r.status_code == 201
+
+
+async def test_bottle_event_with_valid_formula_type_accepted(client, auth_headers):
+    r = await client.post(
+        "/events",
+        json={"id": "formula-bottle", "type": "feed", "timestamp": "2024-01-15T10:00:00Z",
+              "metadata": {"feed_type": "bottle", "amount_ml": 90, "bottle_type": "formula"}},
+        headers=auth_headers,
+    )
+    assert r.status_code == 201
