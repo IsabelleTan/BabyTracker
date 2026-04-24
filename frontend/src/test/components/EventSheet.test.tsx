@@ -88,33 +88,43 @@ describe('EventSheet — feed', () => {
   })
 })
 
-describe('EventSheet — diaper', () => {
+describe('EventSheet — output', () => {
   const onSave = vi.fn()
   const onDismiss = vi.fn()
 
   beforeEach(() => vi.clearAllMocks())
 
-  it('renders diaper type selector', () => {
-    render(<EventSheet type="diaper" onSave={onSave} onDismiss={onDismiss} />)
-    expect(screen.getByText('Diaper')).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /wet/i })).toBeInTheDocument()
-    expect(screen.getByRole('button', { name: /dirty/i })).toBeInTheDocument()
+  it('renders output type and location selectors', () => {
+    render(<EventSheet type="output" onSave={onSave} onDismiss={onDismiss} />)
+    expect(screen.getByText('Output')).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /pee/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /poo/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /both/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /diaper/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /potty/i })).toBeInTheDocument()
   })
 
-  it('save sends default diaper_type wet', () => {
-    render(<EventSheet type="diaper" onSave={onSave} onDismiss={onDismiss} />)
+  it('save sends default diaper_type wet and location diaper', () => {
+    render(<EventSheet type="output" onSave={onSave} onDismiss={onDismiss} />)
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     const [, metadata] = onSave.mock.calls[0]
-    expect(metadata).toEqual({ diaper_type: 'wet' })
+    expect(metadata).toEqual({ diaper_type: 'wet', location: 'diaper' })
   })
 
-  it('selecting dirty changes the saved diaper_type', () => {
-    render(<EventSheet type="diaper" onSave={onSave} onDismiss={onDismiss} />)
-    fireEvent.click(screen.getByRole('button', { name: /dirty/i }))
+  it('selecting poo changes the saved diaper_type', () => {
+    render(<EventSheet type="output" onSave={onSave} onDismiss={onDismiss} />)
+    fireEvent.click(screen.getByRole('button', { name: /poo/i }))
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     const [, metadata] = onSave.mock.calls[0]
-    expect(metadata).toEqual({ diaper_type: 'dirty' })
+    expect(metadata).toEqual({ diaper_type: 'dirty', location: 'diaper' })
+  })
+
+  it('selecting potty changes the saved location', () => {
+    render(<EventSheet type="output" onSave={onSave} onDismiss={onDismiss} />)
+    fireEvent.click(screen.getByRole('button', { name: /potty/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    const [, metadata] = onSave.mock.calls[0]
+    expect(metadata).toEqual({ diaper_type: 'wet', location: 'potty' })
   })
 })
 

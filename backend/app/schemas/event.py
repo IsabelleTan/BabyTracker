@@ -17,8 +17,9 @@ class BreastFeedMetadata(BaseModel):
     right_duration_min: float | None = None
 
 
-class DiaperMetadata(BaseModel):
+class OutputMetadata(BaseModel):
     diaper_type: Literal["wet", "dirty", "both"]
+    location: Literal["diaper", "potty"] = "diaper"
 
 
 _FeedMetadata = Annotated[
@@ -26,7 +27,7 @@ _FeedMetadata = Annotated[
     Field(discriminator="feed_type"),
 ]
 _feed_adapter = TypeAdapter(_FeedMetadata)
-_diaper_adapter = TypeAdapter(DiaperMetadata)
+_output_adapter = TypeAdapter(OutputMetadata)
 
 
 # ── Request / response models ──────────────────────────────────────────────
@@ -41,8 +42,8 @@ class EventCreate(BaseModel):
     def metadata_matches_type(self) -> "EventCreate":
         if self.type == EventType.feed:
             _feed_adapter.validate_python(self.metadata)
-        elif self.type == EventType.diaper:
-            _diaper_adapter.validate_python(self.metadata)
+        elif self.type == EventType.output:
+            _output_adapter.validate_python(self.metadata)
         else:  # sleep_start, sleep_end
             if self.metadata is not None:
                 raise ValueError("sleep events do not accept metadata")

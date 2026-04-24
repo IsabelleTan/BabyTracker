@@ -56,9 +56,9 @@ def _compute_parent_stats(evts: list, users: dict[str, str]) -> dict[str, dict]:
         s[uid]["total_logs"] += 1
         if ts.hour >= NIGHT_SHIFT_START or ts.hour < NIGHT_SHIFT_END:
             s[uid]["night_shifts"] += 1
-        if e.type == "diaper":
+        if e.type == "output":
             meta = e.metadata_ or {}
-            if meta.get("diaper_type") in ("dirty", "both"):
+            if meta.get("diaper_type") in ("dirty", "both") and meta.get("location", "diaper") == "diaper":
                 s[uid]["poop_changes"] += 1
     return s
 
@@ -166,9 +166,9 @@ async def get_leaderboards(
     # ── Poop diapers per day ──────────────────────────────────────────────────
     poop_by_day: dict[str, int] = defaultdict(int)
     for e in events:
-        if e.type == "diaper":
+        if e.type == "output":
             meta = e.metadata_ or {}
-            if meta.get("diaper_type") in ("dirty", "both"):
+            if meta.get("diaper_type") in ("dirty", "both") and meta.get("location", "diaper") == "diaper":
                 poop_by_day[parenting_day(e.timestamp, tz_offset)] += 1
 
     most_poop_count: int | None = None

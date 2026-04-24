@@ -16,14 +16,14 @@ const EVENT_LABELS: Record<string, string> = {
   feed: 'Feed',
   sleep_start: 'Fell asleep',
   sleep_end: 'Woke up',
-  diaper: 'Diaper',
+  output: 'Output',
 }
 
 const EVENT_ICON: Record<string, LucideIcon> = {
   feed: Milk,
   sleep_start: Moon,
   sleep_end: Sun,
-  diaper: Droplets,
+  output: Droplets,
 }
 
 const SWIPE_THRESHOLD = 80
@@ -197,9 +197,12 @@ function buildSubtext(event: BabyEvent): string | null {
       return parts.length > 0 ? `Breast · ${parts.join(' ')}` : 'Breast'
     }
   }
-  if (event.type === 'diaper') {
-    const map: Record<string, string> = { wet: 'Wet', dirty: 'Dirty', both: 'Wet + Dirty' }
-    return map[m.diaper_type as string] ?? null
+  if (event.type === 'output') {
+    const typeMap: Record<string, string> = { wet: 'Pee', dirty: 'Poo', both: 'Pee + Poo' }
+    const label = typeMap[m.diaper_type as string] ?? null
+    if (!label) return null
+    const location = m.location as string | undefined
+    return location === 'potty' ? `${label} · Potty` : label
   }
   return null
 }

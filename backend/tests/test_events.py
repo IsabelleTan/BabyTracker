@@ -144,17 +144,19 @@ async def test_feed_bottle_metadata_round_trip(client, auth_headers):
     assert data["metadata"]["amount_ml"] == 120
 
 
-async def test_diaper_metadata_round_trip(client, auth_headers):
+async def test_output_metadata_round_trip(client, auth_headers):
     for diaper_type in ("wet", "dirty", "both"):
-        payload = {
-            "id": f"evt-diaper-{diaper_type}",
-            "type": "diaper",
-            "timestamp": "2024-01-15T12:00:00Z",
-            "metadata": {"diaper_type": diaper_type},
-        }
-        r = await client.post("/events", json=payload, headers=auth_headers)
-        assert r.status_code == 201
-        assert r.json()["metadata"]["diaper_type"] == diaper_type
+        for location in ("diaper", "potty"):
+            payload = {
+                "id": f"evt-output-{diaper_type}-{location}",
+                "type": "output",
+                "timestamp": "2024-01-15T12:00:00Z",
+                "metadata": {"diaper_type": diaper_type, "location": location},
+            }
+            r = await client.post("/events", json=payload, headers=auth_headers)
+            assert r.status_code == 201
+            assert r.json()["metadata"]["diaper_type"] == diaper_type
+            assert r.json()["metadata"]["location"] == location
 
 
 async def test_invalid_token_returns_401(client):
@@ -187,8 +189,8 @@ async def test_limit_returns_last_n_events(client, auth_headers):
         )
     await client.post(
         "/events",
-        json={"id": "diaper-1", "type": "diaper", "timestamp": "2024-01-15T10:00:00Z",
-              "metadata": {"diaper_type": "wet"}},
+        json={"id": "diaper-1", "type": "output", "timestamp": "2024-01-15T10:00:00Z",
+              "metadata": {"diaper_type": "wet", "location": "diaper"}},
         headers=auth_headers,
     )
     # Fetch last 2 events overall
@@ -208,8 +210,8 @@ async def test_limit_with_type_filter(client, auth_headers):
         )
     await client.post(
         "/events",
-        json={"id": "diaper-type-1", "type": "diaper", "timestamp": "2024-01-15T10:00:00Z",
-              "metadata": {"diaper_type": "wet"}},
+        json={"id": "diaper-type-1", "type": "output", "timestamp": "2024-01-15T10:00:00Z",
+              "metadata": {"diaper_type": "wet", "location": "diaper"}},
         headers=auth_headers,
     )
     # Fetch last 2 feeds only
@@ -229,10 +231,10 @@ async def test_feed_event_without_metadata_rejected(client, auth_headers):
     assert r.status_code == 422
 
 
-async def test_diaper_event_without_metadata_rejected(client, auth_headers):
+async def test_output_event_without_metadata_rejected(client, auth_headers):
     r = await client.post(
         "/events",
-        json={"id": "diaper-no-meta", "type": "diaper", "timestamp": "2024-01-15T10:00:00Z"},
+        json={"id": "output-no-meta", "type": "output", "timestamp": "2024-01-15T10:00:00Z"},
         headers=auth_headers,
     )
     assert r.status_code == 422

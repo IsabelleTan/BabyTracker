@@ -88,12 +88,12 @@ export default function SummarySection({ events }: Props) {
             />
           </div>
 
-          {/* Diaper section */}
+          {/* Output section */}
           <div className="flex flex-col gap-3">
-            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Diaper</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Output</span>
             <StatBar
               icon={Droplet}
-              label="Wet"
+              label="Pee"
               value={stats.wetCount}
               valueStr={String(stats.wetCount)}
               avg={stats.avgWet}
@@ -102,7 +102,7 @@ export default function SummarySection({ events }: Props) {
             />
             <StatBar
               icon={CirclePile}
-              label="Dirty"
+              label="Poo"
               value={stats.dirtyCount}
               valueStr={String(stats.dirtyCount)}
               avg={stats.avgDirty}
@@ -229,7 +229,7 @@ export function computeStats(events: BabyEvent[], now = new Date()) {
   const todayEvents = events.filter((e) => new Date(e.timestamp) >= windowStart)
 
   // Diaper breakdown (wet/dirty both count towards each)
-  const todayDiapers = todayEvents.filter((e) => e.type === 'diaper')
+  const todayDiapers = todayEvents.filter((e) => e.type === 'output')
   const wetCount = todayDiapers.filter((e) => {
     const t = diaperType(e)
     return t === 'wet' || t === 'both'
@@ -278,7 +278,7 @@ export function computeStats(events: BabyEvent[], now = new Date()) {
       return t >= dayStart && t < dayEnd
     })
 
-    const dayDiapers = dayEvents.filter((e) => e.type === 'diaper')
+    const dayDiapers = dayEvents.filter((e) => e.type === 'output')
     dailyWets.push(dayDiapers.filter((e) => { const t = diaperType(e); return t === 'wet' || t === 'both' }).length)
     dailyDirtys.push(dayDiapers.filter((e) => { const t = diaperType(e); return t === 'dirty' || t === 'both' }).length)
 

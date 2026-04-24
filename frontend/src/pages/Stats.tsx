@@ -70,6 +70,31 @@ export default function Stats() {
 
   const chartData = data.map((d) => ({ ...d, date: fmtDate(d.date) }))
 
+  const weeklyPottyData = useMemo(() => {
+    const weekMap = new Map<string, { date: string; potty_wet: number; potty_dirty: number }>()
+    for (const d of data) {
+      const date = new Date(d.date + 'T00:00:00')
+      const day = date.getDay()
+      const diff = day === 0 ? -6 : 1 - day
+      const monday = new Date(date)
+      monday.setDate(date.getDate() + diff)
+      const key = monday.toISOString().slice(0, 10)
+      if (!weekMap.has(key)) {
+        weekMap.set(key, {
+          date: `${monday.getMonth() + 1}/${monday.getDate()}`,
+          potty_wet: 0,
+          potty_dirty: 0,
+        })
+      }
+      const entry = weekMap.get(key)!
+      entry.potty_wet += d.potty_wet_count
+      entry.potty_dirty += d.potty_dirty_count
+    }
+    return [...weekMap.entries()]
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([, v]) => v)
+  }, [data])
+
   return (
     <div className="w-full flex flex-col gap-6 p-4">
       {/* Range selector + night toggle */}
@@ -183,26 +208,47 @@ export default function Stats() {
             />
           </Section>
 
-          <Section title="Diapers">
+          <Section title="Output">
             <MultiLineChartCard
-              title="Diapers per day"
+              title="Output per day"
               data={chartData}
               lines={[
                 {
                   dataKey: 'wet_count',
-                  name: 'Wet',
+                  name: 'Pee',
                   color: 'oklch(0.52 0.17 225)',
                   yAxisId: 'left',
                 },
                 {
                   dataKey: 'dirty_count',
-                  name: 'Dirty',
+                  name: 'Poo',
                   color: 'oklch(0.52 0.11 55)',
                   yAxisId: 'left',
                 },
               ]}
               leftTickStep={1}
             />
+            {weeklyPottyData.length > 0 && (
+              <MultiLineChartCard
+                title="Potty per week"
+                data={weeklyPottyData}
+                lines={[
+                  {
+                    dataKey: 'potty_wet',
+                    name: 'Pee (potty)',
+                    color: 'oklch(0.52 0.17 225)',
+                    yAxisId: 'left',
+                  },
+                  {
+                    dataKey: 'potty_dirty',
+                    name: 'Poo (potty)',
+                    color: 'oklch(0.52 0.11 55)',
+                    yAxisId: 'left',
+                  },
+                ]}
+                leftTickStep={1}
+              />
+            )}
           </Section>
         </>
       )}

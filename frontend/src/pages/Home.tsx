@@ -124,7 +124,7 @@ export default function Home() {
   }, [events])
 
   const lastDiaperDate = useMemo(() => {
-    const e = [...events].filter((e) => e.type === 'diaper').at(-1)
+    const e = [...events].filter((e) => e.type === 'output').at(-1)
     return e ? new Date(e.timestamp) : null
   }, [events])
 
@@ -233,11 +233,11 @@ export default function Home() {
           />
           <ActionCard
             icon={Droplets}
-            label="Diaper"
-            onClick={() => setSheetType('diaper')}
+            label="Output"
+            onClick={() => setSheetType('output')}
             stats={[
               lastDiaperDate
-                ? { label: 'Last diaper', lines: [ago(lastDiaperDate), fmt(lastDiaperDate)] }
+                ? { label: 'Last output', lines: [ago(lastDiaperDate), fmt(lastDiaperDate)] }
                 : null,
             ]}
           />

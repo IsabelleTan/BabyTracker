@@ -138,10 +138,10 @@ def ev_sleep_end(ts: datetime, tag: str) -> dict:
 
 def ev_diaper(ts: datetime, dtype: str, tag: str) -> dict:
     return {
-        "id": det_id("diaper", iso(ts), tag),
-        "type": "diaper",
+        "id": det_id("output", iso(ts), tag),
+        "type": "output",
         "timestamp": iso(ts),
-        "metadata": {"diaper_type": dtype},
+        "metadata": {"diaper_type": dtype, "location": "diaper"},
     }
 
 

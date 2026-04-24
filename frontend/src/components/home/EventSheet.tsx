@@ -6,7 +6,7 @@ import {
   DrawerTitle,
   DrawerFooter,
 } from '@/components/ui/drawer'
-import { Droplet, Droplets, CirclePile, Milk, CircleDot, Cylinder } from 'lucide-react'
+import { Droplet, Droplets, CirclePile, Milk, CircleDot, Cylinder, Baby, Toilet } from 'lucide-react'
 import { fromDateTimeLocal, type EventType } from '@/lib/events'
 
 interface EventSheetProps {
@@ -19,7 +19,7 @@ const TITLES: Record<EventType, string> = {
   feed: 'Feed',
   sleep_start: 'Sleep started',
   sleep_end: 'Woke up',
-  diaper: 'Diaper',
+  output: 'Output',
 }
 
 // ─── Wheel data ──────────────────────────────────────────────────────────────
@@ -316,6 +316,7 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
   const [rightMin,   setRightMin]   = useState('')
   const [amountMl,   setAmountMl]   = useState('')
   const [diaperType, setDiaperType] = useState<'wet' | 'dirty' | 'both'>('wet')
+  const [outputLocation, setOutputLocation] = useState<'diaper' | 'potty'>('diaper')
 
   // Breastfeed timers
   const [leftRunning,    setLeftRunning]    = useState(false)
@@ -356,6 +357,7 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
       setRightMin('')
       setAmountMl('')
       setDiaperType('wet')
+      setOutputLocation('diaper')
       // Reset timers
       if (leftIntervalRef.current)  { clearInterval(leftIntervalRef.current);  leftIntervalRef.current  = null }
       if (rightIntervalRef.current) { clearInterval(rightIntervalRef.current); rightIntervalRef.current = null }
@@ -425,7 +427,7 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
       }
       return { feed_type: 'bottle', bottle_type: feedType, amount_ml: amountMl ? Number(amountMl) : null }
     }
-    if (type === 'diaper') return { diaper_type: diaperType }
+    if (type === 'output') return { diaper_type: diaperType, location: outputLocation }
     return null
   }
 
@@ -596,21 +598,35 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
             </>
           )}
 
-          {/* Diaper-specific */}
-          {type === 'diaper' && (
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Type</label>
-              <SegmentedControl
-                options={['wet', 'dirty', 'both'] as const}
-                value={diaperType}
-                onChange={setDiaperType}
-                labels={{
-                  wet:   <span className="flex items-center justify-center gap-1.5"><Droplet   className="w-3.5 h-3.5" />Wet</span>,
-                  dirty: <span className="flex items-center justify-center gap-1.5"><CirclePile className="w-3.5 h-3.5" />Dirty</span>,
-                  both:  <span className="flex items-center justify-center gap-1.5"><Droplets  className="w-3.5 h-3.5" />Both</span>,
-                }}
-              />
-            </div>
+          {/* Output-specific */}
+          {type === 'output' && (
+            <>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Where</label>
+                <SegmentedControl
+                  options={['diaper', 'potty'] as const}
+                  value={outputLocation}
+                  onChange={setOutputLocation}
+                  labels={{
+                    diaper: <span className="flex items-center justify-center gap-1.5"><Baby    className="w-3.5 h-3.5" />Diaper</span>,
+                    potty:  <span className="flex items-center justify-center gap-1.5"><Toilet  className="w-3.5 h-3.5" />Potty</span>,
+                  }}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Type</label>
+                <SegmentedControl
+                  options={['wet', 'dirty', 'both'] as const}
+                  value={diaperType}
+                  onChange={setDiaperType}
+                  labels={{
+                    wet:   <span className="flex items-center justify-center gap-1.5"><Droplet   className="w-3.5 h-3.5" />Pee</span>,
+                    dirty: <span className="flex items-center justify-center gap-1.5"><CirclePile className="w-3.5 h-3.5" />Poo</span>,
+                    both:  <span className="flex items-center justify-center gap-1.5"><Droplets  className="w-3.5 h-3.5" />Both</span>,
+                  }}
+                />
+              </div>
+            </>
           )}
 
         </div>

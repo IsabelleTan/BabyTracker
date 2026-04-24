@@ -8,11 +8,11 @@ from app.utils import NIGHT_SHIFT_START, NIGHT_SHIFT_END
 # ── Unit tests for pure helper functions ──────────────────────────────────────
 
 class _FakeEvent:
-    def __init__(self, logged_by: str, hour: int, etype: str = "feed", diaper_type: str | None = None):
+    def __init__(self, logged_by: str, hour: int, etype: str = "feed", diaper_type: str | None = None, location: str = "diaper"):
         self.logged_by = logged_by
         self.timestamp = datetime(2024, 1, 15, hour, 0, 0, tzinfo=timezone.utc)
         self.type = etype
-        self.metadata_ = {"diaper_type": diaper_type} if diaper_type else {}
+        self.metadata_ = {"diaper_type": diaper_type, "location": location} if diaper_type else {}
 
 
 def test_compute_parent_stats_counts_total_logs():
@@ -39,10 +39,11 @@ def test_compute_parent_stats_night_shift_boundary():
 def test_compute_parent_stats_poop_changes():
     users = {"u1": "Parent 1"}
     events = [
-        _FakeEvent("u1", 10, "diaper", "dirty"),
-        _FakeEvent("u1", 11, "diaper", "both"),
-        _FakeEvent("u1", 12, "diaper", "wet"),   # wet doesn't count
-        _FakeEvent("u1", 13, "feed"),             # not a diaper
+        _FakeEvent("u1", 10, "output", "dirty", "diaper"),
+        _FakeEvent("u1", 11, "output", "both",  "diaper"),
+        _FakeEvent("u1", 12, "output", "wet",   "diaper"),  # wet doesn't count
+        _FakeEvent("u1", 13, "output", "dirty", "potty"),   # potty doesn't count
+        _FakeEvent("u1", 14, "feed"),                       # not an output
     ]
     stats = _compute_parent_stats(events, users)
     assert stats["u1"]["poop_changes"] == 2
@@ -188,9 +189,9 @@ async def test_leaderboards_most_poop_record(client_with_family):
     for i, dtype in enumerate(["dirty", "both", "wet"]):
         ts = datetime(base_date.year, base_date.month, base_date.day, 8 + i, 0, 0, tzinfo=timezone.utc)
         await client.post("/events", json={
-            "id": f"poop-{i}", "type": "diaper",
+            "id": f"poop-{i}", "type": "output",
             "timestamp": ts.isoformat(),
-            "metadata": {"diaper_type": dtype},
+            "metadata": {"diaper_type": dtype, "location": "diaper"},
         }, headers=headers)
 
     r = await client.get("/leaderboards", headers=headers)

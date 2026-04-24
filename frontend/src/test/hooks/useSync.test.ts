@@ -48,7 +48,7 @@ describe('useSync.sync — pending queue flush order', () => {
   it('flushes the pending queue in FIFO order', async () => {
     const pending = [
       { id: 'p1', type: 'feed', timestamp: '2024-01-15T08:00:00Z', metadata: null },
-      { id: 'p2', type: 'diaper', timestamp: '2024-01-15T09:00:00Z', metadata: null },
+      { id: 'p2', type: 'output', timestamp: '2024-01-15T09:00:00Z', metadata: null },
       { id: 'p3', type: 'sleep_start', timestamp: '2024-01-15T10:00:00Z', metadata: null },
     ]
     vi.mocked(db.getAllPending)

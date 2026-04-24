@@ -42,7 +42,7 @@ describe('getBabyVoiceContext', () => {
     const events = [
       makeEvent('feed',   today(7)),  makeEvent('feed',   today(10)), makeEvent('feed', today(13)),
       makeEvent('feed',   today(16)), makeEvent('feed',   today(18)),
-      makeEvent('diaper', today(8)),  makeEvent('diaper', today(11)), makeEvent('diaper', today(15)),
+      makeEvent('output', today(8)),  makeEvent('output', today(11)), makeEvent('output', today(15)),
       makeEvent('sleep_start', today(9)), makeEvent('sleep_end', today(10)),
     ]
     expect(getBabyVoiceContext(events)).toBe('normal')
@@ -55,7 +55,7 @@ describe('getBabyVoiceContext', () => {
   })
 
   it('returns "quiet" when there are ≤ 8 events', () => {
-    expect(getBabyVoiceContext([makeEvent('feed', today(9)), makeEvent('diaper', today(10))])).toBe('quiet')
+    expect(getBabyVoiceContext([makeEvent('feed', today(9)), makeEvent('output', today(10))])).toBe('quiet')
   })
 
   it('returns "long_nap" for a completed sleep block ≥ 3 hours', () => {
@@ -93,7 +93,7 @@ describe('getBabyVoiceContext', () => {
   it('returns "chaotic" when there are ≥ 20 events with no other trigger', () => {
     expect(getBabyVoiceContext(
       Array.from({ length: 20 }, (_, i) =>
-        makeEvent('diaper', today(6 + Math.floor(i / 2), (i % 2) * 30))
+        makeEvent('output', today(6 + Math.floor(i / 2), (i % 2) * 30))
       )
     )).toBe('chaotic')
   })
@@ -119,7 +119,7 @@ describe('getPartnerContext', () => {
   })
 
   it('returns "both" when only the current user has logged (no partner data)', () => {
-    const events = [makeEvent('feed', today(8), 'user-1'), makeEvent('diaper', today(9), 'user-1')]
+    const events = [makeEvent('feed', today(8), 'user-1'), makeEvent('output', today(9), 'user-1')]
     expect(getPartnerContext(events, 'user-1')).toBe('both')
   })
 
@@ -144,9 +144,9 @@ describe('getPartnerContext', () => {
 
   it('returns "poop_duty" when a user logged ≥ 3 dirty/both diapers', () => {
     const events = [
-      makeEvent('diaper', today(8),  'user-1', { diaper_type: 'dirty' }),
-      makeEvent('diaper', today(10), 'user-1', { diaper_type: 'both'  }),
-      makeEvent('diaper', today(12), 'user-1', { diaper_type: 'dirty' }),
+      makeEvent('output', today(8),  'user-1', { diaper_type: 'dirty' }),
+      makeEvent('output', today(10), 'user-1', { diaper_type: 'both'  }),
+      makeEvent('output', today(12), 'user-1', { diaper_type: 'dirty' }),
       makeEvent('feed',   today(9),  'user-2'),
     ]
     expect(getPartnerContext(events, 'user-2')).toBe('poop_duty')
@@ -154,9 +154,9 @@ describe('getPartnerContext', () => {
 
   it('poop_duty takes priority over night_shift', () => {
     const events = [
-      makeEvent('diaper', today(23, 0), 'user-1', { diaper_type: 'dirty' }),
-      makeEvent('diaper', today(2,  0), 'user-1', { diaper_type: 'dirty' }),
-      makeEvent('diaper', today(4,  0), 'user-1', { diaper_type: 'both'  }),
+      makeEvent('output', today(23, 0), 'user-1', { diaper_type: 'dirty' }),
+      makeEvent('output', today(2,  0), 'user-1', { diaper_type: 'dirty' }),
+      makeEvent('output', today(4,  0), 'user-1', { diaper_type: 'both'  }),
     ]
     expect(getPartnerContext(events, 'user-2')).toBe('poop_duty')
   })
@@ -205,7 +205,7 @@ describe('getNewMilestone', () => {
     expect(getNewMilestone([
       makeEvent('feed',        today(8)),
       makeEvent('sleep_start', today(9)),
-      makeEvent('diaper',      today(10)),
+      makeEvent('output',      today(10)),
     ])).toBe('all_event_types')
   })
 
@@ -386,7 +386,7 @@ describe('getNewMilestone — additional milestones', () => {
 
   it('detects diaper_8 for ≥ 8 diaper events', () => {
     expect(getNewMilestone(
-      Array.from({ length: 8 }, (_, i) => makeEvent('diaper', today(6 + i)))
+      Array.from({ length: 8 }, (_, i) => makeEvent('output', today(6 + i)))
     )).toBe('diaper_8')
   })
 

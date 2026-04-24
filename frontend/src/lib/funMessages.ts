@@ -171,7 +171,7 @@ export function getBabyVoiceContext(events: BabyEvent[]): BabyVoiceContext {
 export function getPartnerContext(events: BabyEvent[], currentUserId: string): PartnerContext {
   // Poop duty: OTHER user logged ≥ 3 dirty/both diapers
   const otherPoopCount = events.filter(
-    (e) => e.type === 'diaper' && e.logged_by !== currentUserId &&
+    (e) => e.type === 'output' && e.logged_by !== currentUserId &&
       (e.metadata?.diaper_type === 'dirty' || e.metadata?.diaper_type === 'both'),
   ).length
   if (otherPoopCount >= 3) return 'poop_duty'
@@ -279,13 +279,13 @@ export function getNewMilestone(events: BabyEvent[]): MilestoneKey | null {
   else if (feedCount >= 8 && unseen('feeds_8')) candidates.push('feeds_8')
 
   // ── diapers ────────────────────────────────────────────────────────────────
-  if (events.filter((e) => e.type === 'diaper').length >= 8 && unseen('diaper_8'))
+  if (events.filter((e) => e.type === 'output').length >= 8 && unseen('diaper_8'))
     candidates.push('diaper_8')
 
   // ── variety ────────────────────────────────────────────────────────────────
   const types = new Set(events.map((e) => e.type))
   if (
-    types.has('feed') && types.has('sleep_start') && types.has('diaper') &&
+    types.has('feed') && types.has('sleep_start') && types.has('output') &&
     unseen('all_event_types')
   ) candidates.push('all_event_types')
 
