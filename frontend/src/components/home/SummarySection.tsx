@@ -230,14 +230,20 @@ function computeStats(events: BabyEvent[]) {
 
   const totalSleepMs = computeSleepMs(todayEvents, now)
 
-  // 7-day rolling averages: each "day" is a 24h window ending N×24h before now
+  // How many 24h windows to average over — capped at 7, but fewer if history is short
+  const oldestMs = events.length > 0
+    ? events.reduce((min, e) => Math.min(min, new Date(e.timestamp).getTime()), Infinity)
+    : now.getTime()
+  const nAvgDays = Math.min(Math.ceil((now.getTime() - oldestMs) / (24 * 60 * 60 * 1000)), 7)
+
+  // Rolling averages: each "day" is a 24h window ending N×24h before now
   const dailyWets: number[] = []
   const dailyDirtys: number[] = []
   const dailyBreastMins: number[] = []
   const dailyBottleMls: number[] = []
   const dailySleepMs: number[] = []
 
-  for (let d = 1; d <= 7; d++) {
+  for (let d = 1; d <= nAvgDays; d++) {
     const dayEnd = new Date(now.getTime() - (d - 1) * 24 * 60 * 60 * 1000)
     const dayStart = new Date(now.getTime() - d * 24 * 60 * 60 * 1000)
     const dayEvents = events.filter((e) => {
@@ -265,7 +271,7 @@ function computeStats(events: BabyEvent[]) {
     dailySleepMs.push(computeSleepMs(dayEvents, dayEnd))
   }
 
-  const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length
+  const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0
 
   const avgWet = avg(dailyWets)
   const avgDirty = avg(dailyDirtys)
