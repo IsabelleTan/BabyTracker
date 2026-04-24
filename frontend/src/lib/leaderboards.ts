@@ -164,7 +164,7 @@ export function buildNotifications(data: LeaderboardData): string[] {
         `${w.winner.display_name} is the new Chief Log Officer! ${w.winnerScore} logs vs ${w.loserScore} from ${w.loser.display_name}. Power move.`,
         `Chief Log Officer: ${w.winner.display_name}! ${w.winnerScore} total logs vs ${w.loserScore} from ${w.loser.display_name}. Utterly dedicated.`,
         `${w.winner.display_name} took the CLO title. ${w.winnerScore} logs vs ${w.loserScore} from ${w.loser.display_name}. ${w.loser.display_name} may want to step it up.`,
-        `New Chief Log Officer: ${w.winner.display_name}! ${w.winnerScore} vs ${w.loserScore}. The spreadsheet does not lie.`,
+        `New Chief Log Officer: ${w.winner.display_name}! ${w.winnerScore} vs ${w.loserScore} from ${w.loser.display_name}. The spreadsheet does not lie.`,
         `${w.winner.display_name} is logging for two. ${w.winnerScore} entries vs ${w.loserScore} from ${w.loser.display_name}. A true record-keeper.`,
         `CLO title goes to ${w.winner.display_name}: ${w.winnerScore} logs vs ${w.loserScore} from ${w.loser.display_name}. Efficiency personified.`,
         `${w.winner.display_name} claimed Chief Log Officer with ${w.winnerScore} logs. ${w.loser.display_name} is at ${w.loserScore}. Stay vigilant.`,
