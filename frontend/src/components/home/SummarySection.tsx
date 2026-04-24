@@ -65,6 +65,7 @@ export default function SummarySection({ events }: Props) {
               value={stats.breastMinTotal}
               valueStr={stats.breastMinTotal > 0 ? `${Math.round(stats.breastMinTotal)} min` : '—'}
               avg={stats.avgBreastMin}
+              avgStr={stats.avgBreastMin > 0 ? `${Math.round(stats.avgBreastMin)}m` : ''}
               max={stats.maxBreastMin}
             />
             <StatBar
@@ -73,6 +74,7 @@ export default function SummarySection({ events }: Props) {
               value={stats.bottleMlTotal}
               valueStr={stats.bottleMlTotal > 0 ? `${Math.round(stats.bottleMlTotal)} ml` : '—'}
               avg={stats.avgBottleMl}
+              avgStr={stats.avgBottleMl > 0 ? `${Math.round(stats.avgBottleMl)}ml` : ''}
               max={stats.maxBottleMl}
             />
           </div>
@@ -86,6 +88,7 @@ export default function SummarySection({ events }: Props) {
               value={stats.wetCount}
               valueStr={String(stats.wetCount)}
               avg={stats.avgWet}
+              avgStr={stats.avgWet > 0 ? `${Math.round(stats.avgWet)}` : ''}
               max={stats.maxDiapers}
             />
             <StatBar
@@ -94,6 +97,7 @@ export default function SummarySection({ events }: Props) {
               value={stats.dirtyCount}
               valueStr={String(stats.dirtyCount)}
               avg={stats.avgDirty}
+              avgStr={stats.avgDirty > 0 ? `${Math.round(stats.avgDirty)}` : ''}
               max={stats.maxDiapers}
             />
           </div>
@@ -107,11 +111,12 @@ export default function SummarySection({ events }: Props) {
               value={stats.totalSleepMs}
               valueStr={stats.totalSleep}
               avg={stats.avgSleepMs}
+              avgStr={stats.avgSleepMs > 0 ? formatDuration(stats.avgSleepMs) : ''}
               max={stats.maxSleepMs}
             />
           </div>
         </div>
-        <p className="text-[10px] text-muted-foreground/60">│ 7-day avg</p>
+        <p className="text-[10px] text-muted-foreground/60">│ 7-day rolling avg</p>
         {partnerMsg && (
           <div className="border-t border-primary/15 pt-3 flex items-center gap-2">
             <Users className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -140,6 +145,7 @@ function StatBar({
   value,
   valueStr,
   avg,
+  avgStr,
   max,
 }: {
   icon: LucideIcon
@@ -147,6 +153,7 @@ function StatBar({
   value: number
   valueStr: string
   avg: number
+  avgStr: string
   max: number
 }) {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0
@@ -167,7 +174,15 @@ function StatBar({
           <div
             className="absolute top-1/2 -translate-y-1/2 w-[2px] h-5 bg-primary/70 rounded-full"
             style={{ left: `${avgPct}%` }}
-          />
+          >
+            {avgStr && (
+              <span
+                className="absolute bottom-full mb-0.5 left-1/2 -translate-x-1/2 text-[9px] leading-none text-primary/70 whitespace-nowrap"
+              >
+                {avgStr}
+              </span>
+            )}
+          </div>
         )}
       </div>
       <span className="text-sm font-semibold w-16 text-right shrink-0">{valueStr}</span>

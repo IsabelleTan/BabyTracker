@@ -64,7 +64,7 @@ describe('SummarySection — today stats', () => {
     render(<SummarySection events={events} />)
     // Bottle total = 160ml today only; wet count = 2
     await waitFor(() => expect(screen.getByText('160 ml')).toBeInTheDocument())
-    expect(screen.getByText('2')).toBeInTheDocument()
+    expect(screen.getAllByText('2').length).toBeGreaterThanOrEqual(1)
     // Yesterday's 999ml must not appear
     expect(screen.queryByText('999 ml')).not.toBeInTheDocument()
   })
@@ -94,8 +94,7 @@ describe('SummarySection — today stats', () => {
     render(<SummarySection events={events} />)
     // Should show a non-dash sleep duration (e.g. "2h", "2h 30m", "45m")
     await waitFor(() => {
-      const sleepEl = screen.getByText(/^\d+h( \d+m)?$|^\d+m$/)
-      expect(sleepEl).toBeInTheDocument()
+      expect(screen.getAllByText(/^\d+h( \d+m)?$|^\d+m$/).length).toBeGreaterThanOrEqual(1)
     })
   })
 
@@ -107,8 +106,7 @@ describe('SummarySection — today stats', () => {
     render(<SummarySection events={events} />)
     // Should show a non-dash sleep duration for the in-progress session
     await waitFor(() => {
-      const sleepEl = screen.getByText(/^\d+h( \d+m)?$|^\d+m$/)
-      expect(sleepEl).toBeInTheDocument()
+      expect(screen.getAllByText(/^\d+h( \d+m)?$|^\d+m$/).length).toBeGreaterThanOrEqual(1)
     })
   })
 })
