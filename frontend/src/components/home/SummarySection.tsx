@@ -1,7 +1,7 @@
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { Milk, Moon, Droplet, CirclePile, Venus, Sparkles, Users, type LucideIcon } from 'lucide-react'
 import { formatDuration } from '@/hooks/useTimeSince'
-import { getEventsSince, currentDayStart, type BabyEvent } from '@/lib/events'
+import { getEventsSince, type BabyEvent } from '@/lib/events'
 import { getUser } from '@/lib/auth'
 import { useLeaderboardData } from '@/contexts/LeaderboardContext'
 import {
@@ -57,7 +57,7 @@ export default function SummarySection({ events }: Props) {
       <div className="rounded-xl border border-primary/35 bg-surface p-4 flex flex-col gap-3">
         <div className="flex flex-col gap-3">
           {/* Feed section */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Feed</span>
             <StatBar
               icon={Venus}
@@ -65,6 +65,7 @@ export default function SummarySection({ events }: Props) {
               value={stats.breastMinTotal}
               valueStr={stats.breastMinTotal > 0 ? `${Math.round(stats.breastMinTotal)} min` : '—'}
               avg={stats.avgBreastMin}
+              avgStr={stats.avgBreastMin > 0 ? `${Math.round(stats.avgBreastMin)}m` : ''}
               max={stats.maxBreastMin}
             />
             <StatBar
@@ -73,12 +74,13 @@ export default function SummarySection({ events }: Props) {
               value={stats.bottleMlTotal}
               valueStr={stats.bottleMlTotal > 0 ? `${Math.round(stats.bottleMlTotal)} ml` : '—'}
               avg={stats.avgBottleMl}
+              avgStr={stats.avgBottleMl > 0 ? `${Math.round(stats.avgBottleMl)}ml` : ''}
               max={stats.maxBottleMl}
             />
           </div>
 
           {/* Diaper section */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Diaper</span>
             <StatBar
               icon={Droplet}
@@ -86,6 +88,7 @@ export default function SummarySection({ events }: Props) {
               value={stats.wetCount}
               valueStr={String(stats.wetCount)}
               avg={stats.avgWet}
+              avgStr={stats.avgWet > 0 ? `${Math.round(stats.avgWet)}` : ''}
               max={stats.maxDiapers}
             />
             <StatBar
@@ -94,12 +97,13 @@ export default function SummarySection({ events }: Props) {
               value={stats.dirtyCount}
               valueStr={String(stats.dirtyCount)}
               avg={stats.avgDirty}
+              avgStr={stats.avgDirty > 0 ? `${Math.round(stats.avgDirty)}` : ''}
               max={stats.maxDiapers}
             />
           </div>
 
           {/* Sleep section */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Sleep</span>
             <StatBar
               icon={Moon}
@@ -107,11 +111,12 @@ export default function SummarySection({ events }: Props) {
               value={stats.totalSleepMs}
               valueStr={stats.totalSleep}
               avg={stats.avgSleepMs}
+              avgStr={stats.avgSleepMs > 0 ? formatDuration(stats.avgSleepMs) : ''}
               max={stats.maxSleepMs}
             />
           </div>
         </div>
-        <p className="text-[10px] text-muted-foreground/60">│ 7-day avg</p>
+        <p className="text-[10px] text-muted-foreground/60">│ 7-day rolling avg</p>
         {partnerMsg && (
           <div className="border-t border-primary/15 pt-3 flex items-center gap-2">
             <Users className="w-3.5 h-3.5 text-primary shrink-0" />
@@ -140,6 +145,7 @@ function StatBar({
   value,
   valueStr,
   avg,
+  avgStr,
   max,
 }: {
   icon: LucideIcon
@@ -147,6 +153,7 @@ function StatBar({
   value: number
   valueStr: string
   avg: number
+  avgStr: string
   max: number
 }) {
   const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0
@@ -167,7 +174,15 @@ function StatBar({
           <div
             className="absolute top-1/2 -translate-y-1/2 w-[2px] h-5 bg-primary/70 rounded-full"
             style={{ left: `${avgPct}%` }}
-          />
+          >
+            {avgStr && (
+              <span
+                className="absolute bottom-full mb-0.5 left-1/2 -translate-x-1/2 text-[10px] leading-none text-primary/70 whitespace-nowrap"
+              >
+                {avgStr}
+              </span>
+            )}
+          </div>
         )}
       </div>
       <span className="text-sm font-semibold w-16 text-right shrink-0">{valueStr}</span>
@@ -199,11 +214,10 @@ function diaperType(e: BabyEvent): string | undefined {
   return (e.metadata as { diaper_type?: string } | null)?.diaper_type
 }
 
-function computeStats(events: BabyEvent[]) {
-  const now = new Date()
-  const todayStart = currentDayStart(now)
+export function computeStats(events: BabyEvent[], now = new Date()) {
+  const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000) // rolling 24-hour window
 
-  const todayEvents = events.filter((e) => new Date(e.timestamp) >= todayStart)
+  const todayEvents = events.filter((e) => new Date(e.timestamp) >= windowStart)
 
   // Diaper breakdown (wet/dirty both count towards each)
   const todayDiapers = todayEvents.filter((e) => e.type === 'diaper')
@@ -230,18 +244,22 @@ function computeStats(events: BabyEvent[]) {
 
   const totalSleepMs = computeSleepMs(todayEvents, now)
 
-  // 7-day daily totals (days 1–7 before today)
+  // How many 24h windows to average over — capped at 7, but fewer if history is short
+  const oldestMs = events.length > 0
+    ? events.reduce((min, e) => Math.min(min, new Date(e.timestamp).getTime()), Infinity)
+    : now.getTime()
+  const nAvgDays = Math.min(Math.ceil((now.getTime() - oldestMs) / (24 * 60 * 60 * 1000)), 7)
+
+  // Rolling averages: each "day" is a 24h window ending N×24h before now
   const dailyWets: number[] = []
   const dailyDirtys: number[] = []
   const dailyBreastMins: number[] = []
   const dailyBottleMls: number[] = []
   const dailySleepMs: number[] = []
 
-  for (let d = 1; d <= 7; d++) {
-    const dayStart = new Date(todayStart)
-    dayStart.setDate(dayStart.getDate() - d)
-    const dayEnd = new Date(todayStart)
-    dayEnd.setDate(dayEnd.getDate() - d + 1)
+  for (let d = 1; d <= nAvgDays; d++) {
+    const dayEnd = new Date(now.getTime() - (d - 1) * 24 * 60 * 60 * 1000)
+    const dayStart = new Date(now.getTime() - d * 24 * 60 * 60 * 1000)
     const dayEvents = events.filter((e) => {
       const t = new Date(e.timestamp)
       return t >= dayStart && t < dayEnd
@@ -267,7 +285,7 @@ function computeStats(events: BabyEvent[]) {
     dailySleepMs.push(computeSleepMs(dayEvents, dayEnd))
   }
 
-  const avg = (arr: number[]) => arr.reduce((a, b) => a + b, 0) / arr.length
+  const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0
 
   const avgWet = avg(dailyWets)
   const avgDirty = avg(dailyDirtys)
