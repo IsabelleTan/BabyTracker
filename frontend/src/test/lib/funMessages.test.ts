@@ -15,6 +15,9 @@ import {
   nightMessageShouldShow,
   markNightMessageShown,
   isNightHours,
+  getPottyStreak,
+  updatePottyStreak,
+  trackPottyCount,
 } from '@/lib/funMessages'
 import type { BabyEvent } from '@/lib/events'
 
@@ -42,7 +45,7 @@ describe('getBabyVoiceContext', () => {
     const events = [
       makeEvent('feed',   today(7)),  makeEvent('feed',   today(10)), makeEvent('feed', today(13)),
       makeEvent('feed',   today(16)), makeEvent('feed',   today(18)),
-      makeEvent('diaper', today(8)),  makeEvent('diaper', today(11)), makeEvent('diaper', today(15)),
+      makeEvent('output', today(8)),  makeEvent('output', today(11)), makeEvent('output', today(15)),
       makeEvent('sleep_start', today(9)), makeEvent('sleep_end', today(10)),
     ]
     expect(getBabyVoiceContext(events)).toBe('normal')
@@ -55,7 +58,7 @@ describe('getBabyVoiceContext', () => {
   })
 
   it('returns "quiet" when there are ≤ 8 events', () => {
-    expect(getBabyVoiceContext([makeEvent('feed', today(9)), makeEvent('diaper', today(10))])).toBe('quiet')
+    expect(getBabyVoiceContext([makeEvent('feed', today(9)), makeEvent('output', today(10))])).toBe('quiet')
   })
 
   it('returns "long_nap" for a completed sleep block ≥ 3 hours', () => {
@@ -93,7 +96,7 @@ describe('getBabyVoiceContext', () => {
   it('returns "chaotic" when there are ≥ 20 events with no other trigger', () => {
     expect(getBabyVoiceContext(
       Array.from({ length: 20 }, (_, i) =>
-        makeEvent('diaper', today(6 + Math.floor(i / 2), (i % 2) * 30))
+        makeEvent('output', today(6 + Math.floor(i / 2), (i % 2) * 30))
       )
     )).toBe('chaotic')
   })
@@ -119,7 +122,7 @@ describe('getPartnerContext', () => {
   })
 
   it('returns "both" when only the current user has logged (no partner data)', () => {
-    const events = [makeEvent('feed', today(8), 'user-1'), makeEvent('diaper', today(9), 'user-1')]
+    const events = [makeEvent('feed', today(8), 'user-1'), makeEvent('output', today(9), 'user-1')]
     expect(getPartnerContext(events, 'user-1')).toBe('both')
   })
 
@@ -144,9 +147,9 @@ describe('getPartnerContext', () => {
 
   it('returns "poop_duty" when a user logged ≥ 3 dirty/both diapers', () => {
     const events = [
-      makeEvent('diaper', today(8),  'user-1', { diaper_type: 'dirty' }),
-      makeEvent('diaper', today(10), 'user-1', { diaper_type: 'both'  }),
-      makeEvent('diaper', today(12), 'user-1', { diaper_type: 'dirty' }),
+      makeEvent('output', today(8),  'user-1', { diaper_type: 'dirty' }),
+      makeEvent('output', today(10), 'user-1', { diaper_type: 'both'  }),
+      makeEvent('output', today(12), 'user-1', { diaper_type: 'dirty' }),
       makeEvent('feed',   today(9),  'user-2'),
     ]
     expect(getPartnerContext(events, 'user-2')).toBe('poop_duty')
@@ -154,9 +157,9 @@ describe('getPartnerContext', () => {
 
   it('poop_duty takes priority over night_shift', () => {
     const events = [
-      makeEvent('diaper', today(23, 0), 'user-1', { diaper_type: 'dirty' }),
-      makeEvent('diaper', today(2,  0), 'user-1', { diaper_type: 'dirty' }),
-      makeEvent('diaper', today(4,  0), 'user-1', { diaper_type: 'both'  }),
+      makeEvent('output', today(23, 0), 'user-1', { diaper_type: 'dirty' }),
+      makeEvent('output', today(2,  0), 'user-1', { diaper_type: 'dirty' }),
+      makeEvent('output', today(4,  0), 'user-1', { diaper_type: 'both'  }),
     ]
     expect(getPartnerContext(events, 'user-2')).toBe('poop_duty')
   })
@@ -205,7 +208,7 @@ describe('getNewMilestone', () => {
     expect(getNewMilestone([
       makeEvent('feed',        today(8)),
       makeEvent('sleep_start', today(9)),
-      makeEvent('diaper',      today(10)),
+      makeEvent('output',      today(10)),
     ])).toBe('all_event_types')
   })
 
@@ -386,7 +389,7 @@ describe('getNewMilestone — additional milestones', () => {
 
   it('detects diaper_8 for ≥ 8 diaper events', () => {
     expect(getNewMilestone(
-      Array.from({ length: 8 }, (_, i) => makeEvent('diaper', today(6 + i)))
+      Array.from({ length: 8 }, (_, i) => makeEvent('output', today(6 + i)))
     )).toBe('diaper_8')
   })
 
@@ -481,5 +484,180 @@ describe('nightMessageShouldShow — 5am parenting-day boundary', () => {
     // 10pm June 20 — nightSessionDate = June 20, isNightHours = true
     vi.setSystemTime(new Date(2024, 5, 20, 22, 0, 0))
     expect(nightMessageShouldShow(5)).toBe(true)
+  })
+})
+
+// ── potty streak ──────────────────────────────────────────────────────────────
+
+describe('potty streak', () => {
+  beforeEach(() => { localStorage.clear() })
+  afterEach(() => vi.useRealTimers())
+
+  function pottyEvent(isoTime: string): BabyEvent {
+    return makeEvent('output', isoTime, 'user-1', { diaper_type: 'wet', location: 'potty' })
+  }
+
+  it('returns 0 when no potty events have been logged', () => {
+    expect(getPottyStreak()).toBe(0)
+  })
+
+  it('starts streak at 1 on first potty event', () => {
+    const streak = updatePottyStreak([pottyEvent(today(10))])
+    expect(streak).toBe(1)
+  })
+
+  it('returns current streak without incrementing when no potty today', () => {
+    updatePottyStreak([pottyEvent(today(10))])
+    expect(updatePottyStreak([])).toBe(1)
+  })
+
+  it('does not increment streak when called twice on the same day', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2024, 5, 20, 10, 0, 0))
+    updatePottyStreak([pottyEvent(new Date(2024, 5, 20, 10).toISOString())])
+
+    vi.setSystemTime(new Date(2024, 5, 20, 14, 0, 0))
+    const streak = updatePottyStreak([pottyEvent(new Date(2024, 5, 20, 10).toISOString())])
+    expect(streak).toBe(1)
+  })
+
+  it('increments streak on consecutive days', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2024, 5, 20, 10, 0, 0))
+    updatePottyStreak([pottyEvent(new Date(2024, 5, 20, 10).toISOString())])
+
+    vi.setSystemTime(new Date(2024, 5, 21, 10, 0, 0))
+    const streak = updatePottyStreak([pottyEvent(new Date(2024, 5, 21, 10).toISOString())])
+    expect(streak).toBe(2)
+  })
+
+  it('resets streak to 1 when there is a gap in days', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2024, 5, 20, 10, 0, 0))
+    updatePottyStreak([pottyEvent(new Date(2024, 5, 20, 10).toISOString())])
+
+    // Skip a day
+    vi.setSystemTime(new Date(2024, 5, 22, 10, 0, 0))
+    const streak = updatePottyStreak([pottyEvent(new Date(2024, 5, 22, 10).toISOString())])
+    expect(streak).toBe(1)
+  })
+})
+
+// ── potty milestones ──────────────────────────────────────────────────────────
+
+describe('getNewMilestone — potty milestones', () => {
+  beforeEach(() => { localStorage.clear() })
+
+  function pottyEvent(isoTime: string, type: 'wet' | 'dirty' | 'both' = 'wet'): BabyEvent {
+    return makeEvent('output', isoTime, 'user-1', { diaper_type: type, location: 'potty' })
+  }
+
+  function diaperEvent(isoTime: string): BabyEvent {
+    return makeEvent('output', isoTime, 'user-1', { diaper_type: 'wet', location: 'diaper' })
+  }
+
+  it('detects potty_first for first potty event', () => {
+    expect(getNewMilestone([pottyEvent(today(10))])).toBe('potty_first')
+  })
+
+  it('does not re-detect potty_first once seen', () => {
+    localStorage.setItem('milestone_potty_first', 'true')
+    // potty_first_poo won't fire (wet only); 1 potty + 2 diapers → fully_trained and big_kid_day won't fire
+    expect(getNewMilestone([pottyEvent(today(10)), diaperEvent(today(8)), diaperEvent(today(12))])).toBeNull()
+  })
+
+  it('detects potty_first_poo for first poo on potty', () => {
+    localStorage.setItem('milestone_potty_first', 'true') // already seen
+    expect(getNewMilestone([pottyEvent(today(10), 'dirty')])).toBe('potty_first_poo')
+  })
+
+  it('detects potty_10 when cumulative count reaches 10', () => {
+    localStorage.setItem('milestone_potty_first', 'true')
+    localStorage.setItem('potty_total_count', '10')
+    expect(getNewMilestone([pottyEvent(today(10))])).toBe('potty_10')
+  })
+
+  it('detects potty_big_kid_day when potty count matches diaper count', () => {
+    localStorage.setItem('milestone_potty_first', 'true')
+    const events = [
+      pottyEvent(today(9)),
+      pottyEvent(today(11)),
+      diaperEvent(today(8)),
+      diaperEvent(today(13)),
+    ]
+    expect(getNewMilestone(events)).toBe('potty_big_kid_day')
+  })
+
+  it('detects potty_fully_trained when all outputs are on potty', () => {
+    localStorage.setItem('milestone_potty_first', 'true')
+    expect(getNewMilestone([pottyEvent(today(9)), pottyEvent(today(11))])).toBe('potty_fully_trained')
+  })
+
+  it('does not detect potty_big_kid_day when diapers outnumber potty', () => {
+    localStorage.setItem('milestone_potty_first', 'true')
+    const events = [pottyEvent(today(9)), diaperEvent(today(8)), diaperEvent(today(13))]
+    // potty_fully_trained won't fire (has diapers), potty_big_kid_day won't fire (potty < diaper)
+    expect(getNewMilestone(events)).toBeNull()
+  })
+})
+
+// ── potty baby voice context ───────────────────────────────────────────────────
+
+describe('getBabyVoiceContext — potty contexts', () => {
+  beforeEach(() => { localStorage.clear() })
+
+  function pottyEvent(): BabyEvent {
+    return makeEvent('output', today(10), 'user-1', { diaper_type: 'wet', location: 'potty' })
+  }
+
+  it('returns potty_streak when streak is ≥ 2', () => {
+    localStorage.setItem('potty_streak_count', '2')
+    expect(getBabyVoiceContext([])).toBe('potty_streak')
+  })
+
+  it('returns potty_first when there is a potty event and milestone not yet seen', () => {
+    expect(getBabyVoiceContext([pottyEvent()])).toBe('potty_first')
+  })
+
+  it('does not return potty_first once milestone_potty_first is seen', () => {
+    localStorage.setItem('milestone_potty_first', 'true')
+    expect(getBabyVoiceContext([pottyEvent()])).not.toBe('potty_first')
+  })
+
+  it('potty_streak takes priority over potty_first', () => {
+    localStorage.setItem('potty_streak_count', '3')
+    expect(getBabyVoiceContext([pottyEvent()])).toBe('potty_streak')
+  })
+})
+
+// ── trackPottyCount ───────────────────────────────────────────────────────────
+
+describe('trackPottyCount', () => {
+  beforeEach(() => { localStorage.clear() })
+
+  function pottyEvent(): BabyEvent {
+    return makeEvent('output', today(10), 'user-1', { diaper_type: 'wet', location: 'potty' })
+  }
+
+  it('increments total count on first call today', () => {
+    trackPottyCount([pottyEvent(), pottyEvent()])
+    expect(parseInt(localStorage.getItem('potty_total_count') ?? '0', 10)).toBe(2)
+  })
+
+  it('does not increment again when called twice on the same day', () => {
+    trackPottyCount([pottyEvent()])
+    trackPottyCount([pottyEvent(), pottyEvent()])
+    expect(parseInt(localStorage.getItem('potty_total_count') ?? '0', 10)).toBe(1)
+  })
+
+  it('accumulates across days', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2024, 5, 20, 10, 0, 0))
+    trackPottyCount([pottyEvent()])
+
+    vi.setSystemTime(new Date(2024, 5, 21, 10, 0, 0))
+    trackPottyCount([pottyEvent(), pottyEvent()])
+    vi.useRealTimers()
+    expect(parseInt(localStorage.getItem('potty_total_count') ?? '0', 10)).toBe(3)
   })
 })

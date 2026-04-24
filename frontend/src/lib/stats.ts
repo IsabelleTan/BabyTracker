@@ -8,9 +8,11 @@ export interface DailyStat {
   sleep_session_count: number
   avg_sleep_session_min: number | null
   avg_wake_min: number | null
-  diaper_count: number
+  output_count: number
   wet_count: number
   dirty_count: number
+  potty_wet_count: number
+  potty_dirty_count: number
   breast_min: number
   pumped_ml: number
   formula_ml: number

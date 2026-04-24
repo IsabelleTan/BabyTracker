@@ -25,9 +25,11 @@ class DailyStat(BaseModel):
     sleep_session_count: int
     avg_sleep_session_min: float | None
     avg_wake_min: float | None
-    diaper_count: int
+    output_count: int
     wet_count: int
     dirty_count: int
+    potty_wet_count: int
+    potty_dirty_count: int
     breast_min: float
     pumped_ml: float
     formula_ml: float
@@ -93,9 +95,11 @@ async def get_daily_stats(
     events = result.scalars().all()
 
     feeds_by_day: dict[str, list[datetime]] = defaultdict(list)
-    diapers_by_day: dict[str, list[datetime]] = defaultdict(list)
+    outputs_by_day: dict[str, list[datetime]] = defaultdict(list)
     wet_by_day: dict[str, int] = defaultdict(int)
     dirty_by_day: dict[str, int] = defaultdict(int)
+    potty_wet_by_day: dict[str, int] = defaultdict(int)
+    potty_dirty_by_day: dict[str, int] = defaultdict(int)
     breast_min_by_day: dict[str, float] = defaultdict(float)
     pumped_ml_by_day: dict[str, float] = defaultdict(float)
     formula_ml_by_day: dict[str, float] = defaultdict(float)
@@ -116,13 +120,19 @@ async def get_daily_stats(
                     formula_ml_by_day[day] += ml
                 else:
                     pumped_ml_by_day[day] += ml  # "pumped" or legacy entries without bottle_type
-        elif e.type == "diaper":
-            diapers_by_day[day].append(ts)
+        elif e.type == "output":
+            outputs_by_day[day].append(ts)
             dtype = meta.get("diaper_type", "")
+            location = meta.get("location", "diaper")
             if dtype in ("wet", "both"):
                 wet_by_day[day] += 1
             if dtype in ("dirty", "both"):
                 dirty_by_day[day] += 1
+            if location == "potty":
+                if dtype in ("wet", "both"):
+                    potty_wet_by_day[day] += 1
+                if dtype in ("dirty", "both"):
+                    potty_dirty_by_day[day] += 1
         elif e.type in ("sleep_start", "sleep_end"):
             raw_sleep_events.append((e.type, ts))
 
@@ -181,9 +191,11 @@ async def get_daily_stats(
                 sleep_session_count=len(sessions),
                 avg_sleep_session_min=avg_sleep,
                 avg_wake_min=avg_wake,
-                diaper_count=len(diapers_by_day.get(day, [])),
+                output_count=len(outputs_by_day.get(day, [])),
                 wet_count=wet_by_day.get(day, 0),
                 dirty_count=dirty_by_day.get(day, 0),
+                potty_wet_count=potty_wet_by_day.get(day, 0),
+                potty_dirty_count=potty_dirty_by_day.get(day, 0),
                 breast_min=round(breast_min_by_day.get(day, 0.0), 1),
                 pumped_ml=round(pumped_ml_by_day.get(day, 0.0), 1),
                 formula_ml=round(formula_ml_by_day.get(day, 0.0), 1),

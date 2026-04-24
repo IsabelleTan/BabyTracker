@@ -14,7 +14,7 @@ async def test_stats_zero_events(client_with_family):
     assert day["feed_count"] == 0
     assert day["total_sleep_min"] == 0
     assert day["sleep_session_count"] == 0
-    assert day["diaper_count"] == 0
+    assert day["output_count"] == 0
     assert day["avg_feed_interval_min"] is None
     assert day["avg_sleep_session_min"] is None
 
@@ -138,7 +138,7 @@ async def test_stats_daily_no_events_returns_zeros(client_with_family):
     assert len(data) == 3
     for day in data:
         assert day["feed_count"] == 0
-        assert day["diaper_count"] == 0
+        assert day["output_count"] == 0
         assert day["total_sleep_min"] == 0
         assert day["avg_feed_interval_min"] is None
 
@@ -171,21 +171,21 @@ async def test_stats_range_returns_null_when_no_events(client_with_family):
 
 
 @pytest.mark.asyncio
-async def test_stats_diaper_count(client_with_family):
-    """Diaper events are counted per day regardless of type."""
+async def test_stats_output_count(client_with_family):
+    """Output events are counted per day regardless of type."""
     client, headers = client_with_family
     for i, dtype in enumerate(["wet", "dirty", "both"]):
         await client.post("/events", json={
-            "id": f"diaper-{i}", "type": "diaper",
+            "id": f"output-{i}", "type": "output",
             "timestamp": f"2024-02-10T{8 + i:02d}:00:00Z",
-            "metadata": {"diaper_type": dtype},
+            "metadata": {"diaper_type": dtype, "location": "diaper"},
         }, headers=headers)
 
     r = await client.get("/stats/daily", params={
         "from": "2024-02-10T05:00:00Z",
         "to":   "2024-02-10T23:59:59Z",
     }, headers=headers)
-    assert r.json()[0]["diaper_count"] == 3
+    assert r.json()[0]["output_count"] == 3
 
 
 @pytest.mark.asyncio
@@ -194,9 +194,9 @@ async def test_stats_wet_dirty_breakdown(client_with_family):
     client, headers = client_with_family
     for i, dtype in enumerate(["wet", "dirty", "both"]):
         await client.post("/events", json={
-            "id": f"wdb-{i}", "type": "diaper",
+            "id": f"wdb-{i}", "type": "output",
             "timestamp": f"2024-03-05T{8 + i:02d}:00:00Z",
-            "metadata": {"diaper_type": dtype},
+            "metadata": {"diaper_type": dtype, "location": "diaper"},
         }, headers=headers)
 
     r = await client.get("/stats/daily", params={

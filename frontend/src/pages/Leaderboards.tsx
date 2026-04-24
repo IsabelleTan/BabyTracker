@@ -1,4 +1,4 @@
-import { Trophy, Sparkles, Crown, Swords, Toilet } from 'lucide-react'
+import { Trophy, Sparkles, Crown, Swords, Toilet, WandSparkles } from 'lucide-react'
 import { type LeaderboardData, type ParentStat } from '@/lib/leaderboards'
 import { useLeaderboardData } from '@/contexts/LeaderboardContext'
 import NightToggle from '@/components/NightToggle'
@@ -101,6 +101,14 @@ function AwardsSection({ data }: { data: LeaderboardData }) {
       getValue: (p) => p.poop_changes,
       formatValue: (n) => `${n} changes`,
       claimedToday: data.poop_award_claimed_today,
+    },
+    {
+      icon: <WandSparkles className="w-5 h-5" />,
+      title: 'Potty Whisperer',
+      subtitle: 'Most potty events logged',
+      getValue: (p) => p.potty_assists,
+      formatValue: (n) => `${n} assists`,
+      claimedToday: data.potty_award_claimed_today,
     },
   ]
 

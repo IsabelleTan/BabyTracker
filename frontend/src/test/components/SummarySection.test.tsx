@@ -55,11 +55,11 @@ describe('SummarySection — today stats', () => {
       // Today: 2 pumped feeds (80ml each = 160ml total) + 2 wet diapers
       makeEvent({ type: 'feed',   timestamp: todayAt(7),  metadata: { feed_type: 'bottle', bottle_type: 'pumped', amount_ml: 80 } }),
       makeEvent({ type: 'feed',   timestamp: todayAt(9),  metadata: { feed_type: 'bottle', bottle_type: 'pumped', amount_ml: 80 } }),
-      makeEvent({ type: 'diaper', timestamp: todayAt(8),  metadata: { diaper_type: 'wet' } }),
-      makeEvent({ type: 'diaper', timestamp: todayAt(9),  metadata: { diaper_type: 'wet' } }),
+      makeEvent({ type: 'output', timestamp: todayAt(8),  metadata: { diaper_type: 'wet' } }),
+      makeEvent({ type: 'output', timestamp: todayAt(9),  metadata: { diaper_type: 'wet' } }),
       // Outside 24h window — must not count
       makeEvent({ type: 'feed',   timestamp: hoursAgo(25), metadata: { feed_type: 'bottle', bottle_type: 'pumped', amount_ml: 999 } }),
-      makeEvent({ type: 'diaper', timestamp: hoursAgo(25), metadata: { diaper_type: 'wet' } }),
+      makeEvent({ type: 'output', timestamp: hoursAgo(25), metadata: { diaper_type: 'wet' } }),
     ]
     render(<SummarySection events={events} />)
     // Pumped total = 160ml today only; wet count = 2
@@ -72,7 +72,7 @@ describe('SummarySection — today stats', () => {
   it('shows zeros when all events are from previous days', async () => {
     const events: BabyEvent[] = [
       makeEvent({ type: 'feed',   timestamp: hoursAgo(49) }),
-      makeEvent({ type: 'diaper', timestamp: hoursAgo(49) }),
+      makeEvent({ type: 'output', timestamp: hoursAgo(49) }),
     ]
     render(<SummarySection events={events} />)
     await waitFor(() => expect(screen.getAllByText('0')).toHaveLength(2))
@@ -176,11 +176,11 @@ describe('computeStats — 24h rolling totals', () => {
 
   it('counts wet and dirty diapers separately; "both" increments each', () => {
     const events = [
-      evt({ type: 'diaper', timestamp: at(-1 * H), metadata: { diaper_type: 'wet' } }),
-      evt({ type: 'diaper', timestamp: at(-2 * H), metadata: { diaper_type: 'dirty' } }),
-      evt({ type: 'diaper', timestamp: at(-3 * H), metadata: { diaper_type: 'both' } }),
+      evt({ type: 'output', timestamp: at(-1 * H), metadata: { diaper_type: 'wet' } }),
+      evt({ type: 'output', timestamp: at(-2 * H), metadata: { diaper_type: 'dirty' } }),
+      evt({ type: 'output', timestamp: at(-3 * H), metadata: { diaper_type: 'both' } }),
       // outside window
-      evt({ type: 'diaper', timestamp: at(-25 * H), metadata: { diaper_type: 'wet' } }),
+      evt({ type: 'output', timestamp: at(-25 * H), metadata: { diaper_type: 'wet' } }),
     ]
     const s = computeStats(events, NOW)
     expect(s.wetCount).toBe(2)   // wet + both
@@ -233,10 +233,10 @@ describe('computeStats — 7-day rolling averages', () => {
     // d=2 (24-48h ago): 3 wet; d=3 (48-72h ago): 1 wet; rest empty.
     // Extend history to 7 windows with a non-diaper event at -145h.
     const events = [
-      evt({ type: 'diaper', timestamp: at(-26 * H), metadata: { diaper_type: 'wet' } }),
-      evt({ type: 'diaper', timestamp: at(-27 * H), metadata: { diaper_type: 'wet' } }),
-      evt({ type: 'diaper', timestamp: at(-28 * H), metadata: { diaper_type: 'wet' } }),
-      evt({ type: 'diaper', timestamp: at(-50 * H), metadata: { diaper_type: 'wet' } }),
+      evt({ type: 'output', timestamp: at(-26 * H), metadata: { diaper_type: 'wet' } }),
+      evt({ type: 'output', timestamp: at(-27 * H), metadata: { diaper_type: 'wet' } }),
+      evt({ type: 'output', timestamp: at(-28 * H), metadata: { diaper_type: 'wet' } }),
+      evt({ type: 'output', timestamp: at(-50 * H), metadata: { diaper_type: 'wet' } }),
       evt({ type: 'feed',   timestamp: at(-145 * H), metadata: { feed_type: 'bottle', amount_ml: 0 } }),
     ]
     const s = computeStats(events, NOW)

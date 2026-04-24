@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { buildNotifications, type LeaderboardData, type ParentStat } from '@/lib/leaderboards'
 
-const PARENT_A: ParentStat = { display_name: 'Alice', night_shifts: 10, total_logs: 20, poop_changes: 5 }
-const PARENT_B: ParentStat = { display_name: 'Bob', night_shifts: 3, total_logs: 8, poop_changes: 2 }
+const PARENT_A: ParentStat = { display_name: 'Alice', night_shifts: 10, total_logs: 20, poop_changes: 5, potty_assists: 8 }
+const PARENT_B: ParentStat = { display_name: 'Bob', night_shifts: 3, total_logs: 8, poop_changes: 2, potty_assists: 3 }
 
 function makeData(overrides: Partial<LeaderboardData> = {}): LeaderboardData {
   return {
@@ -24,6 +24,7 @@ function makeData(overrides: Partial<LeaderboardData> = {}): LeaderboardData {
     night_shift_claimed_today: false,
     chief_log_claimed_today: false,
     poop_award_claimed_today: false,
+    potty_award_claimed_today: false,
     parents: [PARENT_A, PARENT_B],
     ...overrides,
   }
@@ -131,6 +132,15 @@ describe('buildNotifications', () => {
     const first = buildNotifications(data)[0]
     const second = buildNotifications(data)[0]
     expect(first).toBe(second)
+  })
+
+  it('includes winner and loser names when potty award is claimed', () => {
+    const msgs = buildNotifications(makeData({ potty_award_claimed_today: true }))
+    expect(msgs).toHaveLength(1)
+    expect(msgs[0]).toContain('Alice')
+    expect(msgs[0]).toContain('Bob')
+    expect(msgs[0]).toContain('8')
+    expect(msgs[0]).toContain('3')
   })
 
   it('does not include award message when parents list has fewer than 2 entries', () => {

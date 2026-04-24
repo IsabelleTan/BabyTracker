@@ -186,10 +186,10 @@ def sleep_end_at(ts: datetime, uid_tag: str) -> dict:
 
 def diaper_at(ts: datetime, diaper_type: str, uid_tag: str) -> dict:
     return {
-        "id": deterministic_id("diaper", iso(ts), uid_tag),
-        "type": "diaper",
+        "id": deterministic_id("output", iso(ts), uid_tag),
+        "type": "output",
         "timestamp": iso(ts),
-        "metadata": {"diaper_type": diaper_type},
+        "metadata": {"diaper_type": diaper_type, "location": "diaper"},
     }
 
 
@@ -228,10 +228,10 @@ def sleep_end(day_str: str, hour: int, minute: int, user_tag: str) -> dict:
 def diaper(day_str: str, hour: int, minute: int, diaper_type: str, user_tag: str) -> dict:
     ts = utc(*[int(x) for x in day_str.split("-")], hour, minute)
     return {
-        "id": deterministic_id("diaper", day_str, str(hour), str(minute), user_tag),
-        "type": "diaper",
+        "id": deterministic_id("output", day_str, str(hour), str(minute), user_tag),
+        "type": "output",
         "timestamp": iso(ts),
-        "metadata": {"diaper_type": diaper_type},
+        "metadata": {"diaper_type": diaper_type, "location": "diaper"},
     }
 
 

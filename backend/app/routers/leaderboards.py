@@ -22,6 +22,7 @@ class ParentStat(BaseModel):
     night_shifts: int
     total_logs: int
     poop_changes: int
+    potty_assists: int
 
 
 class LeaderboardData(BaseModel):
@@ -43,11 +44,12 @@ class LeaderboardData(BaseModel):
     night_shift_claimed_today: bool
     chief_log_claimed_today: bool
     poop_award_claimed_today: bool
+    potty_award_claimed_today: bool
     parents: list[ParentStat]
 
 
 def _compute_parent_stats(evts: list, users: dict[str, str]) -> dict[str, dict]:
-    s = {uid: {"night_shifts": 0, "total_logs": 0, "poop_changes": 0} for uid in users}
+    s = {uid: {"night_shifts": 0, "total_logs": 0, "poop_changes": 0, "potty_assists": 0} for uid in users}
     for e in evts:
         uid = e.logged_by
         if uid not in s:
@@ -56,10 +58,12 @@ def _compute_parent_stats(evts: list, users: dict[str, str]) -> dict[str, dict]:
         s[uid]["total_logs"] += 1
         if ts.hour >= NIGHT_SHIFT_START or ts.hour < NIGHT_SHIFT_END:
             s[uid]["night_shifts"] += 1
-        if e.type == "diaper":
+        if e.type == "output":
             meta = e.metadata_ or {}
-            if meta.get("diaper_type") in ("dirty", "both"):
+            if meta.get("diaper_type") in ("dirty", "both") and meta.get("location", "diaper") == "diaper":
                 s[uid]["poop_changes"] += 1
+            if meta.get("location") == "potty":
+                s[uid]["potty_assists"] += 1
     return s
 
 
@@ -166,9 +170,9 @@ async def get_leaderboards(
     # ── Poop diapers per day ──────────────────────────────────────────────────
     poop_by_day: dict[str, int] = defaultdict(int)
     for e in events:
-        if e.type == "diaper":
+        if e.type == "output":
             meta = e.metadata_ or {}
-            if meta.get("diaper_type") in ("dirty", "both"):
+            if meta.get("diaper_type") in ("dirty", "both") and meta.get("location", "diaper") == "diaper":
                 poop_by_day[parenting_day(e.timestamp, tz_offset)] += 1
 
     most_poop_count: int | None = None
@@ -198,6 +202,7 @@ async def get_leaderboards(
     night_shift_claimed_today = award_claimed("night_shifts")
     chief_log_claimed_today = award_claimed("total_logs")
     poop_award_claimed_today = award_claimed("poop_changes")
+    potty_award_claimed_today = award_claimed("potty_assists")
 
     # ── Parent stats for display ──────────────────────────────────────────────
     parents = [
@@ -206,6 +211,7 @@ async def get_leaderboards(
             night_shifts=v["night_shifts"],
             total_logs=v["total_logs"],
             poop_changes=v["poop_changes"],
+            potty_assists=v["potty_assists"],
         )
         for uid, v in curr_stats.items()
         if uid in users
@@ -230,5 +236,6 @@ async def get_leaderboards(
         night_shift_claimed_today=night_shift_claimed_today,
         chief_log_claimed_today=chief_log_claimed_today,
         poop_award_claimed_today=poop_award_claimed_today,
+        potty_award_claimed_today=potty_award_claimed_today,
         parents=parents,
     )

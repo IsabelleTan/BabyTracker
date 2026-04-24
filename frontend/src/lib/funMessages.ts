@@ -74,6 +74,12 @@ const BABY_VOICE_MESSAGES: Record<BabyVoiceContext, string[]> = {
     "Everything according to plan.",
     "Good day overall.",
   ],
+  potty_first: [
+    "I used the big toilet today. I'm basically an adult.",
+  ],
+  potty_streak: [
+    "Diapers are so last month.",
+  ],
 }
 
 const MILESTONE_MESSAGES: Record<MilestoneKey, string> = {
@@ -97,11 +103,17 @@ const MILESTONE_MESSAGES: Record<MilestoneKey, string> = {
   // Consistency
   logging_days_7:    "7 days of logging. You're building something genuinely useful.",
   logging_days_30:   "30 days of logging. A month in. You're really doing this.",
+  // Potty training
+  potty_first:       "First potty trip ever logged. 1 potty event today. Big steps for small feet.",
+  potty_first_poo:   "First poo on the potty — that takes some convincing. 1 potty poo event. Well done.",
+  potty_10:          "10 total potty trips logged. The data says potty training is actually working.",
+  potty_big_kid_day: "First day where potty trips matched diaper changes. Progress is real.",
+  potty_fully_trained: "First fully potty day — zero diaper outputs, all pee/poo on the potty. That's huge.",
 }
 
 // ── types ─────────────────────────────────────────────────────────────────────
 
-export type BabyVoiceContext = 'many_feeds' | 'long_nap' | 'cluster' | 'chaotic' | 'quiet' | 'normal'
+export type BabyVoiceContext = 'many_feeds' | 'long_nap' | 'cluster' | 'chaotic' | 'quiet' | 'normal' | 'potty_first' | 'potty_streak'
 
 export type PartnerContext = 'both' | 'solo' | 'night_shift' | 'poop_duty'
 
@@ -113,6 +125,7 @@ export type MilestoneKey =
   | 'night_survived' | 'cluster_first'
   | 'both_partners_first'
   | 'logging_days_7' | 'logging_days_30'
+  | 'potty_first' | 'potty_first_poo' | 'potty_10' | 'potty_big_kid_day' | 'potty_fully_trained'
 
 export interface PartnerMessageResult {
   context: PartnerContext
@@ -130,6 +143,15 @@ export function isNightHours(): boolean {
 // ── baby voice context detection ──────────────────────────────────────────────
 
 export function getBabyVoiceContext(events: BabyEvent[]): BabyVoiceContext {
+  // Potty streak message: shown when ≥2 consecutive days with potty events
+  if (getPottyStreak() >= 2) return 'potty_streak'
+
+  // First potty ever: shown on the day it happens, before the milestone is dismissed
+  const hasPottyToday = events.some(
+    (e) => e.type === 'output' && (e.metadata as Record<string, unknown> | null)?.location === 'potty',
+  )
+  if (hasPottyToday && localStorage.getItem('milestone_potty_first') !== 'true') return 'potty_first'
+
   const feeds = events.filter((e) => e.type === 'feed')
 
   // Evening cluster: ≥2 consecutive feed gaps < 45 min between 17:00–23:00
@@ -171,7 +193,7 @@ export function getBabyVoiceContext(events: BabyEvent[]): BabyVoiceContext {
 export function getPartnerContext(events: BabyEvent[], currentUserId: string): PartnerContext {
   // Poop duty: OTHER user logged ≥ 3 dirty/both diapers
   const otherPoopCount = events.filter(
-    (e) => e.type === 'diaper' && e.logged_by !== currentUserId &&
+    (e) => e.type === 'output' && e.logged_by !== currentUserId &&
       (e.metadata?.diaper_type === 'dirty' || e.metadata?.diaper_type === 'both'),
   ).length
   if (otherPoopCount >= 3) return 'poop_duty'
@@ -220,6 +242,67 @@ export function recordPartnerMessageShown(): void {
 }
 
 // ── milestone detection ───────────────────────────────────────────────────────
+
+// ── potty streak ──────────────────────────────────────────────────────────────
+
+/** Returns the current potty streak (consecutive parenting days with ≥1 potty event). */
+export function getPottyStreak(): number {
+  return parseInt(localStorage.getItem('potty_streak_count') ?? '0', 10)
+}
+
+/**
+ * Updates the potty streak based on today's events.
+ * Call once per sync. Returns the updated streak count.
+ */
+export function updatePottyStreak(events: BabyEvent[]): number {
+  const STREAK_KEY = 'potty_streak_count'
+  const LAST_KEY = 'potty_streak_last_day'
+  const today = todayDate()
+
+  const hasPottyToday = events.some(
+    (e) => e.type === 'output' &&
+      (e.metadata as Record<string, unknown> | null)?.location === 'potty',
+  )
+
+  if (!hasPottyToday) return getPottyStreak()
+
+  const lastDay = localStorage.getItem(LAST_KEY)
+  if (lastDay === today) return getPottyStreak()
+
+  const current = parseInt(localStorage.getItem(STREAK_KEY) ?? '0', 10)
+  let newStreak: number
+  if (lastDay) {
+    const daysDiff = Math.floor((parseLocalDate(today) - parseLocalDate(lastDay)) / 86_400_000)
+    newStreak = daysDiff === 1 ? current + 1 : 1
+  } else {
+    newStreak = 1
+  }
+
+  localStorage.setItem(STREAK_KEY, String(newStreak))
+  localStorage.setItem(LAST_KEY, today)
+  return newStreak
+}
+
+// ── potty count ───────────────────────────────────────────────────────────────
+
+/** Increment the cumulative potty-event counter, once per parenting day. */
+export function trackPottyCount(events: BabyEvent[]): void {
+  const TOTAL_KEY = 'potty_total_count'
+  const LAST_KEY = 'potty_count_last_day'
+  const today = todayDate()
+  if (localStorage.getItem(LAST_KEY) === today) return
+  const count = events.filter(
+    (e) => e.type === 'output' &&
+      (e.metadata as Record<string, unknown> | null)?.location === 'potty',
+  ).length
+  const current = parseInt(localStorage.getItem(TOTAL_KEY) ?? '0', 10)
+  localStorage.setItem(TOTAL_KEY, String(current + count))
+  localStorage.setItem(LAST_KEY, today)
+}
+
+function totalPottyCount(): number {
+  return parseInt(localStorage.getItem('potty_total_count') ?? '0', 10)
+}
 
 /** Increment the total-days-logged counter, once per calendar day. */
 export function trackDailyLogging(): void {
@@ -279,13 +362,13 @@ export function getNewMilestone(events: BabyEvent[]): MilestoneKey | null {
   else if (feedCount >= 8 && unseen('feeds_8')) candidates.push('feeds_8')
 
   // ── diapers ────────────────────────────────────────────────────────────────
-  if (events.filter((e) => e.type === 'diaper').length >= 8 && unseen('diaper_8'))
+  if (events.filter((e) => e.type === 'output').length >= 8 && unseen('diaper_8'))
     candidates.push('diaper_8')
 
   // ── variety ────────────────────────────────────────────────────────────────
   const types = new Set(events.map((e) => e.type))
   if (
-    types.has('feed') && types.has('sleep_start') && types.has('diaper') &&
+    types.has('feed') && types.has('sleep_start') && types.has('output') &&
     unseen('all_event_types')
   ) candidates.push('all_event_types')
 
@@ -317,6 +400,34 @@ export function getNewMilestone(events: BabyEvent[]): MilestoneKey | null {
   const days = totalDaysLogged()
   if (days >= 30 && unseen('logging_days_30'))     candidates.push('logging_days_30')
   else if (days >= 7 && unseen('logging_days_7'))  candidates.push('logging_days_7')
+
+  // ── potty training ─────────────────────────────────────────────────────────
+  const pottyEvents = events.filter(
+    (e) => e.type === 'output' &&
+      (e.metadata as Record<string, unknown> | null)?.location === 'potty',
+  )
+  const diaperEvents = events.filter(
+    (e) => e.type === 'output' &&
+      ((e.metadata as Record<string, unknown> | null)?.location ?? 'diaper') === 'diaper',
+  )
+
+  if (pottyEvents.length >= 1 && unseen('potty_first')) candidates.push('potty_first')
+
+  const hasPottyPoo = pottyEvents.some((e) => {
+    const t = (e.metadata as Record<string, unknown> | null)?.diaper_type
+    return t === 'dirty' || t === 'both'
+  })
+  if (hasPottyPoo && unseen('potty_first_poo')) candidates.push('potty_first_poo')
+
+  if (totalPottyCount() >= 10 && unseen('potty_10')) candidates.push('potty_10')
+
+  if (
+    pottyEvents.length > 0 && diaperEvents.length > 0 &&
+    pottyEvents.length >= diaperEvents.length && unseen('potty_big_kid_day')
+  ) candidates.push('potty_big_kid_day')
+
+  if (pottyEvents.length > 0 && diaperEvents.length === 0 && unseen('potty_fully_trained'))
+    candidates.push('potty_fully_trained')
 
   return candidates[0] ?? null
 }

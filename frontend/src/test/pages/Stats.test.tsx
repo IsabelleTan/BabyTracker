@@ -30,7 +30,11 @@ vi.mock('@/lib/stats', () => ({
       sleep_session_count: 3,
       avg_sleep_session_min: 160,
       avg_wake_min: 60,
-      diaper_count: 5,
+      output_count: 5,
+      wet_count: 3,
+      dirty_count: 2,
+      potty_wet_count: 0,
+      potty_dirty_count: 0,
     },
   ]),
   getEarliestEventDate: vi.fn().mockResolvedValue(new Date('2024-01-01T00:00:00Z')),
@@ -56,7 +60,7 @@ describe('Stats page', () => {
     await waitFor(() => expect(screen.queryByText('Loading…')).not.toBeInTheDocument())
     expect(screen.getByText('Sleep')).toBeInTheDocument()
     expect(screen.getByText('Feeding')).toBeInTheDocument()
-    expect(screen.getByText('Diapers')).toBeInTheDocument()
+    expect(screen.getByText('Output')).toBeInTheDocument()
   })
 
   it('shows error message when fetch fails', async () => {

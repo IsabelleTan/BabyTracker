@@ -106,13 +106,13 @@ def scenario_most_feeds() -> list[dict]:
 def scenario_most_poop() -> list[dict]:
     """History: 2 poop diapers (8 days ago). Today: 3 poop diapers → new record."""
     history = [
-        _ev("diaper", _t(8, 10), meta={"diaper_type": "dirty"}),
-        _ev("diaper", _t(8, 16), meta={"diaper_type": "dirty"}),
+        _ev("output", _t(8, 10), meta={"diaper_type": "dirty", "location": "diaper"}),
+        _ev("output", _t(8, 16), meta={"diaper_type": "dirty", "location": "diaper"}),
     ]
     today = [
-        _ev("diaper", _t(0, 9),  meta={"diaper_type": "dirty"}),
-        _ev("diaper", _t(0, 13), meta={"diaper_type": "dirty"}),
-        _ev("diaper", _t(0, 17), meta={"diaper_type": "dirty"}),
+        _ev("output", _t(0, 9),  meta={"diaper_type": "dirty", "location": "diaper"}),
+        _ev("output", _t(0, 13), meta={"diaper_type": "dirty", "location": "diaper"}),
+        _ev("output", _t(0, 17), meta={"diaper_type": "dirty", "location": "diaper"}),
     ]
     return history + today
 
@@ -148,9 +148,9 @@ def scenario_chief_log() -> list[dict]:
     history = [
         _ev("feed",   _t(8, 8),  P1),
         _ev("feed",   _t(8, 12), P1),
-        _ev("diaper", _t(8, 10), P1),
+        _ev("output", _t(8, 10), P1),
         _ev("feed",   _t(8, 14), P2),
-        _ev("diaper", _t(8, 16), P2),
+        _ev("output", _t(8, 16), P2),
     ]
     today = [
         _ev("feed", _t(0, 9),  P2),
@@ -166,11 +166,11 @@ def scenario_poop_champ() -> list[dict]:
     Today:   P2 changes 2 poop diapers → P2: 2 > P1: 1. Title claimed.
     """
     history = [
-        _ev("diaper", _t(8, 10), P1, {"diaper_type": "dirty"}),
+        _ev("output", _t(8, 10), P1, {"diaper_type": "dirty", "location": "diaper"}),
     ]
     today = [
-        _ev("diaper", _t(0, 9),  P2, {"diaper_type": "dirty"}),
-        _ev("diaper", _t(0, 14), P2, {"diaper_type": "dirty"}),
+        _ev("output", _t(0, 9),  P2, {"diaper_type": "dirty", "location": "diaper"}),
+        _ev("output", _t(0, 14), P2, {"diaper_type": "dirty", "location": "diaper"}),
     ]
     return history + today
 
@@ -277,7 +277,7 @@ def scenario_realistic() -> list[dict]:
         for _ in range(num_diapers(age_days)):
             t = day_base + timedelta(hours=_rng(6, 22))
             dt = random.choices(["wet", "dirty", "both"], [0.55, 0.25, 0.20])[0]
-            add("diaper", t, {"diaper_type": dt})
+            add("output", t, {"diaper_type": dt, "location": "diaper"})
 
         return evts
 

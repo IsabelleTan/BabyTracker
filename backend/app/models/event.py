@@ -10,7 +10,7 @@ class EventType(str, enum.Enum):
     feed = "feed"
     sleep_start = "sleep_start"
     sleep_end = "sleep_end"
-    diaper = "diaper"
+    output = "output"
 
 
 class Event(Base):
