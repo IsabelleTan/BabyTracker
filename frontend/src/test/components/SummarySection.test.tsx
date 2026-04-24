@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
-import SummarySection from '@/components/home/SummarySection'
+import SummarySection, { computeStats } from '@/components/home/SummarySection'
 import { type BabyEvent } from '@/lib/events'
 
 vi.mock('@/contexts/LeaderboardContext', () => ({
@@ -108,6 +108,129 @@ describe('SummarySection — today stats', () => {
     await waitFor(() => {
       expect(screen.getAllByText(/^\d+h( \d+m)?$|^\d+m$/).length).toBeGreaterThanOrEqual(1)
     })
+  })
+})
+
+// ─── computeStats unit tests ─────────────────────────────────────────────────
+// All tests pass `now` explicitly so they don't depend on wall-clock time.
+// NOW = June 20 2024 10:00am. The 24h window is June 19 10am → June 20 10am.
+// Previous 7 windows each cover 24h ending N×24h before NOW.
+
+const NOW = new Date(2024, 5, 20, 10, 0, 0)
+
+function at(offsetMs: number): string {
+  return new Date(NOW.getTime() + offsetMs).toISOString()
+}
+const H = 3_600_000 // 1 hour in ms
+
+function evt(overrides: Partial<BabyEvent> & { timestamp: string }): BabyEvent {
+  return {
+    id: Math.random().toString(36).slice(2),
+    type: 'feed',
+    logged_by: 'u1',
+    display_name: 'Parent 1',
+    metadata: null,
+    ...overrides,
+  }
+}
+
+describe('computeStats — 24h rolling totals', () => {
+  it('sums bottle ml within the window and ignores events outside', () => {
+    const events = [
+      evt({ type: 'feed', timestamp: at(-1 * H), metadata: { feed_type: 'bottle', amount_ml: 100 } }),
+      evt({ type: 'feed', timestamp: at(-23 * H), metadata: { feed_type: 'bottle', amount_ml: 50 } }),
+      // exactly 25h ago — outside window
+      evt({ type: 'feed', timestamp: at(-25 * H), metadata: { feed_type: 'bottle', amount_ml: 999 } }),
+    ]
+    const s = computeStats(events, NOW)
+    expect(s.bottleMlTotal).toBe(150)
+  })
+
+  it('sums breast minutes (left + right) within the window', () => {
+    const events = [
+      evt({ type: 'feed', timestamp: at(-2 * H), metadata: { feed_type: 'breast', left_duration_min: 8, right_duration_min: 5 } }),
+      evt({ type: 'feed', timestamp: at(-5 * H), metadata: { feed_type: 'breast', left_duration_min: 10, right_duration_min: null } }),
+    ]
+    const s = computeStats(events, NOW)
+    expect(s.breastMinTotal).toBe(23)
+  })
+
+  it('counts wet and dirty diapers separately; "both" increments each', () => {
+    const events = [
+      evt({ type: 'diaper', timestamp: at(-1 * H), metadata: { diaper_type: 'wet' } }),
+      evt({ type: 'diaper', timestamp: at(-2 * H), metadata: { diaper_type: 'dirty' } }),
+      evt({ type: 'diaper', timestamp: at(-3 * H), metadata: { diaper_type: 'both' } }),
+      // outside window
+      evt({ type: 'diaper', timestamp: at(-25 * H), metadata: { diaper_type: 'wet' } }),
+    ]
+    const s = computeStats(events, NOW)
+    expect(s.wetCount).toBe(2)   // wet + both
+    expect(s.dirtyCount).toBe(2) // dirty + both
+  })
+
+  it('measures completed sleep block duration', () => {
+    const events = [
+      evt({ type: 'sleep_start', timestamp: at(-4 * H) }),
+      evt({ type: 'sleep_end',   timestamp: at(-2 * H) }),
+    ]
+    const s = computeStats(events, NOW)
+    expect(s.totalSleepMs).toBe(2 * H)
+  })
+
+  it('caps ongoing sleep at now', () => {
+    const events = [
+      evt({ type: 'sleep_start', timestamp: at(-3 * H) }),
+    ]
+    const s = computeStats(events, NOW)
+    expect(s.totalSleepMs).toBe(3 * H)
+  })
+})
+
+describe('computeStats — 7-day rolling averages', () => {
+  it('averages bottle ml over 7 windows including the current 24h window', () => {
+    // d=1 is now-24h→now; d=7 is now-168h→now-144h.
+    // Place one 70ml event in each window: at -1h, -25h, -49h, …, -145h.
+    const events = Array.from({ length: 7 }, (_, i) =>
+      evt({ type: 'feed', timestamp: at(-(1 + i * 24) * H), metadata: { feed_type: 'bottle', amount_ml: 70 } }),
+    )
+    const s = computeStats(events, NOW)
+    expect(s.avgBottleMl).toBe(70)
+  })
+
+  it('averages wet diaper count over 7 windows', () => {
+    // d=2 (24-48h ago): 3 wet; d=3 (48-72h ago): 1 wet; rest empty.
+    // Extend history to 7 windows with a non-diaper event at -145h.
+    const events = [
+      evt({ type: 'diaper', timestamp: at(-26 * H), metadata: { diaper_type: 'wet' } }),
+      evt({ type: 'diaper', timestamp: at(-27 * H), metadata: { diaper_type: 'wet' } }),
+      evt({ type: 'diaper', timestamp: at(-28 * H), metadata: { diaper_type: 'wet' } }),
+      evt({ type: 'diaper', timestamp: at(-50 * H), metadata: { diaper_type: 'wet' } }),
+      evt({ type: 'feed',   timestamp: at(-145 * H), metadata: { feed_type: 'bottle', amount_ml: 0 } }),
+    ]
+    const s = computeStats(events, NOW)
+    // d1:0 d2:3 d3:1 d4:0 d5:0 d6:0 d7:0 → 4/7
+    expect(s.avgWet).toBeCloseTo(4 / 7)
+  })
+
+  it('averages over fewer windows when history is shorter than 7 days', () => {
+    // Only 2 days of history: one event 26h ago (window 1) and one 50h ago (window 2)
+    const events = [
+      evt({ type: 'feed', timestamp: at(-26 * H), metadata: { feed_type: 'bottle', amount_ml: 100 } }),
+      evt({ type: 'feed', timestamp: at(-50 * H), metadata: { feed_type: 'bottle', amount_ml: 200 } }),
+    ]
+    const s = computeStats(events, NOW)
+    // oldest event is 50h ago → ceil(50/24) = 3 windows used, window 3 has 200ml
+    // window 1: 100, window 2: 0, window 3: 200 → avg = 300/3 = 100
+    expect(s.avgBottleMl).toBe(100)
+  })
+
+  it('returns zero averages when there are no historical events', () => {
+    const s = computeStats([], NOW)
+    expect(s.avgBottleMl).toBe(0)
+    expect(s.avgBreastMin).toBe(0)
+    expect(s.avgWet).toBe(0)
+    expect(s.avgDirty).toBe(0)
+    expect(s.avgSleepMs).toBe(0)
   })
 })
 

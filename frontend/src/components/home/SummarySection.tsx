@@ -57,7 +57,7 @@ export default function SummarySection({ events }: Props) {
       <div className="rounded-xl border border-primary/35 bg-surface p-4 flex flex-col gap-3">
         <div className="flex flex-col gap-3">
           {/* Feed section */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Feed</span>
             <StatBar
               icon={Venus}
@@ -80,7 +80,7 @@ export default function SummarySection({ events }: Props) {
           </div>
 
           {/* Diaper section */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Diaper</span>
             <StatBar
               icon={Droplet}
@@ -103,7 +103,7 @@ export default function SummarySection({ events }: Props) {
           </div>
 
           {/* Sleep section */}
-          <div className="flex flex-col gap-2">
+          <div className="flex flex-col gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Sleep</span>
             <StatBar
               icon={Moon}
@@ -177,7 +177,7 @@ function StatBar({
           >
             {avgStr && (
               <span
-                className="absolute bottom-full mb-0.5 left-1/2 -translate-x-1/2 text-[9px] leading-none text-primary/70 whitespace-nowrap"
+                className="absolute bottom-full mb-0.5 left-1/2 -translate-x-1/2 text-[10px] leading-none text-primary/70 whitespace-nowrap"
               >
                 {avgStr}
               </span>
@@ -214,8 +214,7 @@ function diaperType(e: BabyEvent): string | undefined {
   return (e.metadata as { diaper_type?: string } | null)?.diaper_type
 }
 
-function computeStats(events: BabyEvent[]) {
-  const now = new Date()
+export function computeStats(events: BabyEvent[], now = new Date()) {
   const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000) // rolling 24-hour window
 
   const todayEvents = events.filter((e) => new Date(e.timestamp) >= windowStart)
