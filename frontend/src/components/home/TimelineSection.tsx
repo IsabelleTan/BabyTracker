@@ -302,10 +302,8 @@ export default function TimelineSection({ events, onEditEvent }: Props) {
           {sleepSegments.map((seg, i) => {
             const { topY, height, orphanTop, orphanBottom, isConflict } = seg
             let background: string
-            if (isConflict) {
+            if (isConflict || orphanTop) {
               background = SLEEP_DASHED
-            } else if (orphanTop) {
-              background = SLEEP_FADE_TOP
             } else if (orphanBottom) {
               background = SLEEP_FADE_BOTTOM
             } else {
