@@ -153,6 +153,63 @@ describe('EventSheet — sleep', () => {
   })
 })
 
+describe('EventSheet — edit mode', () => {
+  const onSave = vi.fn()
+  const onDismiss = vi.fn()
+  const onDelete = vi.fn()
+
+  beforeEach(() => vi.clearAllMocks())
+
+  it('shows Delete and Save buttons when onDelete is provided', () => {
+    const event: import('@/lib/events').BabyEvent = {
+      id: 'e1', type: 'feed', timestamp: new Date().toISOString(),
+      logged_by: 'u1', display_name: 'P1',
+      metadata: { feed_type: 'breast', left_duration_min: 5, right_duration_min: 3 },
+    }
+    render(<EventSheet type="feed" initialEvent={event} onSave={onSave} onDelete={onDelete} onDismiss={onDismiss} />)
+    expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Delete' })).toBeInTheDocument()
+  })
+
+  it('calls onDelete when Delete button is clicked', () => {
+    const event: import('@/lib/events').BabyEvent = {
+      id: 'e1', type: 'output', timestamp: new Date().toISOString(),
+      logged_by: 'u1', display_name: 'P1',
+      metadata: { diaper_type: 'wet', location: 'diaper' },
+    }
+    render(<EventSheet type="output" initialEvent={event} onSave={onSave} onDelete={onDelete} onDismiss={onDismiss} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Delete' }))
+    expect(onDelete).toHaveBeenCalledOnce()
+    expect(onSave).not.toHaveBeenCalled()
+  })
+
+  it('pre-fills breast durations from initialEvent', () => {
+    const event: import('@/lib/events').BabyEvent = {
+      id: 'e1', type: 'feed', timestamp: new Date().toISOString(),
+      logged_by: 'u1', display_name: 'P1',
+      metadata: { feed_type: 'breast', left_duration_min: 12, right_duration_min: 7 },
+    }
+    render(<EventSheet type="feed" initialEvent={event} onSave={onSave} onDelete={onDelete} onDismiss={onDismiss} />)
+    expect((screen.getByLabelText('Left (min)') as HTMLInputElement).value).toBe('12')
+    expect((screen.getByLabelText('Right (min)') as HTMLInputElement).value).toBe('7')
+  })
+
+  it('pre-fills bottle amount from initialEvent', () => {
+    const event: import('@/lib/events').BabyEvent = {
+      id: 'e2', type: 'feed', timestamp: new Date().toISOString(),
+      logged_by: 'u1', display_name: 'P1',
+      metadata: { feed_type: 'bottle', bottle_type: 'formula', amount_ml: 120 },
+    }
+    render(<EventSheet type="feed" initialEvent={event} onSave={onSave} onDelete={onDelete} onDismiss={onDismiss} />)
+    expect((screen.getByLabelText('Amount (ml)') as HTMLInputElement).value).toBe('120')
+  })
+
+  it('does not show Delete button without onDelete prop', () => {
+    render(<EventSheet type="feed" onSave={onSave} onDismiss={onDismiss} />)
+    expect(screen.queryByRole('button', { name: 'Delete' })).not.toBeInTheDocument()
+  })
+})
+
 describe('EventSheet — dismiss and closed state', () => {
   it('accepts an onDismiss prop', () => {
     // Dismissal is via tap-outside on the Drawer — not testable in JSDOM.

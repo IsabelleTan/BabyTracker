@@ -6,12 +6,16 @@ import {
   DrawerTitle,
   DrawerFooter,
 } from '@/components/ui/drawer'
-import { Droplet, Droplets, CirclePile, Milk, CircleDot, Cylinder, Baby, Toilet } from 'lucide-react'
-import { fromDateTimeLocal, type EventType } from '@/lib/events'
+import { Droplet, Droplets, CirclePile, Milk, CircleDot, Cylinder, Baby, Toilet, Trash2 } from 'lucide-react'
+import { fromDateTimeLocal, type EventType, type BabyEvent } from '@/lib/events'
 
 interface EventSheetProps {
   type: EventType | null
+  /** When set, the form is pre-filled with this event's data (edit mode). */
+  initialEvent?: BabyEvent | null
   onSave: (timestamp: string, metadata: Record<string, unknown> | null) => void
+  /** When provided a Delete button is shown (edit mode only). */
+  onDelete?: () => void
   onDismiss: () => void
 }
 
@@ -304,7 +308,7 @@ function formatTimer(ms: number): string {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps) {
+export default function EventSheet({ type, initialEvent, onSave, onDelete, onDismiss }: EventSheetProps) {
   const [selDay,    setSelDay]    = useState(0)
   const [selMonth,  setSelMonth]  = useState(0)
   const [selYear,   setSelYear]   = useState(1)   // 1 = current year
@@ -343,30 +347,70 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
     if (selDay >= days.length) setSelDay(days.length - 1)
   }, [days.length])
 
-  // Reset form when a new event type is opened
+  // Reset / pre-fill form when the sheet opens or the target event changes
   useEffect(() => {
     if (type) {
-      const now = new Date()
-      setSelDay(now.getDate() - 1)
-      setSelMonth(now.getMonth())
-      setSelYear(1)
-      setSelHour(now.getHours())
-      setSelMinute(now.getMinutes())
-      setFeedType('breast')
-      setLeftMin('')
-      setRightMin('')
-      setAmountMl('')
-      setDiaperType('wet')
-      setOutputLocation('diaper')
-      // Reset timers
+      // Reset timers unconditionally
       if (leftIntervalRef.current)  { clearInterval(leftIntervalRef.current);  leftIntervalRef.current  = null }
       if (rightIntervalRef.current) { clearInterval(rightIntervalRef.current); rightIntervalRef.current = null }
       setLeftRunning(false)
       setRightRunning(false)
       setLeftElapsedMs(0)
       setRightElapsedMs(0)
+
+      if (initialEvent) {
+        // Edit mode — pre-fill from the existing event
+        const d = new Date(initialEvent.timestamp)
+        const yearIdx = YEARS.indexOf(String(d.getFullYear()))
+        setSelDay(d.getDate() - 1)
+        setSelMonth(d.getMonth())
+        setSelYear(yearIdx !== -1 ? yearIdx : 1)
+        setSelHour(d.getHours())
+        setSelMinute(d.getMinutes())
+
+        const m = initialEvent.metadata
+        if (initialEvent.type === 'feed' && m) {
+          const ft = m.feed_type as string
+          if (ft === 'breast') {
+            setFeedType('breast')
+            setLeftMin(m.left_duration_min  != null ? String(m.left_duration_min)  : '')
+            setRightMin(m.right_duration_min != null ? String(m.right_duration_min) : '')
+            setAmountMl('')
+          } else if (ft === 'bottle') {
+            setFeedType(m.bottle_type === 'formula' ? 'formula' : 'pumped')
+            setAmountMl(m.amount_ml != null ? String(m.amount_ml) : '')
+            setLeftMin('')
+            setRightMin('')
+          }
+        } else if (initialEvent.type === 'output' && m) {
+          setDiaperType((m.diaper_type as 'wet' | 'dirty' | 'both') ?? 'wet')
+          setOutputLocation((m.location as 'diaper' | 'potty') ?? 'diaper')
+        } else {
+          // sleep_start / sleep_end — no metadata
+          setFeedType('breast')
+          setLeftMin('')
+          setRightMin('')
+          setAmountMl('')
+          setDiaperType('wet')
+          setOutputLocation('diaper')
+        }
+      } else {
+        // Create mode — reset to now
+        const now = new Date()
+        setSelDay(now.getDate() - 1)
+        setSelMonth(now.getMonth())
+        setSelYear(1)
+        setSelHour(now.getHours())
+        setSelMinute(now.getMinutes())
+        setFeedType('breast')
+        setLeftMin('')
+        setRightMin('')
+        setAmountMl('')
+        setDiaperType('wet')
+        setOutputLocation('diaper')
+      }
     }
-  }, [type])
+  }, [type, initialEvent?.id])
 
   function resetToNow() {
     const now = new Date()
@@ -491,7 +535,7 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
                 </p>
               )
             }
-            if (diffMs < -3 * 60 * 60 * 1000) {
+            if (!initialEvent && diffMs < -3 * 60 * 60 * 1000) {
               return (
                 <p className="text-sm text-amber-500">
                   Selected time is more than 3 hours ago, is it correct?
@@ -632,12 +676,30 @@ export default function EventSheet({ type, onSave, onDismiss }: EventSheetProps)
         </div>
 
         <DrawerFooter className="pt-2" data-vaul-no-drag>
-          <button
-            onClick={handleSave}
-            className="w-full h-11 rounded-md bg-primary text-primary-foreground font-medium text-sm"
-          >
-            Save
-          </button>
+          {onDelete ? (
+            <div className="flex gap-2">
+              <button
+                onClick={onDelete}
+                className="flex-1 h-11 rounded-md border border-input bg-card text-foreground font-medium text-sm flex items-center justify-center gap-2"
+              >
+                <Trash2 className="w-4 h-4 text-destructive" />
+                Delete
+              </button>
+              <button
+                onClick={handleSave}
+                className="flex-1 h-11 rounded-md bg-primary text-primary-foreground font-medium text-sm"
+              >
+                Save
+              </button>
+            </div>
+          ) : (
+            <button
+              onClick={handleSave}
+              className="w-full h-11 rounded-md bg-primary text-primary-foreground font-medium text-sm"
+            >
+              Save
+            </button>
+          )}
         </DrawerFooter>
       </DrawerContent>
     </Drawer>
