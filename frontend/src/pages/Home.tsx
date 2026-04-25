@@ -52,6 +52,7 @@ export default function Home() {
   const { events, lastFeeds, nightSessionEvents, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent } =
     useSync()
   const [sheetType, setSheetType] = useState<EventType | null>(null)
+  const [editEvent, setEditEvent] = useState<BabyEvent | null>(null)
   const [toast, setToast] = useState<string | null>(null)
 
   useTick() // re-render every minute so "X ago" / "in X" stays fresh
@@ -110,6 +111,28 @@ export default function Home() {
       else if (status === 404) showToast('Event already deleted')
       else showToast('Delete failed — are you online?')
     }
+  }
+
+  async function handleEditSave(timestamp: string, metadata: Record<string, unknown> | null) {
+    if (!editEvent) return
+    const oldId = editEvent.id
+    const oldType = editEvent.type
+    setEditEvent(null)
+    try {
+      await deleteEvent(oldId)
+      removeEvent(oldId)
+      await log({ id: generateId(), type: oldType, timestamp, metadata })
+      showToast('Updated ✓')
+    } catch {
+      showToast('Failed to save — try again')
+    }
+  }
+
+  async function handleEditDelete() {
+    if (!editEvent) return
+    const id = editEvent.id
+    setEditEvent(null)
+    await handleDeleted(id)
   }
 
   // Derived stats for action cards
@@ -267,8 +290,8 @@ export default function Home() {
         {/* Potty streak — shown when ≥2 consecutive days with potty events */}
         {pottyStreak >= 2 && (
           <div className="flex items-center gap-1.5 px-1">
-            <Flame className="w-3.5 h-3.5 text-orange-500" />
-            <span className="text-xs font-medium text-orange-500">{pottyStreak}-day potty streak</span>
+            <Flame className="w-3.5 h-3.5 text-primary/70" />
+            <span className="text-xs font-medium text-primary/70">{pottyStreak}-day potty streak</span>
           </div>
         )}
 
@@ -290,7 +313,7 @@ export default function Home() {
           />
         )}
 
-        {loaded && <TimelineSection events={events} onDeleted={handleDeleted} />}
+        {loaded && <TimelineSection events={events} onEditEvent={setEditEvent} />}
       </div>
 
       {toast && (
@@ -299,7 +322,13 @@ export default function Home() {
         </div>
       )}
 
-      <EventSheet type={sheetType} onSave={handleSheetSave} onDismiss={() => setSheetType(null)} />
+      <EventSheet
+        type={editEvent?.type ?? sheetType}
+        initialEvent={editEvent}
+        onSave={editEvent ? handleEditSave : handleSheetSave}
+        onDelete={editEvent ? handleEditDelete : undefined}
+        onDismiss={() => { setSheetType(null); setEditEvent(null) }}
+      />
     </div>
   )
 }
