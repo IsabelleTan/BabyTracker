@@ -351,6 +351,7 @@ export default function TimelineSection({ events, onEditEvent }: Props) {
               <button
                 key={event.id}
                 onClick={() => onEditEvent(event)}
+                aria-label={`Edit ${event.type} event`}
                 className="absolute flex items-center gap-2 active:opacity-60"
                 style={{
                   top: y,
