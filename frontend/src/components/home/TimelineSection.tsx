@@ -21,7 +21,7 @@ const MIN_SPACING = 26  // minimum px between adjacent marker centres
 const SLEEP_COLOR   = 'oklch(0.72 0.08 230 / 0.55)'
 const SLEEP_FADE_TOP    = `linear-gradient(to top, ${SLEEP_COLOR} 55%, oklch(0.72 0.08 230 / 0.18) 100%)`
 const SLEEP_FADE_BOTTOM = `linear-gradient(to bottom, ${SLEEP_COLOR} 55%, oklch(0.72 0.08 230 / 0.18) 100%)`
-const SLEEP_DASHED  = `repeating-linear-gradient(to bottom, ${SLEEP_COLOR} 0px, ${SLEEP_COLOR} 5px, transparent 5px, transparent 11px)`
+const SLEEP_DASHED  = `repeating-linear-gradient(to bottom, ${SLEEP_COLOR} 0px, ${SLEEP_COLOR} 9px, transparent 9px, transparent 15px)`
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
