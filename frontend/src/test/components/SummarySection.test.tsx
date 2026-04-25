@@ -6,7 +6,8 @@ import { type BabyEvent } from '@/lib/events'
 vi.mock('@/contexts/LeaderboardContext', () => ({
   useLeaderboardData: vi.fn().mockReturnValue({ data: null, notifications: [], loading: false, error: false }),
 }))
-vi.mock('@/lib/time', () => ({
+vi.mock('@/lib/time', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/time')>()),
   isNightHours: vi.fn().mockReturnValue(false),
 }))
 vi.mock('@/lib/funMessages', () => ({
