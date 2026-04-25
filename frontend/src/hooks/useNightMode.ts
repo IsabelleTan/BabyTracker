@@ -1,11 +1,7 @@
 import { useState, useEffect, useCallback } from 'react'
+import { isNightHours } from '@/lib/time'
 
 const OVERRIDE_KEY = 'night_mode_override'
-
-function isAutoNight(): boolean {
-  const h = new Date().getHours()
-  return h >= 21 || h < 7
-}
 
 function readStoredOverride(): boolean | null {
   const v = localStorage.getItem(OVERRIDE_KEY)
@@ -21,13 +17,13 @@ function readStoredOverride(): boolean | null {
  * the override is cleared so auto-detection takes over at the next transition.
  */
 export function useNightMode(): { night: boolean; toggle: () => void } {
-  const [auto, setAuto] = useState(isAutoNight)
+  const [auto, setAuto] = useState(isNightHours)
   const [override, setOverride] = useState<boolean | null>(readStoredOverride)
 
   // Re-check auto value every minute; clear override if it now matches auto
   useEffect(() => {
     const tick = () => {
-      const next = isAutoNight()
+      const next = isNightHours()
       setAuto(next)
       setOverride((prev) => {
         if (prev === next) {

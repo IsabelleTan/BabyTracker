@@ -11,6 +11,7 @@ import {
 } from 'recharts'
 import { getDailyStats, getEarliestEventDate, type DailyStat } from '@/lib/stats'
 import { currentDayStart } from '@/lib/events'
+import { formatMins, formatDateAxis } from '@/lib/time'
 
 type Range = '7d' | '30d' | 'all'
 
@@ -29,18 +30,6 @@ function getFixedRangeDates(range: '7d' | '30d'): { from: Date; to: Date } {
   return { from, to }
 }
 
-function fmtDate(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  return `${d.getMonth() + 1}/${d.getDate()}`
-}
-
-function fmtMins(mins: number | null | undefined): string {
-  if (mins == null) return '—'
-  const h = Math.floor(mins / 60)
-  const m = Math.round(mins % 60)
-  if (h === 0) return `${m}m`
-  return m === 0 ? `${h}h` : `${h}h ${m}m`
-}
 
 export default function Stats() {
   const [range, setRange] = useState<Range>('7d')
@@ -68,7 +57,7 @@ export default function Stats() {
     run().then(setData).catch(() => setError(true)).finally(() => setLoading(false))
   }, [range])
 
-  const chartData = data.map((d) => ({ ...d, date: fmtDate(d.date) }))
+  const chartData = data.map((d) => ({ ...d, date: formatDateAxis(d.date) }))
 
   const weeklyPottyData = useMemo(() => {
     const weekMap = new Map<string, { date: string; potty_wet: number; potty_dirty: number }>()
@@ -132,7 +121,7 @@ export default function Stats() {
               data={chartData}
               dataKey="total_sleep_min"
               color="oklch(0.55 0.15 250)"
-              formatTick={fmtMins}
+              formatTick={formatMins}
               tickStep={300}
             />
             <ChartCard
@@ -147,7 +136,7 @@ export default function Stats() {
               data={chartData}
               dataKey="avg_sleep_session_min"
               color="oklch(0.55 0.15 250)"
-              formatTick={fmtMins}
+              formatTick={formatMins}
               tickStep={60}
             />
             <ChartCard
@@ -155,7 +144,7 @@ export default function Stats() {
               data={chartData}
               dataKey="avg_wake_min"
               color="oklch(0.55 0.15 250)"
-              formatTick={fmtMins}
+              formatTick={formatMins}
               tickStep={60}
             />
           </Section>
@@ -172,7 +161,7 @@ export default function Stats() {
               data={chartData}
               dataKey="avg_feed_interval_min"
               color="var(--color-primary)"
-              formatTick={fmtMins}
+              formatTick={formatMins}
               tickStep={60}
             />
             <MultiLineChartCard

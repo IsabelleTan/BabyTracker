@@ -2,20 +2,7 @@ import { Trophy, Sparkles, Crown, Swords, Toilet, WandSparkles } from 'lucide-re
 import { type LeaderboardData, type ParentStat } from '@/lib/leaderboards'
 import { useLeaderboardData } from '@/contexts/LeaderboardContext'
 import NightToggle from '@/components/NightToggle'
-
-function fmtMins(mins: number | null | undefined): string {
-  if (mins == null) return '—'
-  const h = Math.floor(mins / 60)
-  const m = Math.round(mins % 60)
-  if (h === 0) return `${m}m`
-  return m === 0 ? `${h}h` : `${h}h ${m}m`
-}
-
-function fmtDate(dateStr: string | null): string {
-  if (!dateStr) return ''
-  const d = new Date(dateStr + 'T00:00:00')
-  return `${d.toLocaleString('default', { month: 'short' })} ${d.getDate()}`
-}
+import { formatMins, formatDateShort } from '@/lib/time'
 
 export default function Leaderboards() {
   const { data, loading, error, notifications } = useLeaderboardData()
@@ -189,32 +176,32 @@ function RecordsSection({ data }: { data: LeaderboardData }) {
   const rows: { label: string; value: string; sub: string; isNew: boolean }[] = [
     {
       label: 'Longest sleep',
-      value: fmtMins(data.longest_sleep_min),
-      sub: fmtDate(data.longest_sleep_date),
+      value: formatMins(data.longest_sleep_min),
+      sub: formatDateShort(data.longest_sleep_date),
       isNew: data.longest_sleep_new,
     },
     {
       label: 'Best night',
-      value: fmtMins(data.best_night_min),
-      sub: fmtDate(data.best_night_date),
+      value: formatMins(data.best_night_min),
+      sub: formatDateShort(data.best_night_date),
       isNew: data.best_night_new,
     },
     {
       label: 'Worst night',
-      value: fmtMins(data.worst_night_min),
-      sub: fmtDate(data.worst_night_date),
+      value: formatMins(data.worst_night_min),
+      sub: formatDateShort(data.worst_night_date),
       isNew: false,
     },
     {
       label: 'Most feeds in a day',
       value: data.most_feeds_count != null ? String(data.most_feeds_count) : '—',
-      sub: fmtDate(data.most_feeds_date),
+      sub: formatDateShort(data.most_feeds_date),
       isNew: data.most_feeds_new,
     },
     {
       label: 'Most poop diapers in a day',
       value: data.most_poop_count != null ? String(data.most_poop_count) : '—',
-      sub: fmtDate(data.most_poop_date),
+      sub: formatDateShort(data.most_poop_date),
       isNew: data.most_poop_new,
     },
   ]
