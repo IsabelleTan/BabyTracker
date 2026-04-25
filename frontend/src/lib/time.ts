@@ -1,3 +1,31 @@
+/** True between 21:00 and 07:00 — matches NIGHT_SHIFT_START/END and useNightMode auto-switch. */
+export function isNightHours(date: Date = new Date()): boolean {
+  const h = date.getHours()
+  return h >= 21 || h < 7
+}
+
+/** "Xm" / "Xh Ym" — format a duration given as minutes. */
+export function formatMins(mins: number | null | undefined): string {
+  if (mins == null) return '—'
+  const h = Math.floor(mins / 60)
+  const m = Math.round(mins % 60)
+  if (h === 0) return `${m}m`
+  return m === 0 ? `${h}h` : `${h}h ${m}m`
+}
+
+/** "M/D" — compact numeric date for chart axes (e.g. "4/25"). */
+export function formatDateAxis(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  return `${d.getMonth() + 1}/${d.getDate()}`
+}
+
+/** "Mon D" — short month-name date for display cards (e.g. "Apr 25"). */
+export function formatDateShort(dateStr: string | null): string {
+  if (!dateStr) return ''
+  const d = new Date(dateStr + 'T00:00:00')
+  return `${d.toLocaleString('default', { month: 'short' })} ${d.getDate()}`
+}
+
 /** Format a Date as HH:MM (24-hour, no AM/PM). */
 export function formatTime(date: Date): string {
   return `${String(date.getHours()).padStart(2, '0')}:${String(date.getMinutes()).padStart(2, '0')}`

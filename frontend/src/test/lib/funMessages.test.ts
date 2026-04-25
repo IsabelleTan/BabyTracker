@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest'
 import { currentDayStart } from '@/lib/events'
+import { isNightHours } from '@/lib/time'
 import {
   getBabyVoiceContext,
   getPartnerContext,
@@ -14,7 +15,6 @@ import {
   recordPartnerMessageShown,
   nightMessageShouldShow,
   markNightMessageShown,
-  isNightHours,
   getPottyStreak,
   updatePottyStreak,
   trackPottyCount,

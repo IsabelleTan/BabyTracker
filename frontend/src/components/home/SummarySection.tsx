@@ -4,11 +4,11 @@ import { formatDuration } from '@/hooks/useTimeSince'
 import { getEventsSince, type BabyEvent } from '@/lib/events'
 import { getUser } from '@/lib/auth'
 import { useLeaderboardData } from '@/contexts/LeaderboardContext'
+import { isNightHours } from '@/lib/time'
 import {
   getPartnerMessage,
   partnerMessageAllowed,
   recordPartnerMessageShown,
-  isNightHours,
   type PartnerMessageResult,
 } from '@/lib/funMessages'
 

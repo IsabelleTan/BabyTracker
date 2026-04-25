@@ -6,11 +6,14 @@ import { type BabyEvent } from '@/lib/events'
 vi.mock('@/contexts/LeaderboardContext', () => ({
   useLeaderboardData: vi.fn().mockReturnValue({ data: null, notifications: [], loading: false, error: false }),
 }))
+vi.mock('@/lib/time', async (importOriginal) => ({
+  ...(await importOriginal<typeof import('@/lib/time')>()),
+  isNightHours: vi.fn().mockReturnValue(false),
+}))
 vi.mock('@/lib/funMessages', () => ({
   getPartnerMessage: vi.fn().mockReturnValue(null),
   partnerMessageAllowed: vi.fn().mockReturnValue(false),
   recordPartnerMessageShown: vi.fn(),
-  isNightHours: vi.fn().mockReturnValue(false),
 }))
 vi.mock('@/lib/auth', () => ({
   getUser: vi.fn().mockReturnValue({ user_id: 'u1', display_name: 'Parent 1' }),

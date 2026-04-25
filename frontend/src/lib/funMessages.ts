@@ -1,5 +1,6 @@
 import type { BabyEvent } from './events'
 import { currentDayStart } from './events'
+import { isNightHours } from './time'
 
 // ── message banks ─────────────────────────────────────────────────────────────
 
@@ -132,14 +133,6 @@ export interface PartnerMessageResult {
   message: string
 }
 
-// ── night-hour check ──────────────────────────────────────────────────────────
-// 21:00–07:00 — matches backend NIGHT_SHIFT_START/END and useNightMode auto-switch.
-
-export function isNightHours(): boolean {
-  const h = new Date().getHours()
-  return h >= 21 || h < 7
-}
-
 // ── baby voice context detection ──────────────────────────────────────────────
 
 export function getBabyVoiceContext(events: BabyEvent[]): BabyVoiceContext {
@@ -201,8 +194,7 @@ export function getPartnerContext(events: BabyEvent[], currentUserId: string): P
   // Night shift: OTHER user logged ≥ 3 events between 21:00–07:00
   const otherNightCount = events.filter((e) => {
     if (e.logged_by === currentUserId) return false
-    const h = new Date(e.timestamp).getHours()
-    return h >= 21 || h < 7
+    return isNightHours(new Date(e.timestamp))
   }).length
   if (otherNightCount >= 3) return 'night_shift'
 
