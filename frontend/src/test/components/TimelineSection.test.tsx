@@ -36,8 +36,8 @@ describe('TimelineSection — section title', () => {
 describe('TimelineSection — marker rendering', () => {
   it('renders feed and output events as tappable markers', () => {
     render(<TimelineSection events={[FEED, OUTPUT]} onEditEvent={vi.fn()} />)
-    expect(screen.getByText('Feed')).toBeInTheDocument()
-    expect(screen.getByText('Output')).toBeInTheDocument()
+    expect(screen.getByText(/Breast/)).toBeInTheDocument()
+    expect(screen.getByText('Pee')).toBeInTheDocument()
   })
 
   it('does not render sleep events as markers', () => {
@@ -49,14 +49,14 @@ describe('TimelineSection — marker rendering', () => {
   it('calls onEditEvent with the correct event when a marker is tapped', () => {
     const onEditEvent = vi.fn()
     render(<TimelineSection events={[FEED]} onEditEvent={onEditEvent} />)
-    fireEvent.click(screen.getByText('Feed').closest('button')!)
+    fireEvent.click(screen.getByRole('button', { name: /edit feed event/i }))
     expect(onEditEvent).toHaveBeenCalledWith(FEED)
   })
 
   it('calls onEditEvent with the correct event for output markers', () => {
     const onEditEvent = vi.fn()
     render(<TimelineSection events={[OUTPUT]} onEditEvent={onEditEvent} />)
-    fireEvent.click(screen.getByText('Output').closest('button')!)
+    fireEvent.click(screen.getByRole('button', { name: /edit output event/i }))
     expect(onEditEvent).toHaveBeenCalledWith(OUTPUT)
   })
 })
