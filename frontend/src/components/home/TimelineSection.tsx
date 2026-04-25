@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Milk, Droplets, Moon, Sun, TriangleAlert, type LucideIcon } from 'lucide-react'
+import { Milk, Droplets, Moon, Sun, TriangleAlert, List, GanttChart, type LucideIcon } from 'lucide-react'
 import { type BabyEvent } from '@/lib/events'
 import { formatTime } from '@/lib/time'
 
@@ -19,7 +19,6 @@ const MIN_SPACING = 26  // minimum px between adjacent marker centres
 // ─── Colors ───────────────────────────────────────────────────────────────────
 
 const SLEEP_COLOR   = 'oklch(0.72 0.08 230 / 0.55)'
-const SLEEP_FADE_TOP    = `linear-gradient(to top, ${SLEEP_COLOR} 55%, oklch(0.72 0.08 230 / 0.18) 100%)`
 const SLEEP_FADE_BOTTOM = `linear-gradient(to bottom, ${SLEEP_COLOR} 55%, oklch(0.72 0.08 230 / 0.18) 100%)`
 const SLEEP_DASHED  = `repeating-linear-gradient(to bottom, ${SLEEP_COLOR} 0px, ${SLEEP_COLOR} 9px, transparent 9px, transparent 15px)`
 
@@ -231,21 +230,28 @@ export default function TimelineSection({ events, onEditEvent }: Props) {
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="flex rounded-md bg-muted">
-        {(['timeline', 'list'] as const).map((t) => (
+      <div className="flex items-center justify-between px-1">
+        <span className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+          {tab === 'timeline' ? 'Timeline' : 'List'}
+        </span>
+        <div className="flex items-center gap-1">
           <button
-            key={t}
             type="button"
-            onClick={() => setTab(t)}
-            className={`flex-1 py-1.5 rounded-md text-xs font-medium transition-all capitalize ${
-              tab === t
-                ? 'bg-card text-foreground font-semibold shadow-sm'
-                : 'text-muted-foreground'
-            }`}
+            onClick={() => setTab('timeline')}
+            aria-label="Timeline view"
+            className={`p-1 rounded transition-colors ${tab === 'timeline' ? 'text-foreground' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
           >
-            {t === 'timeline' ? 'Timeline' : 'List'}
+            <GanttChart className="w-4 h-4" />
           </button>
-        ))}
+          <button
+            type="button"
+            onClick={() => setTab('list')}
+            aria-label="List view"
+            className={`p-1 rounded transition-colors ${tab === 'list' ? 'text-foreground' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
+          >
+            <List className="w-4 h-4" />
+          </button>
+        </div>
       </div>
 
       {tab === 'list' ? (
