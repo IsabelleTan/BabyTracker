@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Milk, Droplets, Moon, Sun, TriangleAlert, List, GanttChart, type LucideIcon } from 'lucide-react'
+import { Milk, Droplets, Moon, Sun, TriangleAlert, List, LineDotRightHorizontal, type LucideIcon } from 'lucide-react'
 import { type BabyEvent } from '@/lib/events'
 import { formatTime } from '@/lib/time'
 
@@ -241,7 +241,7 @@ export default function TimelineSection({ events, onEditEvent }: Props) {
             aria-label="Timeline view"
             className={`p-1 rounded transition-colors ${tab === 'timeline' ? 'text-foreground' : 'text-muted-foreground/40 hover:text-muted-foreground'}`}
           >
-            <GanttChart className="w-4 h-4" />
+            <LineDotRightHorizontal className="w-4 h-4 rotate-90" />
           </button>
           <button
             type="button"
