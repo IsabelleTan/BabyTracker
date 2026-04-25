@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
 from app.db.database import get_db
+from app.db.queries import baby_ids_for_user, get_users_map
 from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
@@ -80,7 +81,7 @@ async def get_leaderboards(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    baby_ids = select(UserBaby.baby_id).where(UserBaby.user_id == current_user.id)
+    baby_ids = baby_ids_for_user(current_user.id)
     family_user_ids = select(UserBaby.user_id).where(UserBaby.baby_id.in_(baby_ids))
 
     today_utc = datetime.now(timezone.utc)
@@ -106,10 +107,8 @@ async def get_leaderboards(
     )
     events = events_result.scalars().all()
 
-    users_result = await db.execute(
-        select(User).where(User.id.in_(family_user_ids))
-    )
-    users = {u.id: u.display_name for u in users_result.scalars().all()}
+    family_user_id_rows = await db.execute(family_user_ids)
+    users = await get_users_map(db, set(family_user_id_rows.scalars().all()))
 
     earliest_ts = min((_utc(e.timestamp) for e in events), default=None)
     has_enough_data = (
