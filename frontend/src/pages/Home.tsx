@@ -328,6 +328,7 @@ export default function Home() {
         onSave={editEvent ? handleEditSave : handleSheetSave}
         onDelete={editEvent ? handleEditDelete : undefined}
         onDismiss={() => { setSheetType(null); setEditEvent(null) }}
+        onTypeChange={!editEvent ? setSheetType : undefined}
       />
     </div>
   )

@@ -6,7 +6,7 @@ import {
   DrawerTitle,
   DrawerFooter,
 } from '@/components/ui/drawer'
-import { Droplet, Droplets, CirclePile, Milk, CircleDot, Cylinder, Baby, Toilet, Trash2 } from 'lucide-react'
+import { Droplet, Droplets, CirclePile, Milk, CircleDot, Cylinder, Baby, Toilet, Trash2, Moon, Sun } from 'lucide-react'
 import { fromDateTimeLocal, type EventType, type BabyEvent } from '@/lib/events'
 
 interface EventSheetProps {
@@ -17,6 +17,8 @@ interface EventSheetProps {
   /** When provided a Delete button is shown (edit mode only). */
   onDelete?: () => void
   onDismiss: () => void
+  /** Called when the user toggles between sleep_start / sleep_end in create mode. */
+  onTypeChange?: (type: EventType) => void
 }
 
 const TITLES: Record<EventType, string> = {
@@ -308,7 +310,7 @@ function formatTimer(ms: number): string {
 
 // ─── Main Component ──────────────────────────────────────────────────────────
 
-export default function EventSheet({ type, initialEvent, onSave, onDelete, onDismiss }: EventSheetProps) {
+export default function EventSheet({ type, initialEvent, onSave, onDelete, onDismiss, onTypeChange }: EventSheetProps) {
   const [selDay,    setSelDay]    = useState(0)
   const [selMonth,  setSelMonth]  = useState(0)
   const [selYear,   setSelYear]   = useState(1)   // 1 = current year
@@ -544,6 +546,19 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
             }
             return null
           })()}
+
+          {/* Sleep/Wake toggle — create mode only */}
+          {(type === 'sleep_start' || type === 'sleep_end') && !initialEvent && (
+            <SegmentedControl
+              options={['sleep_start', 'sleep_end'] as const}
+              value={type}
+              onChange={onTypeChange ?? (() => {})}
+              labels={{
+                sleep_start: <span className="flex items-center justify-center gap-1.5"><Moon className="w-3.5 h-3.5" />Sleep</span>,
+                sleep_end:   <span className="flex items-center justify-center gap-1.5"><Sun  className="w-3.5 h-3.5" />Wake</span>,
+              }}
+            />
+          )}
 
           {/* Feed-specific */}
           {type === 'feed' && (
