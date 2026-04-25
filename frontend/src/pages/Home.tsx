@@ -9,12 +9,11 @@ import { logout } from '@/lib/auth'
 import { useTick, useTimeSince } from '@/hooks/useTimeSince'
 import { deleteEvent, type EventType, type BabyEvent } from '@/lib/events'
 import { generateId } from '@/lib/uuid'
-import { formatTime as fmt, formatAgo as ago, formatUntil as until, formatDuration as duration } from '@/lib/time'
+import { formatTime as fmt, formatAgo as ago, formatUntil as until, formatDuration as duration, isNightHours } from '@/lib/time'
 import {
   getBabyVoiceContext,
   getBabyVoiceMessage,
   getNightMessage,
-  isNightHours,
   nightMessageShouldShow,
   markNightMessageShown,
   babyVoiceShouldShow,
