@@ -5,6 +5,7 @@ from sqlalchemy import select, delete, exists
 from sqlalchemy.dialects.sqlite import insert
 
 from app.db.database import get_db
+from app.db.queries import baby_ids_for_user, get_user_baby_id, get_users_map
 from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
@@ -38,9 +39,7 @@ async def create_event(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    baby_id = await db.scalar(
-        select(UserBaby.baby_id).where(UserBaby.user_id == current_user.id).limit(1)
-    )
+    baby_id = await get_user_baby_id(db, current_user.id)
     if baby_id is None:
         raise HTTPException(status_code=400, detail="User is not linked to any baby")
 
@@ -76,7 +75,7 @@ async def get_events(
     db: AsyncSession = Depends(get_db),
 ):
     # Only return events for babies the current user is linked to
-    user_baby_ids = select(UserBaby.baby_id).where(UserBaby.user_id == current_user.id)
+    user_baby_ids = baby_ids_for_user(current_user.id)
 
     if since is not None:
         stmt = select(Event).where(Event.timestamp > since).order_by(Event.timestamp)
@@ -103,9 +102,7 @@ async def get_events(
     result = await db.execute(stmt)
     events = result.scalars().all()
 
-    user_ids = {e.logged_by for e in events}
-    users_result = await db.execute(select(User).where(User.id.in_(user_ids)))
-    users = {u.id: u.display_name for u in users_result.scalars().all()}
+    users = await get_users_map(db, {e.logged_by for e in events})
 
     return [_to_response(e, users.get(e.logged_by, "")) for e in events]
 

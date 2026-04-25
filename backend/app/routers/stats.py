@@ -8,10 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
 from app.db.database import get_db
+from app.db.queries import baby_ids_for_user
 from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
-from app.models.user_baby import UserBaby
 from app.utils import _utc, pair_sleep_sessions, parenting_day
 
 router = APIRouter(prefix="/stats", tags=["stats"])
@@ -39,16 +39,13 @@ class StatsRange(BaseModel):
     earliest: datetime | None
 
 
-def _baby_ids_subquery(current_user: User):
-    return select(UserBaby.baby_id).where(UserBaby.user_id == current_user.id)
-
 
 @router.get("/range", response_model=StatsRange)
 async def get_stats_range(
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
-    baby_ids = _baby_ids_subquery(current_user)
+    baby_ids = baby_ids_for_user(current_user.id)
     result = await db.execute(
         select(func.min(Event.timestamp)).where(Event.baby_id.in_(baby_ids))
     )
@@ -80,7 +77,7 @@ async def get_daily_stats(
             detail=f"Date range must not exceed {MAX_STATS_RANGE_DAYS} days",
         )
 
-    baby_ids = _baby_ids_subquery(current_user)
+    baby_ids = baby_ids_for_user(current_user.id)
 
     # Fetch one extra day before/after to catch cross-day sleep sessions
     result = await db.execute(
