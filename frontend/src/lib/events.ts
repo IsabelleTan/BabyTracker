@@ -4,7 +4,7 @@ export type EventType = 'feed' | 'sleep_start' | 'sleep_end' | 'output' | 'vitam
 
 export interface BottleFeedMeta {
   feed_type: 'bottle'
-  amount_ml: number
+  amount_ml: number | null
   bottle_type?: 'pumped' | 'formula' | null
 }
 

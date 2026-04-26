@@ -1,4 +1,5 @@
 import { openDB } from 'idb'
+import type { EventMeta } from './events'
 
 const DB_NAME = 'babytracker'
 const DB_VERSION = 1
@@ -16,7 +17,7 @@ export interface PendingEvent {
   id: string
   type: string
   timestamp: string
-  metadata: Record<string, unknown> | null
+  metadata: EventMeta
 }
 
 export async function addPending(event: PendingEvent): Promise<void> {

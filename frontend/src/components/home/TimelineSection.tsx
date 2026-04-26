@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Milk, Droplets, Moon, Sun, Pill, TriangleAlert, List, LineDotRightHorizontal, type LucideIcon } from 'lucide-react'
-import { type BabyEvent } from '@/lib/events'
+import { type BabyEvent, type FeedMeta, type OutputMeta } from '@/lib/events'
 import { formatTime } from '@/lib/time'
 
 // ─── Layout constants (px) ────────────────────────────────────────────────────
@@ -70,23 +70,24 @@ function buildDetail(event: BabyEvent): string | null {
   const m = event.metadata
   if (!m) return null
   if (event.type === 'feed') {
-    if (m.feed_type === 'breast') {
+    const fm = m as FeedMeta
+    if (fm.feed_type === 'breast') {
       const parts: string[] = []
-      if (m.left_duration_min)  parts.push(`L${m.left_duration_min}m`)
-      if (m.right_duration_min) parts.push(`R${m.right_duration_min}m`)
+      if (fm.left_duration_min)  parts.push(`L${fm.left_duration_min}m`)
+      if (fm.right_duration_min) parts.push(`R${fm.right_duration_min}m`)
       return parts.length > 0 ? `Breast ${parts.join(' ')}` : 'Breast'
     }
-    if (m.feed_type === 'bottle') {
-      const label = m.bottle_type === 'formula' ? 'Formula' : 'Pumped'
-      return `${label} ${m.amount_ml ?? '?'}ml`
+    if (fm.feed_type === 'bottle') {
+      const label = fm.bottle_type === 'formula' ? 'Formula' : 'Pumped'
+      return `${label} ${fm.amount_ml ?? '?'}ml`
     }
   }
   if (event.type === 'output') {
+    const om = m as OutputMeta
     const typeMap: Record<string, string> = { wet: 'Pee', dirty: 'Poo', both: 'Pee+Poo' }
-    const label = typeMap[m.diaper_type as string] ?? null
+    const label = typeMap[om.diaper_type] ?? null
     if (!label) return null
-    const loc = m.location as string | undefined
-    return loc === 'potty' ? `${label} Potty` : label
+    return om.location === 'potty' ? `${label} Potty` : label
   }
   return null
 }
