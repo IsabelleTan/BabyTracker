@@ -17,17 +17,15 @@ def _utc(ts: datetime) -> datetime:
     return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
 
 
-def parenting_day(ts: datetime, tz: str = UTC) -> date:
-    """Return the parenting-day date this UTC timestamp belongs to.
-
-    tz: IANA timezone name (e.g. "Europe/Amsterdam"). Converts the timestamp to
-    local time first, then shifts back by DAY_START_HOUR so that events between
-    local 00:00–04:59 are attributed to the previous parenting day.
-    """
+def safe_zone(tz: str) -> ZoneInfo:
     try:
-        zone = ZoneInfo(tz)
+        return ZoneInfo(tz)
     except ZoneInfoNotFoundError:
-        zone = ZoneInfo(UTC)
+        return ZoneInfo(UTC)
+
+
+def parenting_day(ts: datetime, zone: ZoneInfo) -> date:
+    """Return the parenting-day date this UTC timestamp belongs to."""
     local_ts = _utc(ts).astimezone(zone)
     return (local_ts - timedelta(hours=DAY_START_HOUR)).date()
 

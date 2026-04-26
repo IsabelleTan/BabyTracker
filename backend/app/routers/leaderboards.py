@@ -1,7 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
-from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel
@@ -16,7 +16,7 @@ from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
 from app.models.user_baby import UserBaby
-from app.utils import UTC, _utc, pair_sleep_sessions, parenting_day, DAY_START_HOUR, NIGHT_SHIFT_START, NIGHT_SHIFT_END
+from app.utils import UTC, _utc, pair_sleep_sessions, parenting_day, safe_zone, DAY_START_HOUR, NIGHT_SHIFT_START, NIGHT_SHIFT_END
 
 router = APIRouter(prefix="/leaderboards", tags=["leaderboards"])
 
@@ -106,13 +106,13 @@ class AwardFlags:
     potty_claimed: bool
 
 
-def compute_sleep_stats(sleep_sessions: list[tuple], tz: str) -> SleepStats:
+def compute_sleep_stats(sleep_sessions: list[tuple], zone: ZoneInfo) -> SleepStats:
     longest_sleep_min: float | None = None
     longest_sleep_date: date | None = None
     if sleep_sessions:
         longest = max(sleep_sessions, key=lambda s: (s[1] - s[0]).total_seconds())
         longest_sleep_min = round((longest[1] - longest[0]).total_seconds() / 60, 1)
-        longest_sleep_date = parenting_day(longest[0], tz)
+        longest_sleep_date = parenting_day(longest[0], zone)
 
     night_sleep: dict[date, float] = defaultdict(float)
     for start, end in sleep_sessions:
@@ -124,7 +124,7 @@ def compute_sleep_stats(sleep_sessions: list[tuple], tz: str) -> SleepStats:
             overlap_start = max(start, night_start)
             overlap_end = min(end, night_end)
             if overlap_end > overlap_start:
-                night_sleep[parenting_day(night_start, tz)] += (
+                night_sleep[parenting_day(night_start, zone)] += (
                     overlap_end - overlap_start
                 ).total_seconds() / 60
 
@@ -141,16 +141,16 @@ def compute_sleep_stats(sleep_sessions: list[tuple], tz: str) -> SleepStats:
     return SleepStats(longest_sleep_min, longest_sleep_date, best_night_min, best_night_date, worst_night_min, worst_night_date)
 
 
-def compute_feed_stats(events: list, tz: str) -> FeedStats:
+def compute_feed_stats(events: list, zone: ZoneInfo) -> FeedStats:
     feeds_by_day: dict[date, int] = defaultdict(int)
     poop_by_day: dict[date, int] = defaultdict(int)
     for e in events:
         if e.type == "feed":
-            feeds_by_day[parenting_day(e.timestamp, tz)] += 1
+            feeds_by_day[parenting_day(e.timestamp, zone)] += 1
         elif e.type == "output":
             meta = e.metadata_ or {}
             if meta.get("diaper_type") in ("dirty", "both") and meta.get("location", "diaper") == "diaper":
-                poop_by_day[parenting_day(e.timestamp, tz)] += 1
+                poop_by_day[parenting_day(e.timestamp, zone)] += 1
 
     most_feeds_count: int | None = None
     most_feeds_date: date | None = None
@@ -169,7 +169,7 @@ def compute_feed_stats(events: list, tz: str) -> FeedStats:
         if e.type == "output":
             meta = e.metadata_ or {}
             if meta.get("location") == "potty":
-                potty_days.add(parenting_day(e.timestamp, tz))
+                potty_days.add(parenting_day(e.timestamp, zone))
 
     longest_potty_streak: int | None = None
     longest_potty_streak_date: date | None = None
@@ -266,12 +266,9 @@ async def get_leaderboards(
     baby_ids = baby_ids_for_user(current_user.id)
     family_user_ids = select(UserBaby.user_id).where(UserBaby.baby_id.in_(baby_ids))
 
+    zone = safe_zone(tz)
     today_utc = datetime.now(timezone.utc)
-    today = parenting_day(today_utc, tz)
-    try:
-        zone = ZoneInfo(tz)
-    except ZoneInfoNotFoundError:
-        zone = ZoneInfo("UTC")
+    today = parenting_day(today_utc, zone)
     today_start = datetime(today.year, today.month, today.day, DAY_START_HOUR, 0, 0, tzinfo=zone)
 
     # Cap at 4 years — the realistic maximum lifetime of this app for any family.
@@ -300,8 +297,8 @@ async def get_leaderboards(
     ]
     sleep_sessions = pair_sleep_sessions(raw_sleep_events)
 
-    sleep = compute_sleep_stats(sleep_sessions, tz)
-    feeds = compute_feed_stats(events, tz)
+    sleep = compute_sleep_stats(sleep_sessions, zone)
+    feeds = compute_feed_stats(events, zone)
 
     curr_stats = _compute_parent_stats(events, users)
     prev_stats = _compute_parent_stats([e for e in events if _utc(e.timestamp) < today_start], users)

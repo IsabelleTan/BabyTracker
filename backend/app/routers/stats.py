@@ -13,7 +13,7 @@ from app.config import settings
 from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
-from app.utils import UTC, _utc, pair_sleep_sessions, parenting_day
+from app.utils import UTC, _utc, pair_sleep_sessions, parenting_day, safe_zone
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -79,6 +79,7 @@ async def get_daily_stats(
         )
 
     baby_ids = baby_ids_for_user(current_user.id)
+    zone = safe_zone(tz)
 
     # Fetch one extra day before/after to catch cross-day sleep sessions
     result = await db.execute(
@@ -105,7 +106,7 @@ async def get_daily_stats(
 
     for e in events:
         ts = _utc(e.timestamp)
-        day = parenting_day(ts, tz)
+        day = parenting_day(ts, zone)
         meta = e.metadata_ or {}
         if e.type == "feed":
             feeds_by_day[day].append(ts)
@@ -138,14 +139,14 @@ async def get_daily_stats(
 
     from_utc = _utc(from_)
     to_utc = _utc(to)
-    from_day = parenting_day(from_utc, tz)
-    to_day   = parenting_day(to_utc,   tz)
+    from_day = parenting_day(from_utc, zone)
+    to_day   = parenting_day(to_utc,   zone)
 
     # Group sessions by parenting day, clamping sessions that started before the
     # range to the first day so the first chart value isn't zero.
     sleep_by_day: dict[date, list[tuple[datetime, datetime]]] = defaultdict(list)
     for start, end in sleep_sessions:
-        effective_day = parenting_day(max(start, from_utc), tz)
+        effective_day = parenting_day(max(start, from_utc), zone)
         if from_day <= effective_day <= to_day:
             sleep_by_day[effective_day].append((start, end))
 
@@ -156,7 +157,7 @@ async def get_daily_stats(
         curr_start = sleep_sessions[i][0]
         wake_min   = (curr_start - prev_end).total_seconds() / 60
         if wake_min >= 0:
-            wake_by_day[parenting_day(curr_start, tz)].append(wake_min)
+            wake_by_day[parenting_day(curr_start, zone)].append(wake_min)
 
     results: list[DailyStat] = []
     current = from_day
