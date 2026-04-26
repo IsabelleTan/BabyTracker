@@ -32,7 +32,7 @@ export function LeaderboardProvider({ children }: { children: React.ReactNode })
     getLeaderboards()
       .then((d) => {
         setData(d)
-        setNotifications(buildNotifications(d))
+        setNotifications(d ? buildNotifications(d) : [])
         setError(false)
       })
       .catch(() => setError(true))

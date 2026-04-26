@@ -10,11 +10,10 @@ export default function Leaderboards() {
   if (loading) {
     return <p className="text-sm text-muted-foreground text-center py-16">Loading…</p>
   }
-  if (error || !data) {
+  if (error) {
     return <p className="text-sm text-destructive text-center py-16">Failed to load leaderboards</p>
   }
-
-  if (!data.has_enough_data) {
+  if (!data) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 py-20 text-center px-6">
         <Trophy className="w-10 h-10 text-primary opacity-40" />

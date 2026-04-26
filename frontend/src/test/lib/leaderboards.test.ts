@@ -1,12 +1,14 @@
-import { describe, it, expect } from 'vitest'
-import { buildNotifications, type LeaderboardData, type ParentStat } from '@/lib/leaderboards'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { buildNotifications, getLeaderboards, type LeaderboardData, type ParentStat } from '@/lib/leaderboards'
+
+vi.mock('@/lib/api', () => ({ api: { get: vi.fn() } }))
+import { api } from '@/lib/api'
 
 const PARENT_A: ParentStat = { display_name: 'Alice', night_shifts: 10, total_logs: 20, poop_changes: 5, potty_assists: 8 }
 const PARENT_B: ParentStat = { display_name: 'Bob', night_shifts: 3, total_logs: 8, poop_changes: 2, potty_assists: 3 }
 
 function makeData(overrides: Partial<LeaderboardData> = {}): LeaderboardData {
   return {
-    has_enough_data: true,
     longest_sleep_min: null,
     longest_sleep_date: null,
     longest_sleep_new: false,
@@ -31,14 +33,6 @@ function makeData(overrides: Partial<LeaderboardData> = {}): LeaderboardData {
 }
 
 describe('buildNotifications', () => {
-  it('returns empty array when has_enough_data is false', () => {
-    expect(buildNotifications(makeData({
-      has_enough_data: false,
-      longest_sleep_new: true,
-      longest_sleep_min: 300,
-    }))).toEqual([])
-  })
-
   it('returns empty array when no records are new and no awards claimed', () => {
     expect(buildNotifications(makeData())).toEqual([])
   })
@@ -149,5 +143,31 @@ describe('buildNotifications', () => {
       parents: [PARENT_A],
     }))
     expect(msgs).toHaveLength(0)
+  })
+})
+
+describe('getLeaderboards', () => {
+  beforeEach(() => vi.resetAllMocks())
+
+  it('returns null when the server responds with 204', async () => {
+    vi.mocked(api.get).mockResolvedValue({ status: 204, data: undefined })
+    const result = await getLeaderboards()
+    expect(result).toBeNull()
+  })
+
+  it('returns parsed data when the server responds with 200', async () => {
+    const payload: LeaderboardData = {
+      longest_sleep_min: 180, longest_sleep_date: '2024-01-15', longest_sleep_new: false,
+      best_night_min: null, best_night_date: null, best_night_new: false,
+      worst_night_min: null, worst_night_date: null,
+      most_feeds_count: null, most_feeds_date: null, most_feeds_new: false,
+      most_poop_count: null, most_poop_date: null, most_poop_new: false,
+      night_shift_claimed_today: false, chief_log_claimed_today: false,
+      poop_award_claimed_today: false, potty_award_claimed_today: false,
+      parents: [],
+    }
+    vi.mocked(api.get).mockResolvedValue({ status: 200, data: payload })
+    const result = await getLeaderboards()
+    expect(result).toEqual(payload)
   })
 })

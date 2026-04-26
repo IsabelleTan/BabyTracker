@@ -10,7 +10,6 @@ export interface ParentStat {
 }
 
 export interface LeaderboardData {
-  has_enough_data: boolean
   longest_sleep_min: number | null
   longest_sleep_date: string | null
   longest_sleep_new: boolean
@@ -32,11 +31,12 @@ export interface LeaderboardData {
   parents: ParentStat[]
 }
 
-export async function getLeaderboards(): Promise<LeaderboardData> {
-  const { data } = await api.get<LeaderboardData>('/leaderboards', {
+export async function getLeaderboards(): Promise<LeaderboardData | null> {
+  const response = await api.get<LeaderboardData>('/leaderboards', {
     params: { tz_offset: -new Date().getTimezoneOffset() }, // minutes east of UTC (positive = UTC+)
   })
-  return data
+  if (response.status === 204) return null
+  return response.data
 }
 
 function fmtMins(mins: number): string {
@@ -71,7 +71,6 @@ function awardWinner(
 }
 
 export function buildNotifications(data: LeaderboardData): string[] {
-  if (!data.has_enough_data) return []
   const msgs: string[] = []
   // Each category gets a seed derived from its event date + a per-category offset,
   // so the chosen message is stable for that specific event but varies across categories.
