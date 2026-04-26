@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, waitFor } from '@testing-library/react'
-import SummarySection, { computeStats } from '@/components/home/SummarySection'
+import SummarySection from '@/components/home/SummarySection'
+import { computeStats } from '@/lib/summaryStats'
 import { type BabyEvent } from '@/lib/events'
 
 vi.mock('@/contexts/LeaderboardContext', () => ({

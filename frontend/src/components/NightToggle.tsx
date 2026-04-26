@@ -1,5 +1,5 @@
 import { Sun, Moon } from 'lucide-react'
-import { useNightModeCtx } from '@/App'
+import { useNightModeCtx } from '@/contexts/NightModeContext'
 
 export default function NightToggle() {
   const { night, toggle } = useNightModeCtx()

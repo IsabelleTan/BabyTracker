@@ -12,6 +12,7 @@ import {
 import { getDailyStats, getEarliestEventDate, type DailyStat } from '@/lib/stats'
 import { currentDayStart } from '@/lib/events'
 import { formatMins, formatDateAxis } from '@/lib/time'
+import { computeYTicksMulti, computeYTicks } from '@/lib/chartUtils'
 
 type Range = '7d' | '30d' | 'all'
 
@@ -38,7 +39,7 @@ export default function Stats() {
   const [error, setError] = useState(false)
 
   useEffect(() => {
-    setLoading(true)
+    setLoading(true) // eslint-disable-line react-hooks/set-state-in-effect
     setError(false)
     const to = new Date()
     to.setHours(23, 59, 59, 999)
@@ -256,52 +257,6 @@ function Section({ title, children }: { title: string; children: React.ReactNode
   )
 }
 
-export function niceStep(max: number): number {
-  if (max === 0) return 1
-  if (max <= 5) return 1
-  if (max <= 10) return 2
-  const rough = max / 4
-  const exp = Math.floor(Math.log10(rough))
-  const pow = Math.pow(10, exp)
-  const n = rough / pow
-  if (n < 1.5) return pow
-  if (n < 3.5) return 2 * pow
-  if (n < 7.5) return 5 * pow
-  return 10 * pow
-}
-
-export function computeYTicksMulti(
-  data: Record<string, unknown>[],
-  dataKeys: string[],
-  tickStep?: number,
-): { ticks: number[]; domain: [number, number] } {
-  const values = data
-    .flatMap((d) => dataKeys.map((k) => d[k] as number | null | undefined))
-    .filter((v): v is number => v != null && !isNaN(v))
-  const max = values.length > 0 ? Math.max(...values) : 0
-  const step = tickStep ?? niceStep(max)
-  const domainMax = Math.ceil(max / step) * step || step
-  const ticks: number[] = []
-  for (let t = 0; t <= domainMax; t += step) ticks.push(t)
-  return { ticks, domain: [0, domainMax] }
-}
-
-export function computeYTicks(
-  data: Record<string, unknown>[],
-  dataKey: string,
-  tickStep?: number,
-): { ticks: number[]; domain: [number, number] } {
-  const values = data
-    .map((d) => d[dataKey] as number | null | undefined)
-    .filter((v): v is number => v != null && !isNaN(v))
-  const max = values.length > 0 ? Math.max(...values) : 0
-  const step = tickStep ?? niceStep(max)
-  const domainMax = Math.ceil(max / step) * step || step
-  const ticks: number[] = []
-  for (let t = 0; t <= domainMax; t += step) ticks.push(t)
-  return { ticks, domain: [0, domainMax] }
-}
-
 type ChartLine = {
   dataKey: string
   color: string
@@ -328,12 +283,12 @@ function MultiLineChartCard({
   formatRightTick?: (v: number | null) => string
   rightTickStep?: number
 }) {
-  const leftKeys  = lines.filter((l) => l.yAxisId !== 'right').map((l) => l.dataKey)
-  const rightKeys = lines.filter((l) => l.yAxisId === 'right').map((l) => l.dataKey)
+  const leftKeys  = useMemo(() => lines.filter((l) => l.yAxisId !== 'right').map((l) => l.dataKey), [lines])
+  const rightKeys = useMemo(() => lines.filter((l) => l.yAxisId === 'right').map((l) => l.dataKey), [lines])
   const hasDualAxis = rightKeys.length > 0
 
-  const yLeft  = useMemo(() => computeYTicksMulti(data, leftKeys,  leftTickStep),  [data, leftTickStep])  // eslint-disable-line react-hooks/exhaustive-deps
-  const yRight = useMemo(() => computeYTicksMulti(data, rightKeys, rightTickStep), [data, rightTickStep]) // eslint-disable-line react-hooks/exhaustive-deps
+  const yLeft  = useMemo(() => computeYTicksMulti(data, leftKeys,  leftTickStep),  [data, leftKeys,  leftTickStep])
+  const yRight = useMemo(() => computeYTicksMulti(data, rightKeys, rightTickStep), [data, rightKeys, rightTickStep])
 
   const xTicks = useMemo(() => {
     const n = data.length

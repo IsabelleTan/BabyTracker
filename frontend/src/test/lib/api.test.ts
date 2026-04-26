@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest'
+import { describe, it, expect, beforeEach } from 'vitest'
 import { api } from '@/lib/api'
 
 // Suppress jsdom's "Not implemented: navigation" warning when the interceptor

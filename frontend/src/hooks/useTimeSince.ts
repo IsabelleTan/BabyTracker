@@ -10,7 +10,7 @@ export function useTick(): void {
     let interval: ReturnType<typeof setInterval> | null = null
     function start() { interval = setInterval(() => setTick((t) => t + 1), 60_000) }
     function stop() { if (interval) clearInterval(interval) }
-    function onVisibility() { document.hidden ? stop() : start() }
+    function onVisibility() { if (document.hidden) stop(); else start() }
     start()
     document.addEventListener('visibilitychange', onVisibility)
     return () => { stop(); document.removeEventListener('visibilitychange', onVisibility) }

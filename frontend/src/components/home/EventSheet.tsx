@@ -326,6 +326,13 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
   const [diaperType, setDiaperType] = useState<'wet' | 'dirty' | 'both'>('wet')
   const [outputLocation, setOutputLocation] = useState<'diaper' | 'potty'>('diaper')
 
+  // nowMs ticks every minute so the future-time warning stays fresh without calling Date.now() in render
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+
   // Breastfeed timers
   const [leftRunning,    setLeftRunning]    = useState(false)
   const [rightRunning,   setRightRunning]   = useState(false)
@@ -351,14 +358,14 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
 
   // Clamp day when month / year changes
   useEffect(() => {
-    if (selDay >= days.length) setSelDay(days.length - 1)
+    if (selDay >= days.length) setSelDay(days.length - 1) // eslint-disable-line react-hooks/set-state-in-effect
   }, [days.length])
 
   // Reset / pre-fill form when the sheet opens or the target event changes
   useEffect(() => {
     if (type) {
       // Refresh the year so the picker is correct if the app is open across a year boundary
-      setBaseYear(new Date().getFullYear())
+      setBaseYear(new Date().getFullYear()) // eslint-disable-line react-hooks/set-state-in-effect
 
       // Reset timers unconditionally
       if (leftIntervalRef.current)  { clearInterval(leftIntervalRef.current);  leftIntervalRef.current  = null }
@@ -537,7 +544,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
               selHour,
               selMinute * 5,
             )
-            const diffMs = selected.getTime() - Date.now()
+            const diffMs = selected.getTime() - nowMs
             if (diffMs > 0) {
               return (
                 <p className="text-sm text-amber-500">

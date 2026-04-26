@@ -92,8 +92,8 @@ export default function Home() {
     try {
       await deleteEvent(id)
       removeEvent(id)
-    } catch (err: any) {
-      const status = err?.response?.status
+    } catch (err) {
+      const status = (err as { response?: { status?: number } })?.response?.status
       if (status === 403) showToast("Can't delete — not your family's event")
       else if (status === 404) showToast('Event already deleted')
       else showToast('Delete failed — are you online?')
@@ -155,7 +155,7 @@ export default function Home() {
   // Night card: reactive to new night events
   useEffect(() => {
     if (!nightMessageShouldShow(nightEventCount)) return
-    setNightCardVisible(true)
+    setNightCardVisible(true) // eslint-disable-line react-hooks/set-state-in-effect
     markNightMessageShown()
   }, [nightEventCount])
 
@@ -164,7 +164,7 @@ export default function Home() {
   useEffect(() => {
     if (events.length === 0 || babyVoiceInitDone.current) return
     babyVoiceInitDone.current = true
-    if (babyVoiceShouldShow()) setBabyVoiceVisible(true)
+    if (babyVoiceShouldShow()) setBabyVoiceVisible(true) // eslint-disable-line react-hooks/set-state-in-effect
   }, [events])
 
   // Milestones + potty tracking: per-day gate prevents flooding on repeated syncs
@@ -172,7 +172,7 @@ export default function Home() {
     if (events.length === 0) return
     trackDailyLogging()
     trackPottyCount(events)
-    setPottyStreak(updatePottyStreak(events))
+    setPottyStreak(updatePottyStreak(events)) // eslint-disable-line react-hooks/set-state-in-effect
     if (milestoneAllowedToday()) {
       const key = getNewMilestone(events)
       if (key) {
