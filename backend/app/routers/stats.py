@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import get_current_user
 from app.db.database import get_db
 from app.db.queries import baby_ids_for_user
+from app.config import settings
 from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
@@ -59,7 +60,7 @@ MAX_STATS_RANGE_DAYS = 366
 
 
 @router.get("/daily", response_model=list[DailyStat])
-@limiter.limit("30/minute")
+@limiter.limit(settings.rate_limit_read)
 async def get_daily_stats(
     request: Request,
     from_: datetime = Query(alias="from"),

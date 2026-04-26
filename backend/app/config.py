@@ -12,6 +12,10 @@ class Settings(BaseSettings):
     cors_origins: str = "http://localhost:5173"
     database_url: str = "sqlite+aiosqlite:///./babytracker.db"
 
+    rate_limit_events: str = "60/minute"
+    rate_limit_read: str = "30/minute"
+    rate_limit_auth: str = "10/minute"
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",")]

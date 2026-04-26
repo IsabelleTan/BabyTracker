@@ -6,6 +6,7 @@ from pydantic import BaseModel
 
 from app.db.database import get_db
 from app.db.queries import get_user_baby_id
+from app.config import settings
 from app.limiter import limiter
 from app.models.user import User
 from app.auth import verify_password, create_access_token
@@ -22,7 +23,7 @@ class TokenResponse(BaseModel):
 
 
 @router.post("/login", response_model=TokenResponse)
-@limiter.limit("10/minute")
+@limiter.limit(settings.rate_limit_auth)
 async def login(
     request: Request,
     form: OAuth2PasswordRequestForm = Depends(),

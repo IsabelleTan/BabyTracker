@@ -69,7 +69,7 @@ Events use **client-generated UUIDs** and the backend uses `INSERT ... ON CONFLI
 | `/leaderboards/` | Badges, streaks, milestone comparisons |
 | `/health` | Liveness check |
 
-Rate limit: 60 req/min per IP (SlowAPI). JWT tokens expire after 7 days; 401 triggers a client-side redirect to `/login`.
+Rate limits are configurable via env vars (defaults: `RATE_LIMIT_EVENTS=60/minute`, `RATE_LIMIT_READ=30/minute`, `RATE_LIMIT_AUTH=10/minute`). JWT tokens expire after 7 days; 401 triggers a client-side redirect to `/login`.
 
 ### Data Model
 - **User** / **Baby** / **UserBaby** (join) / **Event**

@@ -6,6 +6,7 @@ from sqlalchemy.dialects.sqlite import insert
 
 from app.db.database import get_db
 from app.db.queries import baby_ids_for_user, get_user_baby_id, get_users_map
+from app.config import settings
 from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
@@ -32,7 +33,7 @@ def _to_response(event: Event, display_name: str) -> EventResponse:
 
 
 @router.post("", status_code=201, response_model=EventResponse)
-@limiter.limit("60/minute")
+@limiter.limit(settings.rate_limit_events)
 async def create_event(
     request: Request,
     payload: EventCreate,
@@ -63,7 +64,7 @@ async def create_event(
 
 
 @router.get("", response_model=list[EventResponse])
-@limiter.limit("60/minute")
+@limiter.limit(settings.rate_limit_events)
 async def get_events(
     request: Request,
     from_: datetime | None = None,
