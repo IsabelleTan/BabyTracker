@@ -5,7 +5,9 @@ import EventSheet from '@/components/home/EventSheet'
 import SummarySection from '@/components/home/SummarySection'
 import TimelineSection from '@/components/home/TimelineSection'
 import VitaminDWidget from '@/components/home/VitaminDWidget'
+import { MessageCard } from '@/components/home/MessageCard'
 import { useSync } from '@/hooks/useSync'
+import { usePullToRefresh } from '@/hooks/usePullToRefresh'
 import { logout } from '@/lib/auth'
 import { useTick, useTimeSince } from '@/hooks/useTimeSince'
 import { deleteEvent, type EventType, type BabyEvent } from '@/lib/events'
@@ -31,8 +33,6 @@ import {
   type MilestoneKey,
 } from '@/lib/funMessages'
 
-const PULL_THRESHOLD = 72
-
 // ── component ────────────────────────────────────────────────────────────────
 
 export default function Home() {
@@ -44,32 +44,8 @@ export default function Home() {
 
   useTick() // re-render every minute so "X ago" / "in X" stays fresh
 
-  // Pull-to-refresh
-  const touchStartY = useRef<number | null>(null)
-  const [pullDistance, setPullDistance] = useState(0)
-  const [pullRefreshing, setPullRefreshing] = useState(false)
-  const pulling = pullDistance > 0
-
-  function onTouchStart(e: React.TouchEvent) {
-    if (sheetType !== null) return
-    if (window.scrollY === 0) touchStartY.current = e.touches[0].clientY
-  }
-  function onTouchMove(e: React.TouchEvent) {
-    if (touchStartY.current === null || isRefreshing) return
-    const delta = e.touches[0].clientY - touchStartY.current
-    if (delta > 0) setPullDistance(Math.min(delta, PULL_THRESHOLD + 24))
-  }
-  async function onTouchEnd() {
-    touchStartY.current = null
-    if (pullDistance >= PULL_THRESHOLD) {
-      setPullDistance(0)
-      setPullRefreshing(true)
-      await sync()
-      setPullRefreshing(false)
-    } else {
-      setPullDistance(0)
-    }
-  }
+  const { pulling, pullDistance, pullRefreshing, PULL_THRESHOLD, handlers: pullHandlers } =
+    usePullToRefresh({ onRefresh: sync, disabled: sheetType !== null, isRefreshing })
 
   function showToast(msg: string) {
     setToast(msg)
@@ -197,9 +173,9 @@ export default function Home() {
   return (
     <div
       className="flex flex-col min-h-[calc(100svh-4rem)]"
-      onTouchStart={onTouchStart}
-      onTouchMove={onTouchMove}
-      onTouchEnd={onTouchEnd}
+      onTouchStart={pullHandlers.onTouchStart}
+      onTouchMove={pullHandlers.onTouchMove}
+      onTouchEnd={pullHandlers.onTouchEnd}
     >
       {/* Pull-to-refresh indicator */}
       <div
@@ -365,31 +341,6 @@ function ActionCard({
         <span className="text-sm font-medium">{label}</span>
       </div>
     </button>
-  )
-}
-
-
-function MessageCard({
-  icon: Icon,
-  message,
-  onDismiss,
-}: {
-  icon: LucideIcon
-  message: string
-  onDismiss: () => void
-}) {
-  return (
-    <div className="flex items-start gap-2.5 rounded-xl border border-primary/20 bg-primary/5 px-4 py-3">
-      <Icon className="w-4 h-4 text-primary shrink-0 mt-0.5" />
-      <p className="flex-1 text-sm text-foreground">{message}</p>
-      <button
-        onClick={onDismiss}
-        className="text-muted-foreground hover:text-foreground text-xs shrink-0 leading-none pt-0.5"
-        aria-label="Dismiss"
-      >
-        ✕
-      </button>
-    </div>
   )
 }
 

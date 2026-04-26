@@ -6,8 +6,12 @@ import {
   DrawerTitle,
   DrawerFooter,
 } from '@/components/ui/drawer'
-import { Droplet, Droplets, CirclePile, Milk, CircleDot, Cylinder, Baby, Toilet, Trash2, Moon, Sun } from 'lucide-react'
+import { Milk, CircleDot, Cylinder, Trash2, Moon, Sun } from 'lucide-react'
 import { fromDateTimeLocal, type EventType, type BabyEvent } from '@/lib/events'
+import { SegmentedControl } from '@/components/home/SegmentedControl'
+import { BreastFeedForm } from '@/components/home/BreastFeedForm'
+import { BottleFeedForm } from '@/components/home/BottleFeedForm'
+import { OutputForm } from '@/components/home/OutputForm'
 
 interface EventSheetProps {
   type: EventType | null
@@ -26,16 +30,20 @@ const TITLES: Record<EventType, string> = {
   sleep_start: 'Sleep started',
   sleep_end: 'Woke up',
   output: 'Output',
-  vitamin_d: 'Vitamin D',
 }
 
 // ─── Wheel data ──────────────────────────────────────────────────────────────
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const HOURS   = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
-const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))
+const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
 
-function daysArray(monthIdx: number, year: number): string[] {
+const BASE_YEAR = new Date().getFullYear()
+// Offer 3 years: last, current, next — index 1 = current year
+const YEARS = [String(BASE_YEAR - 1), String(BASE_YEAR), String(BASE_YEAR + 1)]
+
+function daysArray(monthIdx: number, yearOffset: number): string[] {
+  const year = BASE_YEAR - 1 + yearOffset
   const count = new Date(year, monthIdx + 1, 0).getDate()
   return Array.from({ length: count }, (_, i) => String(i + 1).padStart(2, '0'))
 }
@@ -43,7 +51,7 @@ function daysArray(monthIdx: number, year: number): string[] {
 // ─── WheelPicker ─────────────────────────────────────────────────────────────
 
 const ITEM_H = 40
-const CYCLIC_REPEAT = 11  // middle repetition is index 5; 5 cycles of padding each side
+const CYCLIC_REPEAT = 3  // middle repetition is index 1; 1 cycle of padding each side
 
 function WheelPicker({
   values,
@@ -262,63 +270,9 @@ function WheelPicker({
   )
 }
 
-// ─── Segmented Control ───────────────────────────────────────────────────────
-
-function SegmentedControl<T extends string>({
-  options,
-  value,
-  onChange,
-  labels,
-}: {
-  options: readonly T[]
-  value: T
-  onChange: (v: T) => void
-  labels?: Partial<Record<T, React.ReactNode>>
-}) {
-  return (
-    <div className="flex rounded-md bg-muted">
-      {options.map((opt) => (
-        <button
-          key={opt}
-          type="button"
-          onClick={() => onChange(opt)}
-          className={`flex-1 py-2.5 rounded-md text-sm transition-all ${
-            value === opt
-              ? 'bg-card text-foreground font-semibold shadow-sm'
-              : 'text-muted-foreground font-medium'
-          }`}
-        >
-          {labels?.[opt] ?? opt}
-        </button>
-      ))}
-    </div>
-  )
-}
-
-// ─── Timer helpers ────────────────────────────────────────────────────────────
-
-function formatTimer(ms: number): string {
-  const totalSecs = Math.floor(ms / 1000)
-  const mins = Math.floor(totalSecs / 60)
-  const secs = totalSecs % 60
-  return `${String(mins).padStart(2, '0')}:${String(secs).padStart(2, '0')}`
-}
-
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function EventSheet({ type, initialEvent, onSave, onDelete, onDismiss, onTypeChange }: EventSheetProps) {
-  const [baseYear, setBaseYear] = useState(() => new Date().getFullYear())
-  const years = useMemo(
-    () => [String(baseYear - 1), String(baseYear), String(baseYear + 1)],
-    [baseYear],
-  )
-
-  const [nowMs, setNowMs] = useState(() => Date.now())
-  useEffect(() => {
-    const id = setInterval(() => setNowMs(Date.now()), 60_000)
-    return () => clearInterval(id)
-  }, [])
-
   const [selDay,    setSelDay]    = useState(0)
   const [selMonth,  setSelMonth]  = useState(0)
   const [selYear,   setSelYear]   = useState(1)   // 1 = current year
@@ -350,10 +304,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
     }
   }, [])
 
-  const days = useMemo(
-    () => daysArray(selMonth, Number(years[selYear])),
-    [selMonth, selYear, years],
-  )
+  const days = useMemo(() => daysArray(selMonth, selYear), [selMonth, selYear])
 
   // Clamp day when month / year changes
   useEffect(() => {
@@ -361,14 +312,8 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
   }, [days.length])
 
   // Reset / pre-fill form when the sheet opens or the target event changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (type) {
-      // Compute fresh year values inline so we don't read the stale `years` memo
-      const freshBaseYear = new Date().getFullYear()
-      const freshYears = [String(freshBaseYear - 1), String(freshBaseYear), String(freshBaseYear + 1)]
-      setBaseYear(freshBaseYear)
-
       // Reset timers unconditionally
       if (leftIntervalRef.current)  { clearInterval(leftIntervalRef.current);  leftIntervalRef.current  = null }
       if (rightIntervalRef.current) { clearInterval(rightIntervalRef.current); rightIntervalRef.current = null }
@@ -380,12 +325,12 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
       if (initialEvent) {
         // Edit mode — pre-fill from the existing event
         const d = new Date(initialEvent.timestamp)
-        const yearIdx = freshYears.indexOf(String(d.getFullYear()))
+        const yearIdx = YEARS.indexOf(String(d.getFullYear()))
         setSelDay(d.getDate() - 1)
         setSelMonth(d.getMonth())
         setSelYear(yearIdx !== -1 ? yearIdx : 1)
         setSelHour(d.getHours())
-        setSelMinute(Math.floor(d.getMinutes() / 5))
+        setSelMinute(d.getMinutes())
 
         const m = initialEvent.metadata
         if (initialEvent.type === 'feed' && m) {
@@ -420,7 +365,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
         setSelMonth(now.getMonth())
         setSelYear(1)
         setSelHour(now.getHours())
-        setSelMinute(Math.floor(now.getMinutes() / 5))
+        setSelMinute(now.getMinutes())
         setFeedType('breast')
         setLeftMin('')
         setRightMin('')
@@ -437,7 +382,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
     setSelMonth(now.getMonth())
     setSelYear(1)
     setSelHour(now.getHours())
-    setSelMinute(Math.floor(now.getMinutes() / 5))
+    setSelMinute(now.getMinutes())
   }
 
   function toggleLeftTimer() {
@@ -495,11 +440,11 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
   }
 
   function handleSave() {
-    const year    = Number(years[selYear])
+    const year    = BASE_YEAR - 1 + selYear
     const month   = String(selMonth + 1).padStart(2, '0')
     const day     = String(selDay + 1).padStart(2, '0')
     const hour    = String(selHour).padStart(2, '0')
-    const minute  = String(selMinute * 5).padStart(2, '0')
+    const minute  = String(selMinute).padStart(2, '0')
     onSave(fromDateTimeLocal(`${year}-${month}-${day}T${hour}:${minute}`), buildMetadata())
   }
 
@@ -517,7 +462,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
             {/* Date group */}
             <WheelPicker values={days}   selectedIndex={selDay}    onChange={setSelDay}    width={44} />
             <WheelPicker values={MONTHS} selectedIndex={selMonth}  onChange={setSelMonth}  width={54} />
-            <WheelPicker values={years}  selectedIndex={selYear}   onChange={setSelYear}   width={64} />
+            <WheelPicker values={YEARS}  selectedIndex={selYear}   onChange={setSelYear}   width={64} />
 
             {/* Spacer between date and time */}
             <div className="w-4" />
@@ -540,13 +485,13 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
           {/* Date/time warning */}
           {(() => {
             const selected = new Date(
-              Number(years[selYear]),
+              BASE_YEAR - 1 + selYear,
               selMonth,
               selDay + 1,
               selHour,
-              selMinute * 5,
+              selMinute,
             )
-            const diffMs = selected.getTime() - nowMs
+            const diffMs = selected.getTime() - Date.now()
             if (diffMs > 0) {
               return (
                 <p className="text-sm text-amber-500">
@@ -588,121 +533,39 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
                   onChange={setFeedType}
                   labels={{
                     breast:  <span className="flex items-center justify-center gap-1.5"><CircleDot className="w-3.5 h-3.5" />Breast</span>,
-                    pumped:  <span className="flex items-center justify-center gap-1.5"><Milk  className="w-3.5 h-3.5" />Pumped</span>,
-                    formula: <span className="flex items-center justify-center gap-1.5"><Cylinder className="w-3.5 h-3.5" />Formula</span>,
+                    pumped:  <span className="flex items-center justify-center gap-1.5"><Milk      className="w-3.5 h-3.5" />Pumped</span>,
+                    formula: <span className="flex items-center justify-center gap-1.5"><Cylinder  className="w-3.5 h-3.5" />Formula</span>,
                   }}
                 />
               </div>
 
               {feedType === 'breast' ? (
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="space-y-1.5">
-                    <label htmlFor="left-min" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Left (min)</label>
-                    <div className="flex gap-1.5">
-                      <input
-                        id="left-min"
-                        type="number"
-                        min="0"
-                        placeholder="—"
-                        value={leftMin}
-                        onChange={(e) => setLeftMin(e.target.value)}
-                        className="flex-1 min-w-0 h-11 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                      />
-                      <button
-                        type="button"
-                        onClick={toggleLeftTimer}
-                        className={`h-11 px-2.5 rounded-md text-sm font-medium border transition-colors flex flex-col items-center justify-center ${
-                          leftRunning
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-background border-input text-foreground'
-                        }`}
-                      >
-                        {leftRunning ? (
-                          <>
-                            <span>Stop</span>
-                            <span className="text-[10px] tabular-nums leading-none">{formatTimer(leftElapsedMs)}</span>
-                          </>
-                        ) : 'Start'}
-                      </button>
-                    </div>
-                  </div>
-                  <div className="space-y-1.5">
-                    <label htmlFor="right-min" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Right (min)</label>
-                    <div className="flex gap-1.5">
-                      <input
-                        id="right-min"
-                        type="number"
-                        min="0"
-                        placeholder="—"
-                        value={rightMin}
-                        onChange={(e) => setRightMin(e.target.value)}
-                        className="flex-1 min-w-0 h-11 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                      />
-                      <button
-                        type="button"
-                        onClick={toggleRightTimer}
-                        className={`h-11 px-2.5 rounded-md text-sm font-medium border transition-colors flex flex-col items-center justify-center ${
-                          rightRunning
-                            ? 'bg-primary text-primary-foreground border-primary'
-                            : 'bg-background border-input text-foreground'
-                        }`}
-                      >
-                        {rightRunning ? (
-                          <>
-                            <span>Stop</span>
-                            <span className="text-[10px] tabular-nums leading-none">{formatTimer(rightElapsedMs)}</span>
-                          </>
-                        ) : 'Start'}
-                      </button>
-                    </div>
-                  </div>
-                </div>
+                <BreastFeedForm
+                  leftMin={leftMin}
+                  setLeftMin={setLeftMin}
+                  rightMin={rightMin}
+                  setRightMin={setRightMin}
+                  leftRunning={leftRunning}
+                  rightRunning={rightRunning}
+                  leftElapsedMs={leftElapsedMs}
+                  rightElapsedMs={rightElapsedMs}
+                  onToggleLeft={toggleLeftTimer}
+                  onToggleRight={toggleRightTimer}
+                />
               ) : (
-                <div className="space-y-1.5">
-                  <label htmlFor="amount-ml" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Amount (ml)</label>
-                  <input
-                    id="amount-ml"
-                    type="number"
-                    min="0"
-                    placeholder="—"
-                    value={amountMl}
-                    onChange={(e) => setAmountMl(e.target.value)}
-                    className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-                  />
-                </div>
+                <BottleFeedForm amountMl={amountMl} setAmountMl={setAmountMl} />
               )}
             </>
           )}
 
           {/* Output-specific */}
           {type === 'output' && (
-            <>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Where</label>
-                <SegmentedControl
-                  options={['diaper', 'potty'] as const}
-                  value={outputLocation}
-                  onChange={setOutputLocation}
-                  labels={{
-                    diaper: <span className="flex items-center justify-center gap-1.5"><Baby    className="w-3.5 h-3.5" />Diaper</span>,
-                    potty:  <span className="flex items-center justify-center gap-1.5"><Toilet  className="w-3.5 h-3.5" />Potty</span>,
-                  }}
-                />
-              </div>
-              <div className="space-y-1.5">
-                <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Type</label>
-                <SegmentedControl
-                  options={['wet', 'dirty', 'both'] as const}
-                  value={diaperType}
-                  onChange={setDiaperType}
-                  labels={{
-                    wet:   <span className="flex items-center justify-center gap-1.5"><Droplet   className="w-3.5 h-3.5" />Pee</span>,
-                    dirty: <span className="flex items-center justify-center gap-1.5"><CirclePile className="w-3.5 h-3.5" />Poo</span>,
-                    both:  <span className="flex items-center justify-center gap-1.5"><Droplets  className="w-3.5 h-3.5" />Both</span>,
-                  }}
-                />
-              </div>
-            </>
+            <OutputForm
+              diaperType={diaperType}
+              setDiaperType={setDiaperType}
+              outputLocation={outputLocation}
+              setOutputLocation={setOutputLocation}
+            />
           )}
 
         </div>
