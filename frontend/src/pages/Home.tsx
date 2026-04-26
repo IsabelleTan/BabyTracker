@@ -159,20 +159,21 @@ export default function Home() {
     markNightMessageShown()
   }, [nightEventCount])
 
-  // Baby voice: fire once on first data load
+  // On first non-empty load: show baby voice card if allowed.
+  // On every sync: update potty streak, check for new milestones.
+  // Per-day gates in each function prevent repeated triggers across syncs.
   const babyVoiceInitDone = useRef(false)
   useEffect(() => {
-    if (events.length === 0 || babyVoiceInitDone.current) return
-    babyVoiceInitDone.current = true
-    if (babyVoiceShouldShow()) setBabyVoiceVisible(true) // eslint-disable-line react-hooks/set-state-in-effect
-  }, [events])
-
-  // Milestones + potty tracking: per-day gate prevents flooding on repeated syncs
-  useEffect(() => {
     if (events.length === 0) return
+
+    if (!babyVoiceInitDone.current) {
+      babyVoiceInitDone.current = true
+      if (babyVoiceShouldShow()) setBabyVoiceVisible(true) // eslint-disable-line react-hooks/set-state-in-effect
+    }
+
     trackDailyLogging()
     trackPottyCount(events)
-    setPottyStreak(updatePottyStreak(events)) // eslint-disable-line react-hooks/set-state-in-effect
+    setPottyStreak(updatePottyStreak(events))
     if (milestoneAllowedToday()) {
       const key = getNewMilestone(events)
       if (key) {

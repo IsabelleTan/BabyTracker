@@ -1,5 +1,6 @@
 import { api } from './api'
 import { currentDayStart } from './events'
+import { formatMins } from './time'
 
 export interface ParentStat {
   display_name: string
@@ -39,13 +40,6 @@ export async function getLeaderboards(): Promise<LeaderboardData | null> {
   return response.data
 }
 
-function fmtMins(mins: number): string {
-  const h = Math.floor(mins / 60)
-  const m = Math.round(mins % 60)
-  if (h === 0) return `${m}m`
-  return m === 0 ? `${h}h` : `${h}h ${m}m`
-}
-
 function dateHash(s: string): number {
   let h = 0
   for (let i = 0; i < s.length; i++) h = (Math.imul(31, h) + s.charCodeAt(i)) | 0
@@ -78,7 +72,7 @@ export function buildNotifications(data: LeaderboardData): string[] {
   const s = (date: string | null, offset: number) => dateHash((date ?? today) + offset)
 
   if (data.longest_sleep_new && data.longest_sleep_min != null) {
-    const v = fmtMins(data.longest_sleep_min)
+    const v = formatMins(data.longest_sleep_min)
     msgs.push(seededPick([
       `New longest sleep record: ${v}. Who slipped melatonin in the bottle?`,
       `${v} in one stretch — new record! Treasure this. Tell no one. Make no changes.`,
@@ -94,7 +88,7 @@ export function buildNotifications(data: LeaderboardData): string[] {
   }
 
   if (data.best_night_new && data.best_night_min != null) {
-    const v = fmtMins(data.best_night_min)
+    const v = formatMins(data.best_night_min)
     msgs.push(seededPick([
       `New best night on record: ${v}. Frame this night and never speak of it again.`,
       `${v} of night sleep — new record! You may cautiously feel like a human again.`,

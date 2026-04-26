@@ -62,12 +62,12 @@ function WheelPicker({
   const HALF = cyclic ? Math.floor(CYCLIC_REPEAT / 2) : 0
 
   // For cyclic pickers expand to a large virtual list; otherwise use values as-is
+  // Callers must pass a stable reference (constant or memoized array).
   const virtualValues = useMemo(
     () => cyclic
       ? Array.from({ length: CYCLIC_REPEAT * n }, (_, i) => values[i % n])
       : values,
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [cyclic, n, values.join(',')]
+    [cyclic, n, values]
   )
 
   // Map external index → virtual index (always in the middle section)
@@ -82,7 +82,7 @@ function WheelPicker({
   const currentOffRef  = useRef(toVirtual(selectedIndex) * ITEM_H)
   const isDraggingRef  = useRef(false)
   const onChangeRef    = useRef(onChange)
-  onChangeRef.current  = onChange
+  onChangeRef.current  = onChange // eslint-disable-line react-hooks/refs -- event-handler ref; onChange is never called during render
 
   // Velocity tracking: ring buffer of recent {y, t} samples
   const moveHistoryRef = useRef<{ y: number; t: number }[]>([])
@@ -228,7 +228,7 @@ function WheelPicker({
           className="absolute top-0 left-0 right-0 z-10"
           style={{
             transform:  `translateY(${translateY}px)`,
-            transition: (dragging || momentumRef.current) ? 'none' : 'transform 150ms ease-out',
+            transition: (dragging || momentumRef.current) ? 'none' : 'transform 150ms ease-out', // eslint-disable-line react-hooks/refs -- intentional: reads animation state ref to skip CSS transition during momentum
           }}
         >
           {virtualValues.map((v, i) => {
