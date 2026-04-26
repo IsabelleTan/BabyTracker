@@ -11,6 +11,7 @@ class EventType(str, enum.Enum):
     sleep_start = "sleep_start"
     sleep_end = "sleep_end"
     output = "output"
+    vitamin_d = "vitamin_d"
 
 
 class Event(Base):
