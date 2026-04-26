@@ -252,10 +252,14 @@ export function updatePottyStreak(events: BabyEvent[]): number {
   const LAST_KEY = 'potty_streak_last_day'
   const today = todayDate()
 
-  const hasPottyToday = events.some(
-    (e) => e.type === 'output' &&
-      (e.metadata as OutputMeta | null)?.location === 'potty',
-  )
+  const dayStart = currentDayStart()
+  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000)
+  const hasPottyToday = events.some((e) => {
+    if (e.type !== 'output') return false
+    if ((e.metadata as OutputMeta | null)?.location !== 'potty') return false
+    const t = new Date(e.timestamp)
+    return t >= dayStart && t < dayEnd
+  })
 
   if (!hasPottyToday) return getPottyStreak()
 
