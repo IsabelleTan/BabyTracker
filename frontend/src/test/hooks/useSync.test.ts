@@ -15,6 +15,7 @@ vi.mock('@/lib/events', () => ({
   getLast24HoursEvents: vi.fn().mockResolvedValue([]),
   getLastFeeds: vi.fn().mockResolvedValue([]),
   getNightSessionEvents: vi.fn().mockResolvedValue([]),
+  isInNightSession: vi.fn().mockReturnValue(false),
   deleteEvent: vi.fn(),
 }))
 
@@ -103,6 +104,31 @@ describe('useSync.log — pending count behaviour', () => {
 
     expect(result.current.pendingCount).toBe(0)
     expect(db.addPending).not.toHaveBeenCalled()
+  })
+
+  it('adds event to nightSessionEvents optimistically when isInNightSession returns true', async () => {
+    vi.mocked(events.isInNightSession).mockReturnValue(true)
+    vi.mocked(events.logEvent).mockResolvedValue(MOCK_RESPONSE as events.BabyEvent)
+
+    const { result } = renderHook(() => useSync())
+    await waitFor(() => expect(result.current.lastSynced).not.toBeNull())
+
+    await act(async () => { await result.current.log(PAYLOAD) })
+
+    expect(result.current.nightSessionEvents).toHaveLength(1)
+    expect(result.current.nightSessionEvents[0].id).toBe('evt-001')
+  })
+
+  it('does not add event to nightSessionEvents when isInNightSession returns false', async () => {
+    vi.mocked(events.isInNightSession).mockReturnValue(false)
+    vi.mocked(events.logEvent).mockResolvedValue(MOCK_RESPONSE as events.BabyEvent)
+
+    const { result } = renderHook(() => useSync())
+    await waitFor(() => expect(result.current.lastSynced).not.toBeNull())
+
+    await act(async () => { await result.current.log(PAYLOAD) })
+
+    expect(result.current.nightSessionEvents).toHaveLength(0)
   })
 
   it('increments pendingCount and queues the event when the API call fails (offline)', async () => {

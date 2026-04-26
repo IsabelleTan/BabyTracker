@@ -5,6 +5,7 @@ import {
   getLast24HoursEvents,
   getLastFeeds,
   getNightSessionEvents,
+  isInNightSession,
   type BabyEvent,
   type LogEventPayload,
   type EventType,
@@ -112,11 +113,17 @@ export function useSync() {
     if (event.type === 'feed') {
       setLastFeeds((prev) => [...prev, event].slice(-3))
     }
+    if (isInNightSession(event.timestamp)) {
+      setNightSessionEvents((prev) =>
+        [...prev, event].sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
+      )
+    }
   }
 
   function removeEvent(id: string) {
     setEvents((prev) => prev.filter((e) => e.id !== id))
     setLastFeeds((prev) => prev.filter((e) => e.id !== id))
+    setNightSessionEvents((prev) => prev.filter((e) => e.id !== id))
   }
 
   return { events, lastFeeds, nightSessionEvents, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent }
