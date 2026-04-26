@@ -43,11 +43,13 @@ export default function SummarySection({ events }: Props) {
     if (!partnerMessageAllowed()) return
     const userId = getUser()?.user_id ?? ''
     const msg = getPartnerMessage(events, userId)
-    if (msg) {
-      setPartnerMsg(msg)
-      recordPartnerMessageShown()
-    }
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot init; partnerMsg is not a dep so no cascade
+    if (msg) setPartnerMsg(msg)
   }, [events])
+  // Record the impression separately so it only fires when the message actually appears
+  useEffect(() => {
+    if (partnerMsg) recordPartnerMessageShown()
+  }, [partnerMsg])
 
   return (
     <div className="flex flex-col gap-1">
