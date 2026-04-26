@@ -9,6 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.auth import get_current_user
 from app.db.database import get_db
 from app.db.queries import baby_ids_for_user, get_users_map
+from app.config import settings
 from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
@@ -74,7 +75,7 @@ def _winner_uid(stats: dict[str, dict], key: str) -> str | None:
 
 
 @router.get("", response_model=LeaderboardData)
-@limiter.limit("30/minute")
+@limiter.limit(settings.rate_limit_read)
 async def get_leaderboards(
     request: Request,
     tz_offset: int = Query(default=0),
