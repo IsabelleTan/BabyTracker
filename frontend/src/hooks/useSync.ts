@@ -3,7 +3,6 @@ import { addPending, removePending, getAllPending } from '@/lib/db'
 import {
   logEvent as apiLogEvent,
   getLast24HoursEvents,
-  getLastFeeds,
   getNightSessionEvents,
   isInNightSession,
   type BabyEvent,
@@ -16,7 +15,6 @@ const REFRESH_INTERVAL = 30_000
 
 export function useSync() {
   const [events, setEvents] = useState<BabyEvent[]>([])
-  const [lastFeeds, setLastFeeds] = useState<BabyEvent[]>([])
   const [nightSessionEvents, setNightSessionEvents] = useState<BabyEvent[]>([])
   const [pendingCount, setPendingCount] = useState(0)
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
@@ -41,13 +39,11 @@ export function useSync() {
       }
 
       // Re-fetch authoritative state from server
-      const [today, feeds, nightSession] = await Promise.all([
+      const [today, nightSession] = await Promise.all([
         getLast24HoursEvents(),
-        getLastFeeds(3),
         getNightSessionEvents(),
       ])
       setEvents(today)
-      setLastFeeds(feeds)
       setNightSessionEvents(nightSession)
       setLastSynced(new Date())
     } catch {
@@ -110,9 +106,6 @@ export function useSync() {
     setEvents((prev) =>
       [...prev, event].sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
     )
-    if (event.type === 'feed') {
-      setLastFeeds((prev) => [...prev, event].slice(-3))
-    }
     if (isInNightSession(event.timestamp)) {
       setNightSessionEvents((prev) =>
         [...prev, event].sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
@@ -122,9 +115,8 @@ export function useSync() {
 
   function removeEvent(id: string) {
     setEvents((prev) => prev.filter((e) => e.id !== id))
-    setLastFeeds((prev) => prev.filter((e) => e.id !== id))
     setNightSessionEvents((prev) => prev.filter((e) => e.id !== id))
   }
 
-  return { events, lastFeeds, nightSessionEvents, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent }
+  return { events, nightSessionEvents, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent }
 }

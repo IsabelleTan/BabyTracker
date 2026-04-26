@@ -10,7 +10,7 @@ import { logout } from '@/lib/auth'
 import { useTick, useTimeSince } from '@/hooks/useTimeSince'
 import { deleteEvent, type EventType, type BabyEvent } from '@/lib/events'
 import { generateId } from '@/lib/uuid'
-import { formatTime as fmt, formatAgo as ago, formatUntil as until, formatDuration as duration, isNightHours } from '@/lib/time'
+import { formatTime as fmt, formatAgo as ago, formatDuration as duration, isNightHours } from '@/lib/time'
 import {
   getBabyVoiceContext,
   getBabyVoiceMessage,
@@ -33,23 +33,10 @@ import {
 
 const PULL_THRESHOLD = 72
 
-export function nextFeedEstimate(lastFeeds: BabyEvent[]): Date | null {
-  if (lastFeeds.length < 2) return null
-  const intervals: number[] = []
-  for (let i = 1; i < lastFeeds.length; i++) {
-    intervals.push(
-      new Date(lastFeeds[i].timestamp).getTime() -
-        new Date(lastFeeds[i - 1].timestamp).getTime(),
-    )
-  }
-  const avg = intervals.reduce((a, b) => a + b, 0) / intervals.length
-  return new Date(new Date(lastFeeds[lastFeeds.length - 1].timestamp).getTime() + avg)
-}
-
 // ── component ────────────────────────────────────────────────────────────────
 
 export default function Home() {
-  const { events, lastFeeds, nightSessionEvents, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent } =
+  const { events, nightSessionEvents, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent } =
     useSync()
   const [sheetType, setSheetType] = useState<EventType | null>(null)
   const [editEvent, setEditEvent] = useState<BabyEvent | null>(null)
@@ -140,8 +127,6 @@ export default function Home() {
     const e = [...events].filter((e) => e.type === 'feed').at(-1)
     return e ? new Date(e.timestamp) : null
   }, [events])
-
-  const nextFeed = useMemo(() => nextFeedEstimate(lastFeeds), [lastFeeds])
 
   const sleepStatus = useMemo(() => {
     const e = [...events].filter((e) => e.type === 'sleep_start' || e.type === 'sleep_end').at(-1)
@@ -254,9 +239,6 @@ export default function Home() {
             stats={[
               lastFeedDate
                 ? { label: 'Last feed', lines: [ago(lastFeedDate), fmt(lastFeedDate)] }
-                : null,
-              nextFeed
-                ? { label: 'Est. next feed', lines: [until(nextFeed), `~${fmt(nextFeed)}`] }
                 : null,
             ]}
           />
