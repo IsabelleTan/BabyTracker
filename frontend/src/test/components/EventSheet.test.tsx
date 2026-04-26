@@ -210,6 +210,45 @@ describe('EventSheet — edit mode', () => {
   })
 })
 
+describe('EventSheet — 5-minute rounding', () => {
+  const onSave = vi.fn()
+  const onDismiss = vi.fn()
+
+  beforeEach(() => vi.clearAllMocks())
+
+  it('floors non-multiple-of-5 minutes when opening in create mode', () => {
+    // Simulate "now" being 12:58 — should floor to 12:55
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-06-15T12:58:00'))
+    render(<EventSheet type="sleep_start" onSave={onSave} onDismiss={onDismiss} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    vi.useRealTimers()
+    const timestamp = new Date(onSave.mock.calls[0][0])
+    expect(timestamp.getMinutes()).toBe(55)
+  })
+
+  it('floors to 00 when minutes are already a multiple of 5', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date('2025-06-15T09:00:00'))
+    render(<EventSheet type="sleep_start" onSave={onSave} onDismiss={onDismiss} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    vi.useRealTimers()
+    const timestamp = new Date(onSave.mock.calls[0][0])
+    expect(timestamp.getMinutes()).toBe(0)
+  })
+
+  it('floors edit-mode initialEvent minutes to nearest 5 on save', () => {
+    const event: import('@/lib/events').BabyEvent = {
+      id: 'e1', type: 'sleep_start', timestamp: '2025-06-15T12:58:00.000Z',
+      logged_by: 'u1', display_name: 'P1', metadata: null,
+    }
+    render(<EventSheet type="sleep_start" initialEvent={event} onSave={onSave} onDelete={vi.fn()} onDismiss={onDismiss} />)
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    const timestamp = new Date(onSave.mock.calls[0][0])
+    expect(timestamp.getMinutes()).toBe(55)
+  })
+})
+
 describe('EventSheet — dismiss and closed state', () => {
   it('accepts an onDismiss prop', () => {
     // Dismissal is via tap-outside on the Drawer — not testable in JSDOM.
