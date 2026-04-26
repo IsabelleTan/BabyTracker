@@ -48,7 +48,7 @@ function daysArray(monthIdx: number, yearOffset: number): string[] {
 // ─── WheelPicker ─────────────────────────────────────────────────────────────
 
 const ITEM_H = 40
-const CYCLIC_REPEAT = 3  // middle repetition is index 1; 1 cycle of padding each side
+const CYCLIC_REPEAT = 11  // middle repetition is index 5; 5 cycles of padding each side
 
 function WheelPicker({
   values,
