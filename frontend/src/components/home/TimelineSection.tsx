@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react'
-import { Milk, Droplets, Moon, Sun, TriangleAlert, List, LineDotRightHorizontal, type LucideIcon } from 'lucide-react'
+import { Milk, Droplets, Moon, Sun, Pill, TriangleAlert, List, LineDotRightHorizontal, type LucideIcon } from 'lucide-react'
 import { type BabyEvent } from '@/lib/events'
 import { formatTime } from '@/lib/time'
 
@@ -397,11 +397,13 @@ const LIST_ICON: Partial<Record<string, LucideIcon>> = {
   output: Droplets,
   sleep_start: Moon,
   sleep_end: Sun,
+  vitamin_d: Pill,
 }
 
 const LIST_LABEL: Partial<Record<string, string>> = {
   sleep_start: 'Sleep',
   sleep_end: 'Wake',
+  vitamin_d: 'Vitamin D',
 }
 
 function EventList({ events, onEditEvent }: { events: BabyEvent[]; onEditEvent: (e: BabyEvent) => void }) {

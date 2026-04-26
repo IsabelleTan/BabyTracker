@@ -26,6 +26,7 @@ const TITLES: Record<EventType, string> = {
   sleep_start: 'Sleep started',
   sleep_end: 'Woke up',
   output: 'Output',
+  vitamin_d: 'Vitamin D',
 }
 
 // ─── Wheel data ──────────────────────────────────────────────────────────────

@@ -4,6 +4,7 @@ import NightToggle from '@/components/NightToggle'
 import EventSheet from '@/components/home/EventSheet'
 import SummarySection from '@/components/home/SummarySection'
 import TimelineSection from '@/components/home/TimelineSection'
+import VitaminDWidget from '@/components/home/VitaminDWidget'
 import { useSync } from '@/hooks/useSync'
 import { logout } from '@/lib/auth'
 import { useTick, useTimeSince } from '@/hooks/useTimeSince'
@@ -283,6 +284,8 @@ export default function Home() {
             ]}
           />
         </div>
+
+        <VitaminDWidget events={events} onLog={log} />
 
         {loaded && <SummarySection events={events} />}
 

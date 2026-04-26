@@ -1,6 +1,6 @@
 import { api } from './api'
 
-export type EventType = 'feed' | 'sleep_start' | 'sleep_end' | 'output'
+export type EventType = 'feed' | 'sleep_start' | 'sleep_end' | 'output' | 'vitamin_d'
 
 export interface BabyEvent {
   id: string
