@@ -2,20 +2,41 @@ import { api } from './api'
 
 export type EventType = 'feed' | 'sleep_start' | 'sleep_end' | 'output' | 'vitamin_d'
 
+export interface BottleFeedMeta {
+  feed_type: 'bottle'
+  amount_ml: number
+  bottle_type?: 'pumped' | 'formula' | null
+}
+
+export interface BreastFeedMeta {
+  feed_type: 'breast'
+  left_duration_min?: number | null
+  right_duration_min?: number | null
+}
+
+export type FeedMeta = BottleFeedMeta | BreastFeedMeta
+
+export interface OutputMeta {
+  diaper_type: 'wet' | 'dirty' | 'both'
+  location: 'diaper' | 'potty'
+}
+
+export type EventMeta = FeedMeta | OutputMeta | null
+
 export interface BabyEvent {
   id: string
   type: EventType
   timestamp: string
   logged_by: string
   display_name: string
-  metadata: Record<string, unknown> | null
+  metadata: EventMeta
 }
 
 export interface LogEventPayload {
   id: string
   type: EventType
   timestamp: string
-  metadata?: Record<string, unknown> | null
+  metadata?: EventMeta
 }
 
 export async function logEvent(payload: LogEventPayload): Promise<BabyEvent> {
@@ -85,7 +106,9 @@ export function toDateTimeLocal(date: Date): string {
   return new Date(date.getTime() - offset * 60 * 1000).toISOString().slice(0, 16)
 }
 
-/** Parse a datetime-local string back to a UTC ISO string */
+/** Parse a datetime-local string back to a UTC ISO string.
+ *  ECMAScript treats datetime strings without a timezone suffix as local time,
+ *  so new Date("2024-01-01T10:00") gives the correct UTC equivalent. */
 export function fromDateTimeLocal(value: string): string {
   return new Date(value).toISOString()
 }

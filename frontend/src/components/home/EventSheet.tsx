@@ -7,13 +7,13 @@ import {
   DrawerFooter,
 } from '@/components/ui/drawer'
 import { Droplet, Droplets, CirclePile, Milk, CircleDot, Cylinder, Baby, Toilet, Trash2, Moon, Sun } from 'lucide-react'
-import { fromDateTimeLocal, type EventType, type BabyEvent } from '@/lib/events'
+import { fromDateTimeLocal, type EventType, type BabyEvent, type EventMeta } from '@/lib/events'
 
 interface EventSheetProps {
   type: EventType | null
   /** When set, the form is pre-filled with this event's data (edit mode). */
   initialEvent?: BabyEvent | null
-  onSave: (timestamp: string, metadata: Record<string, unknown> | null) => void
+  onSave: (timestamp: string, metadata: EventMeta) => void
   /** When provided a Delete button is shown (edit mode only). */
   onDelete?: () => void
   onDismiss: () => void
@@ -471,7 +471,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
     }
   }
 
-  function buildMetadata(): Record<string, unknown> | null {
+  function buildMetadata(): EventMeta {
     if (type === 'feed') {
       if (feedType === 'breast') {
         // If a timer is still running when saving, use its current elapsed value

@@ -1,5 +1,5 @@
 import { formatDuration } from '@/hooks/useTimeSince'
-import { type BabyEvent } from '@/lib/events'
+import { type BabyEvent, type FeedMeta, type OutputMeta } from '@/lib/events'
 
 function computeSleepMs(events: BabyEvent[], capAt: Date): number {
   const sleepEvents = events.filter(
@@ -21,8 +21,8 @@ function computeSleepMs(events: BabyEvent[], capAt: Date): number {
   return total
 }
 
-function diaperType(e: BabyEvent): string | undefined {
-  return (e.metadata as { diaper_type?: string } | null)?.diaper_type
+function diaperType(e: BabyEvent): 'wet' | 'dirty' | 'both' | undefined {
+  return (e.metadata as OutputMeta | null)?.diaper_type
 }
 
 export function computeStats(events: BabyEvent[], now = new Date()) {
@@ -44,11 +44,11 @@ export function computeStats(events: BabyEvent[], now = new Date()) {
   let pumpedMlTotal = 0
   let formulaMlTotal = 0
   for (const e of todayEvents.filter((e) => e.type === 'feed')) {
-    const m = e.metadata as Record<string, unknown> | null
+    const m = e.metadata as FeedMeta | null
     if (m?.feed_type === 'breast') {
-      breastMinTotal += ((m.left_duration_min as number) ?? 0) + ((m.right_duration_min as number) ?? 0)
+      breastMinTotal += (m.left_duration_min ?? 0) + (m.right_duration_min ?? 0)
     } else if (m?.feed_type === 'bottle') {
-      const ml = (m.amount_ml as number) ?? 0
+      const ml = m.amount_ml ?? 0
       if (m.bottle_type === 'formula') formulaMlTotal += ml
       else pumpedMlTotal += ml
     }
@@ -84,11 +84,11 @@ export function computeStats(events: BabyEvent[], now = new Date()) {
     let dPumpedMl = 0
     let dFormulaMl = 0
     for (const e of dayEvents.filter((e) => e.type === 'feed')) {
-      const m = e.metadata as Record<string, unknown> | null
+      const m = e.metadata as FeedMeta | null
       if (m?.feed_type === 'breast') {
-        dBreastMin += ((m.left_duration_min as number) ?? 0) + ((m.right_duration_min as number) ?? 0)
+        dBreastMin += (m.left_duration_min ?? 0) + (m.right_duration_min ?? 0)
       } else if (m?.feed_type === 'bottle') {
-        const ml = (m.amount_ml as number) ?? 0
+        const ml = m.amount_ml ?? 0
         if (m.bottle_type === 'formula') dFormulaMl += ml
         else dPumpedMl += ml
       }

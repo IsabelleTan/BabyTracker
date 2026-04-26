@@ -8,7 +8,7 @@ import VitaminDWidget from '@/components/home/VitaminDWidget'
 import { useSync } from '@/hooks/useSync'
 import { logout } from '@/lib/auth'
 import { useTick, useTimeSince } from '@/hooks/useTimeSince'
-import { deleteEvent, type EventType, type BabyEvent } from '@/lib/events'
+import { deleteEvent, type EventType, type BabyEvent, type EventMeta } from '@/lib/events'
 import { generateId } from '@/lib/uuid'
 import { formatTime as fmt, formatAgo as ago, formatDuration as duration, isNightHours } from '@/lib/time'
 import {
@@ -76,7 +76,7 @@ export default function Home() {
     setTimeout(() => setToast(null), 3000)
   }
 
-  async function handleSheetSave(timestamp: string, metadata: Record<string, unknown> | null) {
+  async function handleSheetSave(timestamp: string, metadata: EventMeta) {
     if (!sheetType) return
     const id = generateId()
     setSheetType(null)
@@ -100,7 +100,7 @@ export default function Home() {
     }
   }
 
-  async function handleEditSave(timestamp: string, metadata: Record<string, unknown> | null) {
+  async function handleEditSave(timestamp: string, metadata: EventMeta) {
     if (!editEvent) return
     const oldId = editEvent.id
     const oldType = editEvent.type
