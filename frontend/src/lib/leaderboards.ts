@@ -37,7 +37,7 @@ export interface LeaderboardData {
 
 export async function getLeaderboards(): Promise<LeaderboardData | null> {
   const response = await api.get<LeaderboardData>('/leaderboards', {
-    params: { tz_offset: -new Date().getTimezoneOffset() }, // minutes east of UTC (positive = UTC+)
+    params: { tz: Intl.DateTimeFormat().resolvedOptions().timeZone },
   })
   if (response.status === 204) return null
   return response.data

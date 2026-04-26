@@ -23,7 +23,7 @@ export async function getDailyStats(from: Date, to: Date): Promise<DailyStat[]> 
     params: {
       from: from.toISOString(),
       to: to.toISOString(),
-      tz_offset: -new Date().getTimezoneOffset(), // minutes east of UTC (positive = UTC+)
+      tz: Intl.DateTimeFormat().resolvedOptions().timeZone,
     },
   })
   return data

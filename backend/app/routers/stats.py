@@ -1,5 +1,5 @@
 from collections import defaultdict
-from datetime import date as date_type, datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
@@ -13,13 +13,13 @@ from app.config import settings
 from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
-from app.utils import _utc, pair_sleep_sessions, parenting_day
+from app.utils import UTC, _utc, pair_sleep_sessions, parenting_day
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
 
 class DailyStat(BaseModel):
-    date: str  # YYYY-MM-DD UTC
+    date: date
     feed_count: int
     avg_feed_interval_min: float | None
     total_sleep_min: int
@@ -65,7 +65,7 @@ async def get_daily_stats(
     request: Request,
     from_: datetime = Query(alias="from"),
     to: datetime = Query(),
-    tz_offset: int = Query(default=0),
+    tz: str = Query(default=UTC),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
@@ -92,20 +92,20 @@ async def get_daily_stats(
     )
     events = result.scalars().all()
 
-    feeds_by_day: dict[str, list[datetime]] = defaultdict(list)
-    outputs_by_day: dict[str, list[datetime]] = defaultdict(list)
-    wet_by_day: dict[str, int] = defaultdict(int)
-    dirty_by_day: dict[str, int] = defaultdict(int)
-    potty_wet_by_day: dict[str, int] = defaultdict(int)
-    potty_dirty_by_day: dict[str, int] = defaultdict(int)
-    breast_min_by_day: dict[str, float] = defaultdict(float)
-    pumped_ml_by_day: dict[str, float] = defaultdict(float)
-    formula_ml_by_day: dict[str, float] = defaultdict(float)
+    feeds_by_day: dict[date, list[datetime]] = defaultdict(list)
+    outputs_by_day: dict[date, list[datetime]] = defaultdict(list)
+    wet_by_day: dict[date, int] = defaultdict(int)
+    dirty_by_day: dict[date, int] = defaultdict(int)
+    potty_wet_by_day: dict[date, int] = defaultdict(int)
+    potty_dirty_by_day: dict[date, int] = defaultdict(int)
+    breast_min_by_day: dict[date, float] = defaultdict(float)
+    pumped_ml_by_day: dict[date, float] = defaultdict(float)
+    formula_ml_by_day: dict[date, float] = defaultdict(float)
     raw_sleep_events: list[tuple[str, datetime]] = []
 
     for e in events:
         ts = _utc(e.timestamp)
-        day = parenting_day(ts, tz_offset)
+        day = parenting_day(ts, tz)
         meta = e.metadata_ or {}
         if e.type == "feed":
             feeds_by_day[day].append(ts)
@@ -138,31 +138,30 @@ async def get_daily_stats(
 
     from_utc = _utc(from_)
     to_utc = _utc(to)
-    from_day = parenting_day(from_utc, tz_offset)
-    to_day   = parenting_day(to_utc,   tz_offset)
+    from_day = parenting_day(from_utc, tz)
+    to_day   = parenting_day(to_utc,   tz)
 
     # Group sessions by parenting day, clamping sessions that started before the
     # range to the first day so the first chart value isn't zero.
-    sleep_by_day: dict[str, list[tuple[datetime, datetime]]] = defaultdict(list)
+    sleep_by_day: dict[date, list[tuple[datetime, datetime]]] = defaultdict(list)
     for start, end in sleep_sessions:
-        effective_day = parenting_day(max(start, from_utc), tz_offset)
+        effective_day = parenting_day(max(start, from_utc), tz)
         if from_day <= effective_day <= to_day:
             sleep_by_day[effective_day].append((start, end))
 
     # Wake periods = gap between consecutive sessions
-    wake_by_day: dict[str, list[float]] = defaultdict(list)
+    wake_by_day: dict[date, list[float]] = defaultdict(list)
     for i in range(1, len(sleep_sessions)):
         prev_end   = sleep_sessions[i - 1][1]
         curr_start = sleep_sessions[i][0]
         wake_min   = (curr_start - prev_end).total_seconds() / 60
         if wake_min >= 0:
-            wake_by_day[parenting_day(curr_start, tz_offset)].append(wake_min)
+            wake_by_day[parenting_day(curr_start, tz)].append(wake_min)
 
     results: list[DailyStat] = []
-    current  = date_type.fromisoformat(from_day)
-    end_date = date_type.fromisoformat(to_day)
-    while current <= end_date:
-        day = current.isoformat()
+    current = from_day
+    while current <= to_day:
+        day = current
 
         feed_times = feeds_by_day.get(day, [])
         avg_feed_interval: float | None = None

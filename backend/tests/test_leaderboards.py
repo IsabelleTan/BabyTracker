@@ -1,4 +1,4 @@
-from datetime import datetime, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 import pytest
 
 from app.routers.leaderboards import _compute_parent_stats, _winner_uid, compute_feed_stats
@@ -277,9 +277,9 @@ def test_compute_feed_stats_potty_streak_consecutive():
         _FakePottyEvent("2024-01-11"),
         _FakePottyEvent("2024-01-12"),
     ]
-    stats = compute_feed_stats(events, tz_offset=0)
+    stats = compute_feed_stats(events, tz="UTC")
     assert stats.longest_potty_streak == 3
-    assert stats.longest_potty_streak_date == "2024-01-12"
+    assert stats.longest_potty_streak_date == date(2024, 1, 12)
 
 
 def test_compute_feed_stats_potty_streak_gap_resets():
@@ -292,9 +292,9 @@ def test_compute_feed_stats_potty_streak_gap_resets():
         _FakePottyEvent("2024-01-14"),
         _FakePottyEvent("2024-01-15"),
     ]
-    stats = compute_feed_stats(events, tz_offset=0)
+    stats = compute_feed_stats(events, tz="UTC")
     assert stats.longest_potty_streak == 3
-    assert stats.longest_potty_streak_date == "2024-01-15"
+    assert stats.longest_potty_streak_date == date(2024, 1, 15)
 
 
 def test_compute_feed_stats_potty_streak_multiple_events_same_day():
@@ -304,7 +304,7 @@ def test_compute_feed_stats_potty_streak_multiple_events_same_day():
         _FakePottyEvent("2024-01-10"),  # duplicate day
         _FakePottyEvent("2024-01-11"),
     ]
-    stats = compute_feed_stats(events, tz_offset=0)
+    stats = compute_feed_stats(events, tz="UTC")
     assert stats.longest_potty_streak == 2
 
 
@@ -314,13 +314,13 @@ def test_compute_feed_stats_potty_streak_diaper_location_excluded():
         _FakePottyEvent("2024-01-10", location="diaper"),
         _FakePottyEvent("2024-01-11", location="potty"),
     ]
-    stats = compute_feed_stats(events, tz_offset=0)
+    stats = compute_feed_stats(events, tz="UTC")
     assert stats.longest_potty_streak == 1
 
 
 def test_compute_feed_stats_potty_streak_none_when_no_potty_events():
     events = [_FakePottyEvent("2024-01-10", location="diaper")]
-    stats = compute_feed_stats(events, tz_offset=0)
+    stats = compute_feed_stats(events, tz="UTC")
     assert stats.longest_potty_streak is None
     assert stats.longest_potty_streak_date is None
 
