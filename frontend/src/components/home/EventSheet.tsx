@@ -7,13 +7,13 @@ import {
   DrawerFooter,
 } from '@/components/ui/drawer'
 import { Droplet, Droplets, CirclePile, Milk, CircleDot, Cylinder, Baby, Toilet, Trash2, Moon, Sun } from 'lucide-react'
-import { fromDateTimeLocal, type EventType, type BabyEvent } from '@/lib/events'
+import { fromDateTimeLocal, type EventType, type BabyEvent, type EventMeta, type FeedMeta, type OutputMeta } from '@/lib/events'
 
 interface EventSheetProps {
   type: EventType | null
   /** When set, the form is pre-filled with this event's data (edit mode). */
   initialEvent?: BabyEvent | null
-  onSave: (timestamp: string, metadata: Record<string, unknown> | null) => void
+  onSave: (timestamp: string, metadata: EventMeta) => void
   /** When provided a Delete button is shown (edit mode only). */
   onDelete?: () => void
   onDismiss: () => void
@@ -388,21 +388,22 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
 
         const m = initialEvent.metadata
         if (initialEvent.type === 'feed' && m) {
-          const ft = m.feed_type as string
-          if (ft === 'breast') {
+          const fm = m as FeedMeta
+          if (fm.feed_type === 'breast') {
             setFeedType('breast')
-            setLeftMin(m.left_duration_min  != null ? String(m.left_duration_min)  : '')
-            setRightMin(m.right_duration_min != null ? String(m.right_duration_min) : '')
+            setLeftMin(fm.left_duration_min  != null ? String(fm.left_duration_min)  : '')
+            setRightMin(fm.right_duration_min != null ? String(fm.right_duration_min) : '')
             setAmountMl('')
-          } else if (ft === 'bottle') {
-            setFeedType(m.bottle_type === 'formula' ? 'formula' : 'pumped')
-            setAmountMl(m.amount_ml != null ? String(m.amount_ml) : '')
+          } else if (fm.feed_type === 'bottle') {
+            setFeedType(fm.bottle_type === 'formula' ? 'formula' : 'pumped')
+            setAmountMl(fm.amount_ml != null ? String(fm.amount_ml) : '')
             setLeftMin('')
             setRightMin('')
           }
         } else if (initialEvent.type === 'output' && m) {
-          setDiaperType((m.diaper_type as 'wet' | 'dirty' | 'both') ?? 'wet')
-          setOutputLocation((m.location as 'diaper' | 'potty') ?? 'diaper')
+          const om = m as OutputMeta
+          setDiaperType(om.diaper_type)
+          setOutputLocation(om.location)
         } else {
           // sleep_start / sleep_end — no metadata
           setFeedType('breast')
@@ -471,7 +472,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
     }
   }
 
-  function buildMetadata(): Record<string, unknown> | null {
+  function buildMetadata(): EventMeta {
     if (type === 'feed') {
       if (feedType === 'breast') {
         // If a timer is still running when saving, use its current elapsed value

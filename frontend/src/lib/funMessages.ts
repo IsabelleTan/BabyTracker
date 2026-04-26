@@ -1,4 +1,4 @@
-import type { BabyEvent } from './events'
+import type { BabyEvent, OutputMeta } from './events'
 import { currentDayStart } from './events'
 import { isNightHours } from './time'
 
@@ -141,7 +141,7 @@ export function getBabyVoiceContext(events: BabyEvent[]): BabyVoiceContext {
 
   // First potty ever: shown on the day it happens, before the milestone is dismissed
   const hasPottyToday = events.some(
-    (e) => e.type === 'output' && (e.metadata as Record<string, unknown> | null)?.location === 'potty',
+    (e) => e.type === 'output' && (e.metadata as OutputMeta | null)?.location === 'potty',
   )
   if (hasPottyToday && localStorage.getItem('milestone_potty_first') !== 'true') return 'potty_first'
 
@@ -185,10 +185,11 @@ export function getBabyVoiceContext(events: BabyEvent[]): BabyVoiceContext {
 
 export function getPartnerContext(events: BabyEvent[], currentUserId: string): PartnerContext {
   // Poop duty: OTHER user logged ≥ 3 dirty/both diapers
-  const otherPoopCount = events.filter(
-    (e) => e.type === 'output' && e.logged_by !== currentUserId &&
-      (e.metadata?.diaper_type === 'dirty' || e.metadata?.diaper_type === 'both'),
-  ).length
+  const otherPoopCount = events.filter((e) => {
+    if (e.type !== 'output' || e.logged_by === currentUserId) return false
+    const t = (e.metadata as OutputMeta | null)?.diaper_type
+    return t === 'dirty' || t === 'both'
+  }).length
   if (otherPoopCount >= 3) return 'poop_duty'
 
   // Night shift: OTHER user logged ≥ 3 events between 21:00–07:00
@@ -253,7 +254,7 @@ export function updatePottyStreak(events: BabyEvent[]): number {
 
   const hasPottyToday = events.some(
     (e) => e.type === 'output' &&
-      (e.metadata as Record<string, unknown> | null)?.location === 'potty',
+      (e.metadata as OutputMeta | null)?.location === 'potty',
   )
 
   if (!hasPottyToday) return getPottyStreak()
@@ -285,7 +286,7 @@ export function trackPottyCount(events: BabyEvent[]): void {
   if (localStorage.getItem(LAST_KEY) === today) return
   const count = events.filter(
     (e) => e.type === 'output' &&
-      (e.metadata as Record<string, unknown> | null)?.location === 'potty',
+      (e.metadata as OutputMeta | null)?.location === 'potty',
   ).length
   const current = parseInt(localStorage.getItem(TOTAL_KEY) ?? '0', 10)
   localStorage.setItem(TOTAL_KEY, String(current + count))
@@ -396,17 +397,17 @@ export function getNewMilestone(events: BabyEvent[]): MilestoneKey | null {
   // ── potty training ─────────────────────────────────────────────────────────
   const pottyEvents = events.filter(
     (e) => e.type === 'output' &&
-      (e.metadata as Record<string, unknown> | null)?.location === 'potty',
+      (e.metadata as OutputMeta | null)?.location === 'potty',
   )
   const diaperEvents = events.filter(
     (e) => e.type === 'output' &&
-      ((e.metadata as Record<string, unknown> | null)?.location ?? 'diaper') === 'diaper',
+      ((e.metadata as OutputMeta | null)?.location ?? 'diaper') === 'diaper',
   )
 
   if (pottyEvents.length >= 1 && unseen('potty_first')) candidates.push('potty_first')
 
   const hasPottyPoo = pottyEvents.some((e) => {
-    const t = (e.metadata as Record<string, unknown> | null)?.diaper_type
+    const t = (e.metadata as OutputMeta | null)?.diaper_type
     return t === 'dirty' || t === 'both'
   })
   if (hasPottyPoo && unseen('potty_first_poo')) candidates.push('potty_first_poo')
