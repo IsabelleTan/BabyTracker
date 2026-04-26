@@ -9,6 +9,6 @@ if os.getenv("DISABLE_RATE_LIMIT"):
             def decorator(f):
                 return f
             return decorator
-    limiter = _NoOpLimiter()  # type: ignore[assignment]
+    limiter = _NoOpLimiter()  # type: ignore[assignment] -- _NoOpLimiter duck-types Limiter's .limit() decorator
 else:
     limiter = Limiter(key_func=get_remote_address)
