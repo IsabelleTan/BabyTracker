@@ -203,6 +203,12 @@ function RecordsSection({ data }: { data: LeaderboardData }) {
       sub: formatDateShort(data.most_poop_date),
       isNew: data.most_poop_new,
     },
+    {
+      label: 'Longest potty streak',
+      value: data.longest_potty_streak != null ? `${data.longest_potty_streak} days` : '—',
+      sub: formatDateShort(data.longest_potty_streak_date),
+      isNew: data.longest_potty_streak_new,
+    },
   ]
 
   return (

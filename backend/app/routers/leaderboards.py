@@ -43,6 +43,9 @@ class LeaderboardData(BaseModel):
     most_poop_count: int | None
     most_poop_date: str | None
     most_poop_new: bool
+    longest_potty_streak: int | None
+    longest_potty_streak_date: str | None
+    longest_potty_streak_new: bool
     night_shift_claimed_today: bool
     chief_log_claimed_today: bool
     poop_award_claimed_today: bool
@@ -90,6 +93,8 @@ class FeedStats:
     most_feeds_date: str | None
     most_poop_count: int | None
     most_poop_date: str | None
+    longest_potty_streak: int | None
+    longest_potty_streak_date: str | None
 
 
 @dataclass
@@ -158,7 +163,33 @@ def compute_feed_stats(events: list, tz_offset: int) -> FeedStats:
         most_poop_date = max(poop_by_day, key=lambda k: poop_by_day[k])
         most_poop_count = poop_by_day[most_poop_date]
 
-    return FeedStats(most_feeds_count, most_feeds_date, most_poop_count, most_poop_date)
+    potty_days: set[str] = set()
+    for e in events:
+        if e.type == "output":
+            meta = e.metadata_ or {}
+            if meta.get("location") == "potty":
+                potty_days.add(parenting_day(e.timestamp, tz_offset))
+
+    longest_potty_streak: int | None = None
+    longest_potty_streak_date: str | None = None
+    if potty_days:
+        from datetime import date as date_type
+        sorted_days = sorted(date_type.fromisoformat(d) for d in potty_days)
+        best_streak = 1
+        best_end = sorted_days[0]
+        current_streak = 1
+        for i in range(1, len(sorted_days)):
+            if sorted_days[i] == sorted_days[i - 1] + timedelta(days=1):
+                current_streak += 1
+            else:
+                current_streak = 1
+            if current_streak >= best_streak:
+                best_streak = current_streak
+                best_end = sorted_days[i]
+        longest_potty_streak = best_streak
+        longest_potty_streak_date = best_end.isoformat()
+
+    return FeedStats(most_feeds_count, most_feeds_date, most_poop_count, most_poop_date, longest_potty_streak, longest_potty_streak_date)
 
 
 def compute_award_changes(
@@ -213,6 +244,9 @@ def build_leaderboard_response(
         most_poop_count=feeds.most_poop_count,
         most_poop_date=feeds.most_poop_date,
         most_poop_new=feeds.most_poop_date == today_str,
+        longest_potty_streak=feeds.longest_potty_streak,
+        longest_potty_streak_date=feeds.longest_potty_streak_date,
+        longest_potty_streak_new=feeds.longest_potty_streak_date == today_str,
         night_shift_claimed_today=awards.night_shift_claimed,
         chief_log_claimed_today=awards.chief_log_claimed,
         poop_award_claimed_today=awards.poop_claimed,

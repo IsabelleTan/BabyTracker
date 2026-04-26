@@ -25,6 +25,9 @@ export interface LeaderboardData {
   most_poop_count: number | null
   most_poop_date: string | null
   most_poop_new: boolean
+  longest_potty_streak: number | null
+  longest_potty_streak_date: string | null
+  longest_potty_streak_new: boolean
   night_shift_claimed_today: boolean
   chief_log_claimed_today: boolean
   poop_award_claimed_today: boolean
