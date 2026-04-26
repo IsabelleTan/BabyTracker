@@ -13,7 +13,6 @@ vi.mock('@/lib/db', () => ({
 vi.mock('@/lib/events', () => ({
   logEvent: vi.fn(),
   getLast24HoursEvents: vi.fn().mockResolvedValue([]),
-  getLastFeeds: vi.fn().mockResolvedValue([]),
   getNightSessionEvents: vi.fn().mockResolvedValue([]),
   deleteEvent: vi.fn(),
 }))
@@ -42,7 +41,6 @@ describe('useSync.sync — pending queue flush order', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     vi.mocked(events.getLast24HoursEvents).mockResolvedValue([])
-    vi.mocked(events.getLastFeeds).mockResolvedValue([])
   })
 
   it('flushes the pending queue in FIFO order', async () => {
@@ -87,7 +85,6 @@ describe('useSync.log — pending count behaviour', () => {
     vi.clearAllMocks()
     vi.mocked(db.getAllPending).mockResolvedValue([])
     vi.mocked(events.getLast24HoursEvents).mockResolvedValue([])
-    vi.mocked(events.getLastFeeds).mockResolvedValue([])
   })
 
   it('does not increment pendingCount when the API call succeeds (online)', async () => {

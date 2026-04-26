@@ -27,13 +27,6 @@ export async function deleteEvent(id: string): Promise<void> {
   await api.delete(`/events/${id}`)
 }
 
-export async function getLastFeeds(n: number): Promise<BabyEvent[]> {
-  const { data } = await api.get<BabyEvent[]>('/events', {
-    params: { type: 'feed', limit: n },
-  })
-  // API returns DESC order when using limit; reverse so oldest-first
-  return [...data].reverse()
-}
 
 export async function getLast24HoursEvents(): Promise<BabyEvent[]> {
   const now = new Date()
