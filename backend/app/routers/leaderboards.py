@@ -1,7 +1,8 @@
 from collections import defaultdict
+from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 
-from fastapi import APIRouter, Depends, Query, Request
+from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -28,7 +29,6 @@ class ParentStat(BaseModel):
 
 
 class LeaderboardData(BaseModel):
-    has_enough_data: bool  # True once earliest event is >= 7 days ago
     longest_sleep_min: float | None
     longest_sleep_date: str | None
     longest_sleep_new: bool
@@ -74,56 +74,33 @@ def _winner_uid(stats: dict[str, dict], key: str) -> str | None:
     return max(candidates, key=lambda uid: candidates[uid]) if candidates else None
 
 
-@router.get("", response_model=LeaderboardData)
-@limiter.limit(settings.rate_limit_read)
-async def get_leaderboards(
-    request: Request,
-    tz_offset: int = Query(default=0),
-    current_user: User = Depends(get_current_user),
-    db: AsyncSession = Depends(get_db),
-):
-    baby_ids = baby_ids_for_user(current_user.id)
-    family_user_ids = select(UserBaby.user_id).where(UserBaby.baby_id.in_(baby_ids))
+@dataclass
+class SleepStats:
+    longest_sleep_min: float | None
+    longest_sleep_date: str | None
+    best_night_min: float | None
+    best_night_date: str | None
+    worst_night_min: float | None
+    worst_night_date: str | None
 
-    today_utc = datetime.now(timezone.utc)
-    today_str = parenting_day(today_utc, tz_offset)
 
-    # today_start: UTC moment when the current parenting day began (local 05:00 → UTC).
-    # local 05:00 on parenting-day date = UTC 05:00 - tz_offset_min
-    from datetime import date as date_type
-    pday = date_type.fromisoformat(today_str)
-    today_start = datetime(
-        pday.year, pday.month, pday.day, DAY_START_HOUR, 0, 0, tzinfo=timezone.utc
-    ) - timedelta(minutes=tz_offset)
+@dataclass
+class FeedStats:
+    most_feeds_count: int | None
+    most_feeds_date: str | None
+    most_poop_count: int | None
+    most_poop_date: str | None
 
-    # Cap at 4 years — the realistic maximum lifetime of this app for any family.
-    # The compound index on (baby_id, timestamp) makes this range scan fast even
-    # at the upper bound (~25k events).
-    MAX_LEADERBOARD_DAYS = 4 * 365
-    cutoff = today_utc - timedelta(days=MAX_LEADERBOARD_DAYS)
-    events_result = await db.execute(
-        select(Event)
-        .where(Event.baby_id.in_(baby_ids), Event.timestamp >= cutoff)
-        .order_by(Event.timestamp)
-    )
-    events = events_result.scalars().all()
 
-    family_user_id_rows = await db.execute(family_user_ids)
-    users = await get_users_map(db, set(family_user_id_rows.scalars().all()))
+@dataclass
+class AwardFlags:
+    night_shift_claimed: bool
+    chief_log_claimed: bool
+    poop_claimed: bool
+    potty_claimed: bool
 
-    earliest_ts = min((_utc(e.timestamp) for e in events), default=None)
-    has_enough_data = (
-        earliest_ts is not None and (today_utc - earliest_ts).days >= 7
-    )
 
-    # ── Sleep sessions ────────────────────────────────────────────────────────
-    raw_sleep_events = [
-        (e.type, _utc(e.timestamp))
-        for e in events
-        if e.type in ("sleep_start", "sleep_end")
-    ]
-    sleep_sessions = pair_sleep_sessions(raw_sleep_events)
-
+def compute_sleep_stats(sleep_sessions: list[tuple], tz_offset: int) -> SleepStats:
     longest_sleep_min: float | None = None
     longest_sleep_date: str | None = None
     if sleep_sessions:
@@ -155,11 +132,19 @@ async def get_leaderboards(
         worst_night_date = min(night_sleep, key=lambda k: night_sleep[k])
         worst_night_min = round(night_sleep[worst_night_date], 1)
 
-    # ── Feeds per day ─────────────────────────────────────────────────────────
+    return SleepStats(longest_sleep_min, longest_sleep_date, best_night_min, best_night_date, worst_night_min, worst_night_date)
+
+
+def compute_feed_stats(events: list, tz_offset: int) -> FeedStats:
     feeds_by_day: dict[str, int] = defaultdict(int)
+    poop_by_day: dict[str, int] = defaultdict(int)
     for e in events:
         if e.type == "feed":
             feeds_by_day[parenting_day(e.timestamp, tz_offset)] += 1
+        elif e.type == "output":
+            meta = e.metadata_ or {}
+            if meta.get("diaper_type") in ("dirty", "both") and meta.get("location", "diaper") == "diaper":
+                poop_by_day[parenting_day(e.timestamp, tz_offset)] += 1
 
     most_feeds_count: int | None = None
     most_feeds_date: str | None = None
@@ -167,44 +152,40 @@ async def get_leaderboards(
         most_feeds_date = max(feeds_by_day, key=lambda k: feeds_by_day[k])
         most_feeds_count = feeds_by_day[most_feeds_date]
 
-    # ── Poop diapers per day ──────────────────────────────────────────────────
-    poop_by_day: dict[str, int] = defaultdict(int)
-    for e in events:
-        if e.type == "output":
-            meta = e.metadata_ or {}
-            if meta.get("diaper_type") in ("dirty", "both") and meta.get("location", "diaper") == "diaper":
-                poop_by_day[parenting_day(e.timestamp, tz_offset)] += 1
-
     most_poop_count: int | None = None
     most_poop_date: str | None = None
     if poop_by_day:
         most_poop_date = max(poop_by_day, key=lambda k: poop_by_day[k])
         most_poop_count = poop_by_day[most_poop_date]
 
-    # ── Record broken today flags (suppressed until enough data) ─────────────
-    longest_sleep_new = has_enough_data and longest_sleep_date == today_str
-    best_night_new = has_enough_data and best_night_date == today_str
-    most_feeds_new = has_enough_data and most_feeds_date == today_str
-    most_poop_new = has_enough_data and most_poop_date == today_str
+    return FeedStats(most_feeds_count, most_feeds_date, most_poop_count, most_poop_date)
 
-    # ── Award claimed today (suppressed until enough data) ────────────────────
-    curr_stats = _compute_parent_stats(events, users)
-    prev_events = [e for e in events if _utc(e.timestamp) < today_start]
-    prev_stats = _compute_parent_stats(prev_events, users)
 
+def compute_award_changes(
+    curr_stats: dict[str, dict],
+    prev_stats: dict[str, dict],
+) -> AwardFlags:
     def award_claimed(key: str) -> bool:
-        if not has_enough_data:
-            return False
         curr = _winner_uid(curr_stats, key)
         prev = _winner_uid(prev_stats, key)
         return curr is not None and curr != prev
 
-    night_shift_claimed_today = award_claimed("night_shifts")
-    chief_log_claimed_today = award_claimed("total_logs")
-    poop_award_claimed_today = award_claimed("poop_changes")
-    potty_award_claimed_today = award_claimed("potty_assists")
+    return AwardFlags(
+        night_shift_claimed=award_claimed("night_shifts"),
+        chief_log_claimed=award_claimed("total_logs"),
+        poop_claimed=award_claimed("poop_changes"),
+        potty_claimed=award_claimed("potty_assists"),
+    )
 
-    # ── Parent stats for display ──────────────────────────────────────────────
+
+def build_leaderboard_response(
+    today_str: str,
+    sleep: SleepStats,
+    feeds: FeedStats,
+    awards: AwardFlags,
+    curr_stats: dict[str, dict],
+    users: dict[str, str],
+) -> LeaderboardData:
     parents = [
         ParentStat(
             display_name=users[uid],
@@ -218,24 +199,79 @@ async def get_leaderboards(
     ]
 
     return LeaderboardData(
-        has_enough_data=has_enough_data,
-        longest_sleep_min=longest_sleep_min,
-        longest_sleep_date=longest_sleep_date,
-        longest_sleep_new=longest_sleep_new,
-        best_night_min=best_night_min,
-        best_night_date=best_night_date,
-        best_night_new=best_night_new,
-        worst_night_min=worst_night_min,
-        worst_night_date=worst_night_date,
-        most_feeds_count=most_feeds_count,
-        most_feeds_date=most_feeds_date,
-        most_feeds_new=most_feeds_new,
-        most_poop_count=most_poop_count,
-        most_poop_date=most_poop_date,
-        most_poop_new=most_poop_new,
-        night_shift_claimed_today=night_shift_claimed_today,
-        chief_log_claimed_today=chief_log_claimed_today,
-        poop_award_claimed_today=poop_award_claimed_today,
-        potty_award_claimed_today=potty_award_claimed_today,
+        longest_sleep_min=sleep.longest_sleep_min,
+        longest_sleep_date=sleep.longest_sleep_date,
+        longest_sleep_new=sleep.longest_sleep_date == today_str,
+        best_night_min=sleep.best_night_min,
+        best_night_date=sleep.best_night_date,
+        best_night_new=sleep.best_night_date == today_str,
+        worst_night_min=sleep.worst_night_min,
+        worst_night_date=sleep.worst_night_date,
+        most_feeds_count=feeds.most_feeds_count,
+        most_feeds_date=feeds.most_feeds_date,
+        most_feeds_new=feeds.most_feeds_date == today_str,
+        most_poop_count=feeds.most_poop_count,
+        most_poop_date=feeds.most_poop_date,
+        most_poop_new=feeds.most_poop_date == today_str,
+        night_shift_claimed_today=awards.night_shift_claimed,
+        chief_log_claimed_today=awards.chief_log_claimed,
+        poop_award_claimed_today=awards.poop_claimed,
+        potty_award_claimed_today=awards.potty_claimed,
         parents=parents,
     )
+
+
+@router.get("", response_model=LeaderboardData, responses={204: {"description": "Not enough data yet (< 7 days of events)"}})
+@limiter.limit(settings.rate_limit_read)
+async def get_leaderboards(
+    request: Request,
+    tz_offset: int = Query(default=0),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    baby_ids = baby_ids_for_user(current_user.id)
+    family_user_ids = select(UserBaby.user_id).where(UserBaby.baby_id.in_(baby_ids))
+
+    today_utc = datetime.now(timezone.utc)
+    today_str = parenting_day(today_utc, tz_offset)
+
+    from datetime import date as date_type
+    pday = date_type.fromisoformat(today_str)
+    today_start = datetime(
+        pday.year, pday.month, pday.day, DAY_START_HOUR, 0, 0, tzinfo=timezone.utc
+    ) - timedelta(minutes=tz_offset)
+
+    # Cap at 4 years — the realistic maximum lifetime of this app for any family.
+    # The compound index on (baby_id, timestamp) makes this range scan fast even
+    # at the upper bound (~25k events).
+    MAX_LEADERBOARD_DAYS = 4 * 365
+    cutoff = today_utc - timedelta(days=MAX_LEADERBOARD_DAYS)
+    events_result = await db.execute(
+        select(Event)
+        .where(Event.baby_id.in_(baby_ids), Event.timestamp >= cutoff)
+        .order_by(Event.timestamp)
+    )
+    events = events_result.scalars().all()
+
+    family_user_id_rows = await db.execute(family_user_ids)
+    users = await get_users_map(db, set(family_user_id_rows.scalars().all()))
+
+    earliest_ts = min((_utc(e.timestamp) for e in events), default=None)
+    if earliest_ts is None or (today_utc - earliest_ts).days < 7:
+        return Response(status_code=204)
+
+    raw_sleep_events = [
+        (e.type, _utc(e.timestamp))
+        for e in events
+        if e.type in ("sleep_start", "sleep_end")
+    ]
+    sleep_sessions = pair_sleep_sessions(raw_sleep_events)
+
+    sleep = compute_sleep_stats(sleep_sessions, tz_offset)
+    feeds = compute_feed_stats(events, tz_offset)
+
+    curr_stats = _compute_parent_stats(events, users)
+    prev_stats = _compute_parent_stats([e for e in events if _utc(e.timestamp) < today_start], users)
+    awards = compute_award_changes(curr_stats, prev_stats)
+
+    return build_leaderboard_response(today_str, sleep, feeds, awards, curr_stats, users)

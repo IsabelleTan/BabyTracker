@@ -313,6 +313,12 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
     [baseYear],
   )
 
+  const [nowMs, setNowMs] = useState(() => Date.now())
+  useEffect(() => {
+    const id = setInterval(() => setNowMs(Date.now()), 60_000)
+    return () => clearInterval(id)
+  }, [])
+
   const [selDay,    setSelDay]    = useState(0)
   const [selMonth,  setSelMonth]  = useState(0)
   const [selYear,   setSelYear]   = useState(1)   // 1 = current year
@@ -325,13 +331,6 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
   const [amountMl,   setAmountMl]   = useState('')
   const [diaperType, setDiaperType] = useState<'wet' | 'dirty' | 'both'>('wet')
   const [outputLocation, setOutputLocation] = useState<'diaper' | 'potty'>('diaper')
-
-  // nowMs ticks every minute so the future-time warning stays fresh without calling Date.now() in render
-  const [nowMs, setNowMs] = useState(() => Date.now())
-  useEffect(() => {
-    const id = setInterval(() => setNowMs(Date.now()), 60_000)
-    return () => clearInterval(id)
-  }, [])
 
   // Breastfeed timers
   const [leftRunning,    setLeftRunning]    = useState(false)
@@ -364,8 +363,10 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
   // Reset / pre-fill form when the sheet opens or the target event changes
   useEffect(() => {
     if (type) {
-      // Refresh the year so the picker is correct if the app is open across a year boundary
-      setBaseYear(new Date().getFullYear()) // eslint-disable-line react-hooks/set-state-in-effect
+      // Compute fresh year values inline so we don't read the stale `years` memo
+      const freshBaseYear = new Date().getFullYear()
+      const freshYears = [String(freshBaseYear - 1), String(freshBaseYear), String(freshBaseYear + 1)]
+      setBaseYear(freshBaseYear) // eslint-disable-line react-hooks/set-state-in-effect
 
       // Reset timers unconditionally
       if (leftIntervalRef.current)  { clearInterval(leftIntervalRef.current);  leftIntervalRef.current  = null }
@@ -378,7 +379,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
       if (initialEvent) {
         // Edit mode — pre-fill from the existing event
         const d = new Date(initialEvent.timestamp)
-        const yearIdx = years.indexOf(String(d.getFullYear()))
+        const yearIdx = freshYears.indexOf(String(d.getFullYear()))
         setSelDay(d.getDate() - 1)
         setSelMonth(d.getMonth())
         setSelYear(yearIdx !== -1 ? yearIdx : 1)
@@ -427,7 +428,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
         setOutputLocation('diaper')
       }
     }
-  }, [type, initialEvent?.id])
+  }, [type, initialEvent?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function resetToNow() {
     const now = new Date()

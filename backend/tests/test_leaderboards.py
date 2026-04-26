@@ -76,9 +76,8 @@ def test_winner_uid_none_when_all_zero():
 # ── HTTP endpoint tests ────────────────────────────────────────────────────────
 
 @pytest.mark.asyncio
-async def test_leaderboards_not_enough_data_when_events_are_recent(client_with_family):
+async def test_leaderboards_returns_204_when_events_are_recent(client_with_family):
     client, headers = client_with_family
-    # Create an event with today's timestamp — less than 7 days old
     await client.post("/events", json={
         "id": "recent-feed", "type": "feed",
         "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -86,12 +85,11 @@ async def test_leaderboards_not_enough_data_when_events_are_recent(client_with_f
     }, headers=headers)
 
     r = await client.get("/leaderboards", headers=headers)
-    assert r.status_code == 200
-    assert r.json()["has_enough_data"] is False
+    assert r.status_code == 204
 
 
 @pytest.mark.asyncio
-async def test_leaderboards_enough_data_after_seven_days(client_with_family):
+async def test_leaderboards_returns_200_after_seven_days(client_with_family):
     client, headers = client_with_family
     old_ts = (datetime.now(timezone.utc) - timedelta(days=8)).isoformat()
     await client.post("/events", json={
@@ -101,7 +99,7 @@ async def test_leaderboards_enough_data_after_seven_days(client_with_family):
     }, headers=headers)
 
     r = await client.get("/leaderboards", headers=headers)
-    assert r.json()["has_enough_data"] is True
+    assert r.status_code == 200
 
 
 @pytest.mark.asyncio
