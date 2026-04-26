@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, createContext, useContext } from 'react'
+import { lazy, Suspense, useEffect } from 'react'
 import { Routes, Route, Navigate } from 'react-router-dom'
 import BottomNav from '@/components/BottomNav'
 import RequireAuth from '@/components/RequireAuth'
@@ -7,13 +7,10 @@ import Login from '@/pages/Login'
 import Home from '@/pages/Home'
 import { useNightMode } from '@/hooks/useNightMode'
 import { LeaderboardProvider } from '@/contexts/LeaderboardContext'
+import { NightModeContext } from '@/contexts/NightModeContext'
 
 const Stats = lazy(() => import('@/pages/Stats'))
 const Leaderboards = lazy(() => import('@/pages/Leaderboards'))
-
-interface NightModeCtx { night: boolean; toggle: () => void }
-const NightModeContext = createContext<NightModeCtx>({ night: false, toggle: () => {} })
-export const useNightModeCtx = () => useContext(NightModeContext)
 
 function AppLayout() {
   return (
