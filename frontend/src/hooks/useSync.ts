@@ -4,6 +4,7 @@ import {
   logEvent as apiLogEvent,
   getLast24HoursEvents,
   getNightSessionEvents,
+  isInNightSession,
   type BabyEvent,
   type LogEventPayload,
   type EventType,
@@ -105,10 +106,16 @@ export function useSync() {
     setEvents((prev) =>
       [...prev, event].sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
     )
+    if (isInNightSession(event.timestamp)) {
+      setNightSessionEvents((prev) =>
+        [...prev, event].sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
+      )
+    }
   }
 
   function removeEvent(id: string) {
     setEvents((prev) => prev.filter((e) => e.id !== id))
+    setNightSessionEvents((prev) => prev.filter((e) => e.id !== id))
   }
 
   return { events, nightSessionEvents, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent }

@@ -56,12 +56,23 @@ export async function getEventsSince(days: number): Promise<BabyEvent[]> {
   return data
 }
 
+export function nightSessionStart(now = new Date()): Date {
+  const start = new Date(now)
+  if (now.getHours() < 7) start.setDate(start.getDate() - 1)
+  start.setHours(21, 0, 0, 0)
+  return start
+}
+
+export function isInNightSession(timestamp: string): boolean {
+  const t = new Date(timestamp)
+  const now = new Date()
+  return t >= nightSessionStart(now) && t <= now
+}
+
 /** Events from the current night session: 21:00 tonight (or yesterday if before 07:00) to now. */
 export async function getNightSessionEvents(): Promise<BabyEvent[]> {
   const now = new Date()
-  const sessionStart = new Date(now)
-  if (now.getHours() < 7) sessionStart.setDate(sessionStart.getDate() - 1)
-  sessionStart.setHours(21, 0, 0, 0)
+  const sessionStart = nightSessionStart(now)
   const { data } = await api.get<BabyEvent[]>('/events', {
     params: { from_: sessionStart.toISOString(), to: now.toISOString() },
   })
