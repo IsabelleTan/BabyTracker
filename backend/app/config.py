@@ -16,6 +16,8 @@ class Settings(BaseSettings):
     rate_limit_read: str = "30/minute"
     rate_limit_auth: str = "10/minute"
 
+    max_future_event_seconds: int = 24 * 3600
+
     @property
     def cors_origins_list(self) -> list[str]:
         return [o.strip() for o in self.cors_origins.split(",")]

@@ -1,4 +1,4 @@
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Request
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, delete, exists
@@ -15,6 +15,10 @@ from app.schemas.event import EventCreate, EventResponse
 from app.auth import get_current_user
 
 router = APIRouter(prefix="/events", tags=["events"])
+
+
+def _utcnow() -> datetime:
+    return datetime.now(timezone.utc)
 
 
 def _to_response(event: Event, display_name: str) -> EventResponse:
@@ -43,6 +47,12 @@ async def create_event(
     baby_id = await get_user_baby_id(db, current_user.id)
     if baby_id is None:
         raise HTTPException(status_code=400, detail="User is not linked to any baby")
+
+    ts = payload.timestamp
+    if ts.tzinfo is None:
+        ts = ts.replace(tzinfo=timezone.utc)
+    if ts > _utcnow() + timedelta(seconds=settings.max_future_event_seconds):
+        raise HTTPException(status_code=422, detail="Timestamp is too far in the future")
 
     stmt = (
         insert(Event)

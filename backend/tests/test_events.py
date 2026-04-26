@@ -1,4 +1,6 @@
 import pytest_asyncio
+from datetime import datetime, timezone, timedelta
+from unittest.mock import patch
 from httpx import AsyncClient, ASGITransport
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy.pool import StaticPool
@@ -294,4 +296,41 @@ async def test_bottle_event_with_valid_formula_type_accepted(client, auth_header
               "metadata": {"feed_type": "bottle", "amount_ml": 90, "bottle_type": "formula"}},
         headers=auth_headers,
     )
+    assert r.status_code == 201
+
+
+_NOW = datetime(2025, 6, 1, 12, 0, 0, tzinfo=timezone.utc)
+
+
+async def test_future_timestamp_beyond_24h_rejected(client, auth_headers):
+    too_far = (_NOW + timedelta(hours=24, seconds=1)).isoformat()
+    with patch("app.routers.events._utcnow", return_value=_NOW):
+        r = await client.post(
+            "/events",
+            json={"id": "future-bad", "type": "sleep_start", "timestamp": too_far},
+            headers=auth_headers,
+        )
+    assert r.status_code == 422
+    assert "future" in r.json()["detail"].lower()
+
+
+async def test_future_timestamp_exactly_24h_accepted(client, auth_headers):
+    exactly_24h = (_NOW + timedelta(hours=24)).isoformat()
+    with patch("app.routers.events._utcnow", return_value=_NOW):
+        r = await client.post(
+            "/events",
+            json={"id": "future-ok", "type": "sleep_start", "timestamp": exactly_24h},
+            headers=auth_headers,
+        )
+    assert r.status_code == 201
+
+
+async def test_past_timestamp_accepted(client, auth_headers):
+    past = (_NOW - timedelta(days=1)).isoformat()
+    with patch("app.routers.events._utcnow", return_value=_NOW):
+        r = await client.post(
+            "/events",
+            json={"id": "past-ok", "type": "sleep_start", "timestamp": past},
+            headers=auth_headers,
+        )
     assert r.status_code == 201
