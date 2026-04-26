@@ -33,7 +33,7 @@ const TITLES: Record<EventType, string> = {
 
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec']
 const HOURS   = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
-const MINUTES = Array.from({ length: 60 }, (_, i) => String(i).padStart(2, '0'))
+const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))
 
 const BASE_YEAR = new Date().getFullYear()
 // Offer 3 years: last, current, next — index 1 = current year
@@ -369,7 +369,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
         setSelMonth(d.getMonth())
         setSelYear(yearIdx !== -1 ? yearIdx : 1)
         setSelHour(d.getHours())
-        setSelMinute(d.getMinutes())
+        setSelMinute(Math.floor(d.getMinutes() / 5))
 
         const m = initialEvent.metadata
         if (initialEvent.type === 'feed' && m) {
@@ -404,7 +404,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
         setSelMonth(now.getMonth())
         setSelYear(1)
         setSelHour(now.getHours())
-        setSelMinute(now.getMinutes())
+        setSelMinute(Math.floor(now.getMinutes() / 5))
         setFeedType('breast')
         setLeftMin('')
         setRightMin('')
@@ -421,7 +421,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
     setSelMonth(now.getMonth())
     setSelYear(1)
     setSelHour(now.getHours())
-    setSelMinute(now.getMinutes())
+    setSelMinute(Math.floor(now.getMinutes() / 5))
   }
 
   function toggleLeftTimer() {
@@ -483,7 +483,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
     const month   = String(selMonth + 1).padStart(2, '0')
     const day     = String(selDay + 1).padStart(2, '0')
     const hour    = String(selHour).padStart(2, '0')
-    const minute  = String(selMinute).padStart(2, '0')
+    const minute  = String(selMinute * 5).padStart(2, '0')
     onSave(fromDateTimeLocal(`${year}-${month}-${day}T${hour}:${minute}`), buildMetadata())
   }
 
@@ -528,7 +528,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
               selMonth,
               selDay + 1,
               selHour,
-              selMinute,
+              selMinute * 5,
             )
             const diffMs = selected.getTime() - Date.now()
             if (diffMs > 0) {
