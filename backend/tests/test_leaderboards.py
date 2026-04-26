@@ -1,7 +1,7 @@
 from datetime import datetime, timezone, timedelta
 import pytest
 
-from app.routers.leaderboards import _compute_parent_stats, _winner_uid
+from app.routers.leaderboards import _compute_parent_stats, _winner_uid, compute_feed_stats
 from app.utils import NIGHT_SHIFT_START, NIGHT_SHIFT_END
 
 
@@ -259,3 +259,88 @@ async def test_leaderboards_best_and_worst_night_differ_across_sessions(client_w
     assert data["worst_night_min"] is not None
     assert data["best_night_min"] > data["worst_night_min"]
     assert data["best_night_date"] != data["worst_night_date"]
+
+
+# ── Potty streak unit tests ───────────────────────────────────────────────────
+
+class _FakePottyEvent:
+    def __init__(self, date_str: str, location: str = "potty"):
+        self.type = "output"
+        self.timestamp = datetime.fromisoformat(date_str + "T10:00:00+00:00")
+        self.metadata_ = {"diaper_type": "dirty", "location": location}
+
+
+def test_compute_feed_stats_potty_streak_consecutive():
+    """Three consecutive days of potty events → streak of 3."""
+    events = [
+        _FakePottyEvent("2024-01-10"),
+        _FakePottyEvent("2024-01-11"),
+        _FakePottyEvent("2024-01-12"),
+    ]
+    stats = compute_feed_stats(events, tz_offset=0)
+    assert stats.longest_potty_streak == 3
+    assert stats.longest_potty_streak_date == "2024-01-12"
+
+
+def test_compute_feed_stats_potty_streak_gap_resets():
+    """A gap in potty days resets the streak; longest run wins."""
+    events = [
+        _FakePottyEvent("2024-01-10"),
+        _FakePottyEvent("2024-01-11"),
+        # gap on 12th
+        _FakePottyEvent("2024-01-13"),
+        _FakePottyEvent("2024-01-14"),
+        _FakePottyEvent("2024-01-15"),
+    ]
+    stats = compute_feed_stats(events, tz_offset=0)
+    assert stats.longest_potty_streak == 3
+    assert stats.longest_potty_streak_date == "2024-01-15"
+
+
+def test_compute_feed_stats_potty_streak_multiple_events_same_day():
+    """Multiple potty events on the same day count as a single day in the streak."""
+    events = [
+        _FakePottyEvent("2024-01-10"),
+        _FakePottyEvent("2024-01-10"),  # duplicate day
+        _FakePottyEvent("2024-01-11"),
+    ]
+    stats = compute_feed_stats(events, tz_offset=0)
+    assert stats.longest_potty_streak == 2
+
+
+def test_compute_feed_stats_potty_streak_diaper_location_excluded():
+    """Output events with location='diaper' do not count toward the potty streak."""
+    events = [
+        _FakePottyEvent("2024-01-10", location="diaper"),
+        _FakePottyEvent("2024-01-11", location="potty"),
+    ]
+    stats = compute_feed_stats(events, tz_offset=0)
+    assert stats.longest_potty_streak == 1
+
+
+def test_compute_feed_stats_potty_streak_none_when_no_potty_events():
+    events = [_FakePottyEvent("2024-01-10", location="diaper")]
+    stats = compute_feed_stats(events, tz_offset=0)
+    assert stats.longest_potty_streak is None
+    assert stats.longest_potty_streak_date is None
+
+
+# ── Potty streak integration test ─────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_leaderboards_longest_potty_streak(client_with_family):
+    """Potty events on 3 consecutive days yield a streak of 3 ending on the last day."""
+    client, headers = client_with_family
+    base_date = (datetime.now(timezone.utc) - timedelta(days=30)).date()
+    for i in range(3):
+        ts = datetime(base_date.year, base_date.month, base_date.day + i, 10, 0, 0, tzinfo=timezone.utc)
+        await client.post("/events", json={
+            "id": f"potty-streak-{i}", "type": "output",
+            "timestamp": ts.isoformat(),
+            "metadata": {"diaper_type": "dirty", "location": "potty"},
+        }, headers=headers)
+
+    r = await client.get("/leaderboards", headers=headers)
+    data = r.json()
+    assert data["longest_potty_streak"] == 3
+    assert data["longest_potty_streak_date"] is not None
