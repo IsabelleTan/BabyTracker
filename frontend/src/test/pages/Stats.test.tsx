@@ -1,10 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
+import type React from 'react'
 import Stats from '@/pages/Stats'
 
 // Recharts' ResponsiveContainer relies on ResizeObserver / layout APIs absent in jsdom
 vi.mock('recharts', () => {
-  const React = require('react')
   return {
     ResponsiveContainer: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
     LineChart: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,

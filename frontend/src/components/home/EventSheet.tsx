@@ -357,17 +357,16 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
 
   // Clamp day when month / year changes
   useEffect(() => {
-    if (selDay >= days.length) setSelDay(days.length - 1)
+    if (selDay >= days.length) setSelDay(days.length - 1) // eslint-disable-line react-hooks/set-state-in-effect
   }, [days.length])
 
   // Reset / pre-fill form when the sheet opens or the target event changes
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (type) {
       // Compute fresh year values inline so we don't read the stale `years` memo
       const freshBaseYear = new Date().getFullYear()
       const freshYears = [String(freshBaseYear - 1), String(freshBaseYear), String(freshBaseYear + 1)]
-      setBaseYear(freshBaseYear)
+      setBaseYear(freshBaseYear) // eslint-disable-line react-hooks/set-state-in-effect
 
       // Reset timers unconditionally
       if (leftIntervalRef.current)  { clearInterval(leftIntervalRef.current);  leftIntervalRef.current  = null }
@@ -429,7 +428,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
         setOutputLocation('diaper')
       }
     }
-  }, [type, initialEvent?.id])
+  }, [type, initialEvent?.id]) // eslint-disable-line react-hooks/exhaustive-deps
 
   function resetToNow() {
     const now = new Date()

@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { niceStep, computeYTicks, computeYTicksMulti } from '@/pages/Stats'
+import { niceStep, computeYTicks, computeYTicksMulti } from '@/lib/chartUtils'
 
 describe('niceStep', () => {
   it('returns 1 when max is 0', () => {
@@ -43,7 +43,7 @@ describe('computeYTicks', () => {
 
   it('ignores null and undefined values', () => {
     const data = [{ val: 4 }, { val: null }, { val: undefined }]
-    const { ticks, domain } = computeYTicks(data, 'val')
+    const { domain } = computeYTicks(data, 'val')
     // max=4, step=1, domainMax=4
     expect(domain).toEqual([0, 4])
   })

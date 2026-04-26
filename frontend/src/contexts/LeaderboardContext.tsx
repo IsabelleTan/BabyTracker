@@ -15,6 +15,7 @@ const LeaderboardContext = createContext<LeaderboardCtx>({
   error: false,
 })
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useLeaderboardData = () => useContext(LeaderboardContext)
 
 const TTL_MS = 5 * 60 * 1000 // re-fetch at most once per 5 minutes
