@@ -35,12 +35,7 @@ const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', '
 const HOURS   = Array.from({ length: 24 }, (_, i) => String(i).padStart(2, '0'))
 const MINUTES = Array.from({ length: 12 }, (_, i) => String(i * 5).padStart(2, '0'))
 
-const BASE_YEAR = new Date().getFullYear()
-// Offer 3 years: last, current, next — index 1 = current year
-const YEARS = [String(BASE_YEAR - 1), String(BASE_YEAR), String(BASE_YEAR + 1)]
-
-function daysArray(monthIdx: number, yearOffset: number): string[] {
-  const year = BASE_YEAR - 1 + yearOffset
+function daysArray(monthIdx: number, year: number): string[] {
   const count = new Date(year, monthIdx + 1, 0).getDate()
   return Array.from({ length: count }, (_, i) => String(i + 1).padStart(2, '0'))
 }
@@ -312,6 +307,12 @@ function formatTimer(ms: number): string {
 // ─── Main Component ──────────────────────────────────────────────────────────
 
 export default function EventSheet({ type, initialEvent, onSave, onDelete, onDismiss, onTypeChange }: EventSheetProps) {
+  const [baseYear, setBaseYear] = useState(() => new Date().getFullYear())
+  const years = useMemo(
+    () => [String(baseYear - 1), String(baseYear), String(baseYear + 1)],
+    [baseYear],
+  )
+
   const [selDay,    setSelDay]    = useState(0)
   const [selMonth,  setSelMonth]  = useState(0)
   const [selYear,   setSelYear]   = useState(1)   // 1 = current year
@@ -343,7 +344,10 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
     }
   }, [])
 
-  const days = useMemo(() => daysArray(selMonth, selYear), [selMonth, selYear])
+  const days = useMemo(
+    () => daysArray(selMonth, Number(years[selYear])),
+    [selMonth, selYear, years],
+  )
 
   // Clamp day when month / year changes
   useEffect(() => {
@@ -353,6 +357,9 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
   // Reset / pre-fill form when the sheet opens or the target event changes
   useEffect(() => {
     if (type) {
+      // Refresh the year so the picker is correct if the app is open across a year boundary
+      setBaseYear(new Date().getFullYear())
+
       // Reset timers unconditionally
       if (leftIntervalRef.current)  { clearInterval(leftIntervalRef.current);  leftIntervalRef.current  = null }
       if (rightIntervalRef.current) { clearInterval(rightIntervalRef.current); rightIntervalRef.current = null }
@@ -364,7 +371,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
       if (initialEvent) {
         // Edit mode — pre-fill from the existing event
         const d = new Date(initialEvent.timestamp)
-        const yearIdx = YEARS.indexOf(String(d.getFullYear()))
+        const yearIdx = years.indexOf(String(d.getFullYear()))
         setSelDay(d.getDate() - 1)
         setSelMonth(d.getMonth())
         setSelYear(yearIdx !== -1 ? yearIdx : 1)
@@ -479,7 +486,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
   }
 
   function handleSave() {
-    const year    = BASE_YEAR - 1 + selYear
+    const year    = Number(years[selYear])
     const month   = String(selMonth + 1).padStart(2, '0')
     const day     = String(selDay + 1).padStart(2, '0')
     const hour    = String(selHour).padStart(2, '0')
@@ -501,7 +508,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
             {/* Date group */}
             <WheelPicker values={days}   selectedIndex={selDay}    onChange={setSelDay}    width={44} />
             <WheelPicker values={MONTHS} selectedIndex={selMonth}  onChange={setSelMonth}  width={54} />
-            <WheelPicker values={YEARS}  selectedIndex={selYear}   onChange={setSelYear}   width={64} />
+            <WheelPicker values={years}  selectedIndex={selYear}   onChange={setSelYear}   width={64} />
 
             {/* Spacer between date and time */}
             <div className="w-4" />
@@ -524,7 +531,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
           {/* Date/time warning */}
           {(() => {
             const selected = new Date(
-              BASE_YEAR - 1 + selYear,
+              Number(years[selYear]),
               selMonth,
               selDay + 1,
               selHour,
