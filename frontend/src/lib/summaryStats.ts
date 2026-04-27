@@ -1,5 +1,6 @@
 import { formatDuration } from '@/hooks/useTimeSince'
 import { type BabyEvent, type FeedMeta, type OutputMeta } from '@/lib/events'
+import { MS_PER_DAY } from '@/lib/time'
 
 function computeSleepMs(events: BabyEvent[], capAt: Date): number {
   const sleepEvents = events.filter(
@@ -26,7 +27,7 @@ function diaperType(e: BabyEvent): 'wet' | 'dirty' | 'both' | undefined {
 }
 
 export function computeStats(events: BabyEvent[], now = new Date()) {
-  const windowStart = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  const windowStart = new Date(now.getTime() - MS_PER_DAY)
 
   const todayEvents = events.filter((e) => new Date(e.timestamp) >= windowStart)
 
@@ -59,7 +60,7 @@ export function computeStats(events: BabyEvent[], now = new Date()) {
   const oldestMs = events.length > 0
     ? events.reduce((min, e) => Math.min(min, new Date(e.timestamp).getTime()), Infinity)
     : now.getTime()
-  const nAvgDays = Math.min(Math.ceil((now.getTime() - oldestMs) / (24 * 60 * 60 * 1000)), 7)
+  const nAvgDays = Math.min(Math.ceil((now.getTime() - oldestMs) / (MS_PER_DAY)), 7)
 
   const dailyWets: number[] = []
   const dailyDirtys: number[] = []
@@ -69,8 +70,8 @@ export function computeStats(events: BabyEvent[], now = new Date()) {
   const dailySleepMs: number[] = []
 
   for (let d = 1; d <= nAvgDays; d++) {
-    const dayEnd = new Date(now.getTime() - (d - 1) * 24 * 60 * 60 * 1000)
-    const dayStart = new Date(now.getTime() - d * 24 * 60 * 60 * 1000)
+    const dayEnd = new Date(now.getTime() - (d - 1) * MS_PER_DAY)
+    const dayStart = new Date(now.getTime() - d * MS_PER_DAY)
     const dayEvents = events.filter((e) => {
       const t = new Date(e.timestamp)
       return t >= dayStart && t < dayEnd

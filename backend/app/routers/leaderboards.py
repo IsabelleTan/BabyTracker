@@ -1,6 +1,7 @@
 from collections import defaultdict
 from dataclasses import dataclass
-from datetime import datetime, timedelta, timezone
+from datetime import date, datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query, Request, Response
 from pydantic import BaseModel
@@ -15,7 +16,7 @@ from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
 from app.models.user_baby import UserBaby
-from app.utils import _utc, pair_sleep_sessions, parenting_day, DAY_START_HOUR, NIGHT_SHIFT_START, NIGHT_SHIFT_END
+from app.utils import _utc, pair_sleep_sessions, parenting_day, safe_zone, DAY_START_HOUR, NIGHT_SHIFT_START, NIGHT_SHIFT_END
 
 router = APIRouter(prefix="/leaderboards", tags=["leaderboards"])
 
@@ -30,21 +31,21 @@ class ParentStat(BaseModel):
 
 class LeaderboardData(BaseModel):
     longest_sleep_min: float | None
-    longest_sleep_date: str | None
+    longest_sleep_date: date | None
     longest_sleep_new: bool
     best_night_min: float | None
-    best_night_date: str | None
+    best_night_date: date | None
     best_night_new: bool
     worst_night_min: float | None
-    worst_night_date: str | None
+    worst_night_date: date | None
     most_feeds_count: int | None
-    most_feeds_date: str | None
+    most_feeds_date: date | None
     most_feeds_new: bool
     most_poop_count: int | None
-    most_poop_date: str | None
+    most_poop_date: date | None
     most_poop_new: bool
     longest_potty_streak: int | None
-    longest_potty_streak_date: str | None
+    longest_potty_streak_date: date | None
     longest_potty_streak_new: bool
     night_shift_claimed_today: bool
     chief_log_claimed_today: bool
@@ -80,21 +81,21 @@ def _winner_uid(stats: dict[str, dict], key: str) -> str | None:
 @dataclass
 class SleepStats:
     longest_sleep_min: float | None
-    longest_sleep_date: str | None
+    longest_sleep_date: date | None
     best_night_min: float | None
-    best_night_date: str | None
+    best_night_date: date | None
     worst_night_min: float | None
-    worst_night_date: str | None
+    worst_night_date: date | None
 
 
 @dataclass
 class FeedStats:
     most_feeds_count: int | None
-    most_feeds_date: str | None
+    most_feeds_date: date | None
     most_poop_count: int | None
-    most_poop_date: str | None
+    most_poop_date: date | None
     longest_potty_streak: int | None
-    longest_potty_streak_date: str | None
+    longest_potty_streak_date: date | None
 
 
 @dataclass
@@ -105,15 +106,15 @@ class AwardFlags:
     potty_claimed: bool
 
 
-def compute_sleep_stats(sleep_sessions: list[tuple], tz_offset: int) -> SleepStats:
+def compute_sleep_stats(sleep_sessions: list[tuple], zone: ZoneInfo) -> SleepStats:
     longest_sleep_min: float | None = None
-    longest_sleep_date: str | None = None
+    longest_sleep_date: date | None = None
     if sleep_sessions:
         longest = max(sleep_sessions, key=lambda s: (s[1] - s[0]).total_seconds())
         longest_sleep_min = round((longest[1] - longest[0]).total_seconds() / 60, 1)
-        longest_sleep_date = parenting_day(longest[0], tz_offset)
+        longest_sleep_date = parenting_day(longest[0], zone)
 
-    night_sleep: dict[str, float] = defaultdict(float)
+    night_sleep: dict[date, float] = defaultdict(float)
     for start, end in sleep_sessions:
         for offset in range(-1, 2):
             night_start = datetime(
@@ -123,14 +124,14 @@ def compute_sleep_stats(sleep_sessions: list[tuple], tz_offset: int) -> SleepSta
             overlap_start = max(start, night_start)
             overlap_end = min(end, night_end)
             if overlap_end > overlap_start:
-                night_sleep[parenting_day(night_start, tz_offset)] += (
+                night_sleep[parenting_day(night_start, zone)] += (
                     overlap_end - overlap_start
                 ).total_seconds() / 60
 
     best_night_min: float | None = None
-    best_night_date: str | None = None
+    best_night_date: date | None = None
     worst_night_min: float | None = None
-    worst_night_date: str | None = None
+    worst_night_date: date | None = None
     if night_sleep:
         best_night_date = max(night_sleep, key=lambda k: night_sleep[k])
         best_night_min = round(night_sleep[best_night_date], 1)
@@ -140,41 +141,40 @@ def compute_sleep_stats(sleep_sessions: list[tuple], tz_offset: int) -> SleepSta
     return SleepStats(longest_sleep_min, longest_sleep_date, best_night_min, best_night_date, worst_night_min, worst_night_date)
 
 
-def compute_feed_stats(events: list, tz_offset: int) -> FeedStats:
-    feeds_by_day: dict[str, int] = defaultdict(int)
-    poop_by_day: dict[str, int] = defaultdict(int)
+def compute_feed_stats(events: list, zone: ZoneInfo) -> FeedStats:
+    feeds_by_day: dict[date, int] = defaultdict(int)
+    poop_by_day: dict[date, int] = defaultdict(int)
     for e in events:
         if e.type == "feed":
-            feeds_by_day[parenting_day(e.timestamp, tz_offset)] += 1
+            feeds_by_day[parenting_day(e.timestamp, zone)] += 1
         elif e.type == "output":
             meta = e.metadata_ or {}
             if meta.get("diaper_type") in ("dirty", "both") and meta.get("location", "diaper") == "diaper":
-                poop_by_day[parenting_day(e.timestamp, tz_offset)] += 1
+                poop_by_day[parenting_day(e.timestamp, zone)] += 1
 
     most_feeds_count: int | None = None
-    most_feeds_date: str | None = None
+    most_feeds_date: date | None = None
     if feeds_by_day:
         most_feeds_date = max(feeds_by_day, key=lambda k: feeds_by_day[k])
         most_feeds_count = feeds_by_day[most_feeds_date]
 
     most_poop_count: int | None = None
-    most_poop_date: str | None = None
+    most_poop_date: date | None = None
     if poop_by_day:
         most_poop_date = max(poop_by_day, key=lambda k: poop_by_day[k])
         most_poop_count = poop_by_day[most_poop_date]
 
-    potty_days: set[str] = set()
+    potty_days: set[date] = set()
     for e in events:
         if e.type == "output":
             meta = e.metadata_ or {}
             if meta.get("location") == "potty":
-                potty_days.add(parenting_day(e.timestamp, tz_offset))
+                potty_days.add(parenting_day(e.timestamp, zone))
 
     longest_potty_streak: int | None = None
-    longest_potty_streak_date: str | None = None
+    longest_potty_streak_date: date | None = None
     if potty_days:
-        from datetime import date as date_type
-        sorted_days = sorted(date_type.fromisoformat(d) for d in potty_days)
+        sorted_days = sorted(potty_days)
         best_streak = 1
         best_end = sorted_days[0]
         current_streak = 1
@@ -187,7 +187,7 @@ def compute_feed_stats(events: list, tz_offset: int) -> FeedStats:
                 best_streak = current_streak
                 best_end = sorted_days[i]
         longest_potty_streak = best_streak
-        longest_potty_streak_date = best_end.isoformat()
+        longest_potty_streak_date = best_end
 
     return FeedStats(most_feeds_count, most_feeds_date, most_poop_count, most_poop_date, longest_potty_streak, longest_potty_streak_date)
 
@@ -210,7 +210,7 @@ def compute_award_changes(
 
 
 def build_leaderboard_response(
-    today_str: str,
+    today: date,
     sleep: SleepStats,
     feeds: FeedStats,
     awards: AwardFlags,
@@ -232,21 +232,21 @@ def build_leaderboard_response(
     return LeaderboardData(
         longest_sleep_min=sleep.longest_sleep_min,
         longest_sleep_date=sleep.longest_sleep_date,
-        longest_sleep_new=sleep.longest_sleep_date == today_str,
+        longest_sleep_new=sleep.longest_sleep_date == today,
         best_night_min=sleep.best_night_min,
         best_night_date=sleep.best_night_date,
-        best_night_new=sleep.best_night_date == today_str,
+        best_night_new=sleep.best_night_date == today,
         worst_night_min=sleep.worst_night_min,
         worst_night_date=sleep.worst_night_date,
         most_feeds_count=feeds.most_feeds_count,
         most_feeds_date=feeds.most_feeds_date,
-        most_feeds_new=feeds.most_feeds_date == today_str,
+        most_feeds_new=feeds.most_feeds_date == today,
         most_poop_count=feeds.most_poop_count,
         most_poop_date=feeds.most_poop_date,
-        most_poop_new=feeds.most_poop_date == today_str,
+        most_poop_new=feeds.most_poop_date == today,
         longest_potty_streak=feeds.longest_potty_streak,
         longest_potty_streak_date=feeds.longest_potty_streak_date,
-        longest_potty_streak_new=feeds.longest_potty_streak_date == today_str,
+        longest_potty_streak_new=feeds.longest_potty_streak_date == today,
         night_shift_claimed_today=awards.night_shift_claimed,
         chief_log_claimed_today=awards.chief_log_claimed,
         poop_award_claimed_today=awards.poop_claimed,
@@ -259,21 +259,17 @@ def build_leaderboard_response(
 @limiter.limit(settings.rate_limit_read)
 async def get_leaderboards(
     request: Request,
-    tz_offset: int = Query(default=0),
+    tz: str = Query(default="UTC"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
     baby_ids = baby_ids_for_user(current_user.id)
     family_user_ids = select(UserBaby.user_id).where(UserBaby.baby_id.in_(baby_ids))
 
+    zone = safe_zone(tz)
     today_utc = datetime.now(timezone.utc)
-    today_str = parenting_day(today_utc, tz_offset)
-
-    from datetime import date as date_type
-    pday = date_type.fromisoformat(today_str)
-    today_start = datetime(
-        pday.year, pday.month, pday.day, DAY_START_HOUR, 0, 0, tzinfo=timezone.utc
-    ) - timedelta(minutes=tz_offset)
+    today = parenting_day(today_utc, zone)
+    today_start = datetime(today.year, today.month, today.day, DAY_START_HOUR, 0, 0, tzinfo=zone)
 
     # Cap at 4 years — the realistic maximum lifetime of this app for any family.
     # The compound index on (baby_id, timestamp) makes this range scan fast even
@@ -301,11 +297,11 @@ async def get_leaderboards(
     ]
     sleep_sessions = pair_sleep_sessions(raw_sleep_events)
 
-    sleep = compute_sleep_stats(sleep_sessions, tz_offset)
-    feeds = compute_feed_stats(events, tz_offset)
+    sleep = compute_sleep_stats(sleep_sessions, zone)
+    feeds = compute_feed_stats(events, zone)
 
     curr_stats = _compute_parent_stats(events, users)
     prev_stats = _compute_parent_stats([e for e in events if _utc(e.timestamp) < today_start], users)
     awards = compute_award_changes(curr_stats, prev_stats)
 
-    return build_leaderboard_response(today_str, sleep, feeds, awards, curr_stats, users)
+    return build_leaderboard_response(today, sleep, feeds, awards, curr_stats, users)

@@ -1,6 +1,6 @@
 import type { BabyEvent, OutputMeta } from './events'
 import { currentDayStart } from './events'
-import { isNightHours } from './time'
+import { isNightHours, MS_PER_DAY } from './time'
 
 // ── message banks ─────────────────────────────────────────────────────────────
 
@@ -253,7 +253,7 @@ export function updatePottyStreak(events: BabyEvent[]): number {
   const today = todayDate()
 
   const dayStart = currentDayStart()
-  const dayEnd = new Date(dayStart.getTime() + 24 * 60 * 60 * 1000)
+  const dayEnd = new Date(dayStart.getTime() + MS_PER_DAY)
   const hasPottyToday = events.some((e) => {
     if (e.type !== 'output') return false
     if ((e.metadata as OutputMeta | null)?.location !== 'potty') return false
