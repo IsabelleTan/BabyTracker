@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo } from 'react'
 import NightToggle from '@/components/NightToggle'
 import {
+  ComposedChart,
   LineChart,
   Line,
+  Area,
   XAxis,
   YAxis,
   Tooltip,
@@ -133,17 +135,21 @@ export default function Stats() {
               tickStep={2}
             />
             <ChartCard
-              title="Avg session length"
+              title="Median session length"
               data={chartData}
-              dataKey="avg_sleep_session_min"
+              dataKey="median_sleep_session_min"
+              pLowKey="p25_sleep_session_min"
+              pHighKey="p75_sleep_session_min"
               color="oklch(0.55 0.15 250)"
               formatTick={formatMins}
               tickStep={60}
             />
             <ChartCard
-              title="Avg wake time between naps"
+              title="Median wake time between naps"
               data={chartData}
-              dataKey="avg_wake_min"
+              dataKey="median_wake_min"
+              pLowKey="p25_wake_min"
+              pHighKey="p75_wake_min"
               color="oklch(0.55 0.15 250)"
               formatTick={formatMins}
               tickStep={60}
@@ -158,9 +164,11 @@ export default function Stats() {
               color="var(--color-primary)"
             />
             <ChartCard
-              title="Avg feed interval"
+              title="Median feed interval"
               data={chartData}
-              dataKey="avg_feed_interval_min"
+              dataKey="median_feed_interval_min"
+              pLowKey="p25_feed_interval_min"
+              pHighKey="p75_feed_interval_min"
               color="var(--color-primary)"
               formatTick={formatMins}
               tickStep={60}
@@ -225,13 +233,13 @@ export default function Stats() {
                 lines={[
                   {
                     dataKey: 'potty_wet',
-                    name: 'Pee (potty)',
+                    name: 'Pee',
                     color: 'oklch(0.52 0.17 225)',
                     yAxisId: 'left',
                   },
                   {
                     dataKey: 'potty_dirty',
-                    name: 'Poo (potty)',
+                    name: 'Poo',
                     color: 'oklch(0.52 0.11 55)',
                     yAxisId: 'left',
                   },
@@ -411,6 +419,8 @@ function ChartCard({
   color,
   formatTick,
   tickStep,
+  pLowKey,
+  pHighKey,
 }: {
   title: string
   data: Record<string, unknown>[]
@@ -418,18 +428,35 @@ function ChartCard({
   color: string
   formatTick?: (v: number | null) => string
   tickStep?: number
+  pLowKey?: string
+  pHighKey?: string
 }) {
+  const hasBand = pLowKey != null && pHighKey != null
+
   const yConfig = useMemo(
-    () => computeYTicks(data, dataKey, tickStep),
-    [data, dataKey, tickStep],
+    () =>
+      hasBand
+        ? computeYTicksMulti(data, [dataKey, pHighKey!], tickStep)
+        : computeYTicks(data, dataKey, tickStep),
+    [data, dataKey, tickStep, hasBand, pHighKey],
   )
-  // Evenly spaced x ticks including both endpoints — no unequal last gap
+
+  // Add _bandHeight = p90 - p10 per point so stacked Areas can render the band
+  const chartData = useMemo(() => {
+    if (!hasBand) return data
+    return data.map((d) => {
+      const p10 = d[pLowKey!] as number | null | undefined
+      const p90 = d[pHighKey!] as number | null | undefined
+      return { ...d, _bandHeight: p10 != null && p90 != null ? p90 - p10 : null }
+    })
+  }, [data, hasBand, pLowKey, pHighKey])
+
   const xTicks = useMemo(() => {
     const n = data.length
     if (n === 0) return []
     const dates = data.map((d) => d.date as string)
     if (n <= 8) return dates
-    const k = 7 // number of labels
+    const k = 7
     const indices = new Set<number>()
     for (let i = 0; i < k; i++) indices.add(Math.round((i * (n - 1)) / (k - 1)))
     return [...indices].sort((a, b) => a - b).map((i) => dates[i])
@@ -437,57 +464,85 @@ function ChartCard({
 
   const gridColor = 'oklch(0.7 0.02 27 / 40%)'
   const gridDash = '3 3'
+  const contentStyle = {
+    fontSize: 12,
+    borderRadius: 8,
+    border: '1px solid oklch(0.7 0.04 27)',
+    background: 'var(--color-card)',
+  }
+
+  const sharedAxes = (
+    <>
+      {yConfig.ticks.map((t) => (
+        <ReferenceLine key={`y${t}`} y={t} stroke={gridColor} strokeDasharray={gridDash} />
+      ))}
+      {xTicks.map((t) => (
+        <ReferenceLine key={`x${t}`} x={t} stroke={gridColor} strokeDasharray={gridDash} />
+      ))}
+      <XAxis
+        dataKey="date"
+        tick={{ fontSize: 10 }}
+        tickLine={false}
+        axisLine={false}
+        ticks={xTicks}
+        interval={0}
+      />
+      <YAxis
+        tick={{ fontSize: 10 }}
+        tickLine={false}
+        axisLine={false}
+        tickFormatter={formatTick ?? String}
+        width={48}
+        ticks={yConfig.ticks}
+        domain={yConfig.domain}
+        interval={0}
+      />
+    </>
+  )
 
   return (
     <div className="w-full rounded-xl border border-primary/35 bg-card px-3 py-3 flex flex-col gap-3">
-      <span className="text-sm font-medium">{title}</span>
+      <div className="flex flex-col gap-0.5">
+        <span className="text-sm font-medium">{title}</span>
+        {hasBand && (
+          <span className="text-[10px] text-muted-foreground">shaded band: 25th–75th percentile</span>
+        )}
+      </div>
       <ResponsiveContainer width="100%" height={150}>
-        <LineChart data={data} margin={{ top: 4, right: 12, left: -16, bottom: 0 }}>
-          {yConfig.ticks.map((t) => (
-            <ReferenceLine key={`y${t}`} y={t} stroke={gridColor} strokeDasharray={gridDash} />
-          ))}
-          {xTicks.map((t) => (
-            <ReferenceLine key={`x${t}`} x={t} stroke={gridColor} strokeDasharray={gridDash} />
-          ))}
-          <XAxis
-            dataKey="date"
-            tick={{ fontSize: 10 }}
-            tickLine={false}
-            axisLine={false}
-            ticks={xTicks}
-            interval={0}
-          />
-          <YAxis
-            tick={{ fontSize: 10 }}
-            tickLine={false}
-            axisLine={false}
-            tickFormatter={formatTick ?? String}
-            width={48}
-            ticks={yConfig.ticks}
-            domain={yConfig.domain}
-            interval={0}
-          />
-          <Tooltip
-            formatter={(value) =>
-              formatTick ? formatTick(value as number | null) : String(value)
-            }
-            contentStyle={{
-              fontSize: 12,
-              borderRadius: 8,
-              border: '1px solid oklch(0.7 0.04 27)',
-              background: 'var(--color-card)',
-            }}
-          />
-          <Line
-            type="monotone"
-            dataKey={dataKey}
-            stroke={color}
-            strokeWidth={2}
-            dot={false}
-            activeDot={{ r: 4 }}
-            connectNulls
-          />
-        </LineChart>
+        {hasBand ? (
+          <ComposedChart data={chartData} margin={{ top: 4, right: 12, left: -16, bottom: 0 }}>
+            {sharedAxes}
+            <Tooltip
+              content={(props) => {
+                if (!props.active || !props.payload?.length) return null
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                const entry = props.payload.find((p: any) => p.dataKey === dataKey)
+                if (!entry || entry.value == null) return null
+                return (
+                  <div style={contentStyle}>
+                    <p style={{ marginBottom: 2, color: 'oklch(0.55 0.02 27)' }}>{props.label}</p>
+                    <p>{formatTick ? formatTick(entry.value as number) : String(entry.value)}</p>
+                  </div>
+                )
+              }}
+            />
+            {/* Transparent filler from 0 → p25, then visible band from p25 → p75 */}
+            <Area type="monotone" dataKey={pLowKey} stackId="band" fill="transparent" stroke="none" legendType="none" isAnimationActive={false} />
+            <Area type="monotone" dataKey="_bandHeight" stackId="band" fill={color} fillOpacity={0.2} stroke="none" legendType="none" isAnimationActive={false} />
+            <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
+          </ComposedChart>
+        ) : (
+          <LineChart data={data} margin={{ top: 4, right: 12, left: -16, bottom: 0 }}>
+            {sharedAxes}
+            <Tooltip
+              formatter={(value) =>
+                formatTick ? formatTick(value as number | null) : String(value)
+              }
+              contentStyle={contentStyle}
+            />
+            <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
+          </LineChart>
+        )}
       </ResponsiveContainer>
     </div>
   )
