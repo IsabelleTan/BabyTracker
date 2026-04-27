@@ -66,28 +66,25 @@ export default function SummarySection({ events }: Props) {
               icon={CircleDot}
               label="Breast"
               value={stats.breastMinTotal}
-              valueStr={stats.breastMinTotal > 0 ? `${Math.round(stats.breastMinTotal)} min` : '—'}
               avg={stats.avgBreastMin}
-              avgStr={stats.avgBreastMin > 0 ? `${Math.round(stats.avgBreastMin)}m` : ''}
               max={stats.maxBreastMin}
+              format={(v) => v > 0 ? `${v} min` : '—'}
             />
             <StatBar
               icon={Milk}
               label="Pumped"
               value={stats.pumpedMlTotal}
-              valueStr={stats.pumpedMlTotal > 0 ? `${Math.round(stats.pumpedMlTotal)} ml` : '—'}
               avg={stats.avgPumpedMl}
-              avgStr={stats.avgPumpedMl > 0 ? `${Math.round(stats.avgPumpedMl)}ml` : ''}
               max={stats.maxBottleMl}
+              format={(v) => v > 0 ? `${v} ml` : '—'}
             />
             <StatBar
               icon={Cylinder}
               label="Formula"
               value={stats.formulaMlTotal}
-              valueStr={stats.formulaMlTotal > 0 ? `${Math.round(stats.formulaMlTotal)} ml` : '—'}
               avg={stats.avgFormulaMl}
-              avgStr={stats.avgFormulaMl > 0 ? `${Math.round(stats.avgFormulaMl)}ml` : ''}
               max={stats.maxBottleMl}
+              format={(v) => v > 0 ? `${v} ml` : '—'}
             />
           </div>
 
@@ -98,19 +95,17 @@ export default function SummarySection({ events }: Props) {
               icon={Droplet}
               label="Pee"
               value={stats.wetCount}
-              valueStr={String(stats.wetCount)}
               avg={stats.avgWet}
-              avgStr={stats.avgWet > 0 ? `${Math.round(stats.avgWet)}` : ''}
               max={stats.maxDiapers}
+              format={String}
             />
             <StatBar
               icon={CirclePile}
               label="Poo"
               value={stats.dirtyCount}
-              valueStr={String(stats.dirtyCount)}
               avg={stats.avgDirty}
-              avgStr={stats.avgDirty > 0 ? `${Math.round(stats.avgDirty)}` : ''}
               max={stats.maxDiapers}
+              format={String}
             />
           </div>
 
@@ -121,10 +116,9 @@ export default function SummarySection({ events }: Props) {
               icon={Moon}
               label="Sleep"
               value={stats.totalSleepMs}
-              valueStr={stats.totalSleep}
               avg={stats.avgSleepMs}
-              avgStr={stats.avgSleepMs > 0 ? formatDuration(stats.avgSleepMs) : ''}
               max={stats.maxSleepMs}
+              format={(v) => v > 0 ? formatDuration(v) : '—'}
             />
           </div>
         </div>
@@ -155,21 +149,22 @@ function StatBar({
   icon: Icon,
   label,
   value,
-  valueStr,
   avg,
-  avgStr,
   max,
+  format,
 }: {
   icon: LucideIcon
   label: string
   value: number
-  valueStr: string
   avg: number
-  avgStr: string
   max: number
+  format: (v: number) => string
 }) {
-  const pct = max > 0 ? Math.min((value / max) * 100, 100) : 0
-  const avgPct = max > 0 ? Math.min((avg / max) * 100, 100) : 0
+  const rv = Math.round(value)
+  const ra = Math.round(avg)
+  const rm = Math.round(max)
+  const pct = rm > 0 ? Math.min((rv / rm) * 100, 100) : 0
+  const avgPct = rm > 0 ? Math.min((ra / rm) * 100, 100) : 0
 
   return (
     <div className="flex items-center gap-3">
@@ -182,23 +177,20 @@ function StatBar({
           className="h-full bg-primary/50 rounded-full"
           style={{ width: `${pct}%` }}
         />
-        {avg > 0 && (
+        {ra > 0 && (
           <div
             className="absolute top-1/2 -translate-y-1/2 w-[2px] h-5 bg-primary/70 rounded-full"
             style={{ left: `${avgPct}%` }}
           >
-            {avgStr && (
-              <span
-                className="absolute bottom-full mb-0.5 left-1/2 -translate-x-1/2 text-[10px] leading-none text-primary/70 whitespace-nowrap"
-              >
-                {avgStr}
-              </span>
-            )}
+            <span
+              className="absolute bottom-full mb-0.5 left-1/2 -translate-x-1/2 text-[10px] leading-none text-primary/70 whitespace-nowrap"
+            >
+              {format(ra)}
+            </span>
           </div>
         )}
       </div>
-      <span className="text-sm font-semibold w-16 text-right shrink-0">{valueStr}</span>
+      <span className="text-sm font-semibold w-16 text-right shrink-0">{format(rv)}</span>
     </div>
   )
 }
-
