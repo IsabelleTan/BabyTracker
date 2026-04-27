@@ -10,9 +10,6 @@ NIGHT_SHIFT_END = 7     # 7am — events before this hour count as night shift
 # (they are part of the overnight stretch that started the evening before).
 DAY_START_HOUR = 5
 
-UTC = "UTC"
-
-
 def _utc(ts: datetime) -> datetime:
     return ts if ts.tzinfo else ts.replace(tzinfo=timezone.utc)
 
@@ -21,7 +18,7 @@ def safe_zone(tz: str) -> ZoneInfo:
     try:
         return ZoneInfo(tz)
     except ZoneInfoNotFoundError:
-        return ZoneInfo(UTC)
+        return ZoneInfo("UTC")
 
 
 def parenting_day(ts: datetime, zone: ZoneInfo) -> date:

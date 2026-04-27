@@ -16,7 +16,7 @@ from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
 from app.models.user_baby import UserBaby
-from app.utils import UTC, _utc, pair_sleep_sessions, parenting_day, safe_zone, DAY_START_HOUR, NIGHT_SHIFT_START, NIGHT_SHIFT_END
+from app.utils import _utc, pair_sleep_sessions, parenting_day, safe_zone, DAY_START_HOUR, NIGHT_SHIFT_START, NIGHT_SHIFT_END
 
 router = APIRouter(prefix="/leaderboards", tags=["leaderboards"])
 
@@ -259,7 +259,7 @@ def build_leaderboard_response(
 @limiter.limit(settings.rate_limit_read)
 async def get_leaderboards(
     request: Request,
-    tz: str = Query(default=UTC),
+    tz: str = Query(default="UTC"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):

@@ -13,7 +13,7 @@ from app.config import settings
 from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
-from app.utils import UTC, _utc, pair_sleep_sessions, parenting_day, safe_zone
+from app.utils import _utc, pair_sleep_sessions, parenting_day, safe_zone
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -65,7 +65,7 @@ async def get_daily_stats(
     request: Request,
     from_: datetime = Query(alias="from"),
     to: datetime = Query(),
-    tz: str = Query(default=UTC),
+    tz: str = Query(default="UTC"),
     current_user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ):
