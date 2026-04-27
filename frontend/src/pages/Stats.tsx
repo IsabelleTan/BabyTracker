@@ -516,20 +516,19 @@ function ChartCard({
               content={(props) => {
                 if (!props.active || !props.payload?.length) return null
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const entry = props.payload.find((p: any) => p.dataKey === dataKey)
+                const entry = props.payload.find((p: any) => p.name === '__median__')
                 if (!entry || entry.value == null) return null
                 return (
                   <div style={contentStyle}>
-                    <p style={{ marginBottom: 2, color: 'oklch(0.55 0.02 27)' }}>{props.label}</p>
                     <p>{formatTick ? formatTick(entry.value as number) : String(entry.value)}</p>
                   </div>
                 )
               }}
             />
             {/* Transparent filler from 0 → p25, then visible band from p25 → p75 */}
-            <Area type="monotone" dataKey={pLowKey} stackId="band" fill="transparent" stroke="none" legendType="none" isAnimationActive={false} />
-            <Area type="monotone" dataKey="_bandHeight" stackId="band" fill={color} fillOpacity={0.2} stroke="none" legendType="none" isAnimationActive={false} />
-            <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
+            <Area type="monotone" dataKey={pLowKey} name="__p25__" stackId="band" fill="transparent" stroke="none" legendType="none" isAnimationActive={false} />
+            <Area type="monotone" dataKey="_bandHeight" name="__p75__" stackId="band" fill={color} fillOpacity={0.2} stroke="none" legendType="none" isAnimationActive={false} />
+            <Line type="monotone" dataKey={dataKey} name="__median__" stroke={color} strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
           </ComposedChart>
         ) : (
           <LineChart data={data} margin={{ top: 4, right: 12, left: -16, bottom: 0 }}>
