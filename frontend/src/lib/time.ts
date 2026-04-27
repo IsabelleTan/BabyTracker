@@ -1,3 +1,5 @@
+export const MS_PER_DAY = 24 * 60 * 60 * 1000
+
 /** True between 21:00 and 07:00 — matches NIGHT_SHIFT_START/END and useNightMode auto-switch. */
 export function isNightHours(date: Date = new Date()): boolean {
   const h = date.getHours()

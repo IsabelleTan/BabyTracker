@@ -1,4 +1,5 @@
 import { api } from './api'
+import { MS_PER_DAY } from './time'
 
 export type EventType = 'feed' | 'sleep_start' | 'sleep_end' | 'output' | 'vitamin_d'
 
@@ -51,7 +52,7 @@ export async function deleteEvent(id: string): Promise<void> {
 
 export async function getLast24HoursEvents(): Promise<BabyEvent[]> {
   const now = new Date()
-  const from = new Date(now.getTime() - 24 * 60 * 60 * 1000)
+  const from = new Date(now.getTime() - MS_PER_DAY)
   const { data } = await api.get<BabyEvent[]>('/events', {
     params: { from_: from.toISOString(), to: now.toISOString() },
   })
