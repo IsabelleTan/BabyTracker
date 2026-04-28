@@ -172,18 +172,21 @@ function AwardCard({
 // ── Records ──────────────────────────────────────────────────────────────────
 
 function RecordsSection({ data }: { data: LeaderboardData }) {
+  const today = new Date().toLocaleDateString('en-CA')
+  const isNew = (r: { date: string | null }) => r.date === today
+
   const rows: { label: string; value: string; sub: string; isNew: boolean }[] = [
     {
       label: 'Longest sleep',
       value: formatMins(data.longest_sleep.value),
       sub: formatDateShort(data.longest_sleep.date),
-      isNew: data.longest_sleep.kind === 'new',
+      isNew: isNew(data.longest_sleep),
     },
     {
       label: 'Best night',
       value: formatMins(data.best_night.value),
       sub: formatDateShort(data.best_night.date),
-      isNew: data.best_night.kind === 'new',
+      isNew: isNew(data.best_night),
     },
     {
       label: 'Worst night',
@@ -195,19 +198,19 @@ function RecordsSection({ data }: { data: LeaderboardData }) {
       label: 'Most feeds in a day',
       value: data.most_feeds.value != null ? String(data.most_feeds.value) : '—',
       sub: formatDateShort(data.most_feeds.date),
-      isNew: data.most_feeds.kind === 'new',
+      isNew: isNew(data.most_feeds),
     },
     {
       label: 'Most poop diapers in a day',
       value: data.most_poop.value != null ? String(data.most_poop.value) : '—',
       sub: formatDateShort(data.most_poop.date),
-      isNew: data.most_poop.kind === 'new',
+      isNew: isNew(data.most_poop),
     },
     {
       label: 'Longest potty streak',
       value: data.longest_potty_streak.value != null ? `${data.longest_potty_streak.value} days` : '—',
       sub: formatDateShort(data.longest_potty_streak.date),
-      isNew: data.longest_potty_streak.kind === 'new',
+      isNew: isNew(data.longest_potty_streak),
     },
   ]
 

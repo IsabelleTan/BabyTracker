@@ -7,14 +7,17 @@ import { api } from '@/lib/api'
 const PARENT_A: ParentStat = { display_name: 'Alice', night_shifts: 10, total_logs: 20, poop_changes: 5, potty_assists: 8 }
 const PARENT_B: ParentStat = { display_name: 'Bob', night_shifts: 3, total_logs: 8, poop_changes: 2, potty_assists: 3 }
 
+const TODAY = new Date().toLocaleDateString('en-CA')
+const OLD_DATE = '2024-01-15'
+
 function makeData(overrides: Partial<LeaderboardData> = {}): LeaderboardData {
   return {
-    longest_sleep: { kind: 'old', value: null, date: null },
-    best_night: { kind: 'old', value: null, date: null },
-    worst_night: { kind: 'old', value: null, date: null },
-    most_feeds: { kind: 'old', value: null, date: null },
-    most_poop: { kind: 'old', value: null, date: null },
-    longest_potty_streak: { kind: 'old', value: null, date: null },
+    longest_sleep: { value: null, date: null },
+    best_night: { value: null, date: null },
+    worst_night: { value: null, date: null },
+    most_feeds: { value: null, date: null },
+    most_poop: { value: null, date: null },
+    longest_potty_streak: { value: null, date: null },
     night_shift_claimed_today: false,
     chief_log_claimed_today: false,
     poop_award_claimed_today: false,
@@ -31,15 +34,22 @@ describe('buildNotifications', () => {
 
   it('includes a message for a new longest sleep record', () => {
     const msgs = buildNotifications(makeData({
-      longest_sleep: { kind: 'new', value: 180, date: '2024-01-15' },
+      longest_sleep: { value: 180, date: TODAY },
     }))
     expect(msgs).toHaveLength(1)
     expect(msgs[0]).toContain('3h')
   })
 
+  it('does not notify for a longest sleep record set on a previous day', () => {
+    const msgs = buildNotifications(makeData({
+      longest_sleep: { value: 180, date: OLD_DATE },
+    }))
+    expect(msgs).toHaveLength(0)
+  })
+
   it('includes a message for a new best night record', () => {
     const msgs = buildNotifications(makeData({
-      best_night: { kind: 'new', value: 360, date: '2024-01-15' },
+      best_night: { value: 360, date: TODAY },
     }))
     expect(msgs).toHaveLength(1)
     expect(msgs[0]).toContain('6h')
@@ -47,7 +57,7 @@ describe('buildNotifications', () => {
 
   it('includes a message for a new most feeds record', () => {
     const msgs = buildNotifications(makeData({
-      most_feeds: { kind: 'new', value: 12, date: '2024-01-15' },
+      most_feeds: { value: 12, date: TODAY },
     }))
     expect(msgs).toHaveLength(1)
     expect(msgs[0]).toContain('12')
@@ -55,7 +65,7 @@ describe('buildNotifications', () => {
 
   it('includes a message for a new most poop record', () => {
     const msgs = buildNotifications(makeData({
-      most_poop: { kind: 'new', value: 7, date: '2024-01-15' },
+      most_poop: { value: 7, date: TODAY },
     }))
     expect(msgs).toHaveLength(1)
     expect(msgs[0]).toContain('7')
@@ -90,8 +100,8 @@ describe('buildNotifications', () => {
 
   it('accumulates multiple messages when several records and awards trigger at once', () => {
     const msgs = buildNotifications(makeData({
-      longest_sleep: { kind: 'new', value: 120, date: '2024-01-15' },
-      most_feeds: { kind: 'new', value: 9, date: '2024-01-15' },
+      longest_sleep: { value: 120, date: TODAY },
+      most_feeds: { value: 9, date: TODAY },
       night_shift_claimed_today: true,
     }))
     expect(msgs).toHaveLength(3)
@@ -99,7 +109,7 @@ describe('buildNotifications', () => {
 
   it('produces a stable (deterministic) message for a given date', () => {
     const data = makeData({
-      longest_sleep: { kind: 'new', value: 180, date: '2024-01-15' },
+      longest_sleep: { value: 180, date: TODAY },
     })
     const first = buildNotifications(data)[0]
     const second = buildNotifications(data)[0]
@@ -135,12 +145,12 @@ describe('getLeaderboards', () => {
 
   it('returns parsed data when the server responds with 200', async () => {
     const payload: LeaderboardData = {
-      longest_sleep: { kind: 'old', value: 180, date: '2024-01-15' },
-      best_night: { kind: 'old', value: null, date: null },
-      worst_night: { kind: 'old', value: null, date: null },
-      most_feeds: { kind: 'old', value: null, date: null },
-      most_poop: { kind: 'old', value: null, date: null },
-      longest_potty_streak: { kind: 'old', value: null, date: null },
+      longest_sleep: { value: 180, date: OLD_DATE },
+      best_night: { value: null, date: null },
+      worst_night: { value: null, date: null },
+      most_feeds: { value: null, date: null },
+      most_poop: { value: null, date: null },
+      longest_potty_streak: { value: null, date: null },
       night_shift_claimed_today: false,
       chief_log_claimed_today: false,
       poop_award_claimed_today: false,

@@ -9,19 +9,10 @@ export interface ParentStat {
   potty_assists: number
 }
 
-export interface OldBabyRecord {
-  kind: 'old'
+export interface BabyRecord {
   value: number | null
   date: string | null
 }
-
-export interface NewBabyRecord {
-  kind: 'new'
-  value: number
-  date: string
-}
-
-export type BabyRecord = OldBabyRecord | NewBabyRecord
 
 export interface LeaderboardData {
   longest_sleep: BabyRecord
@@ -76,7 +67,9 @@ export function buildNotifications(data: LeaderboardData): string[] {
   const today = new Date().toLocaleDateString('en-CA')
   const s = (date: string | null, offset: number) => dateHash((date ?? today) + offset)
 
-  if (data.longest_sleep.kind === 'new') {
+  const isNew = (r: BabyRecord) => r.date === today && r.value != null
+
+  if (isNew(data.longest_sleep)) {
     const v = formatMins(data.longest_sleep.value)
     msgs.push(seededPick([
       `New longest sleep record: ${v}. Who slipped melatonin in the bottle?`,
@@ -92,7 +85,7 @@ export function buildNotifications(data: LeaderboardData): string[] {
     ], s(data.longest_sleep.date, 0), 0))
   }
 
-  if (data.best_night.kind === 'new') {
+  if (isNew(data.best_night)) {
     const v = formatMins(data.best_night.value)
     msgs.push(seededPick([
       `New best night on record: ${v}. Frame this night and never speak of it again.`,
@@ -108,7 +101,7 @@ export function buildNotifications(data: LeaderboardData): string[] {
     ], s(data.best_night.date, 1), 0))
   }
 
-  if (data.most_feeds.kind === 'new') {
+  if (isNew(data.most_feeds)) {
     const v = data.most_feeds.value
     msgs.push(seededPick([
       `New most feeds in a day: ${v}. This baby is basically a subscription service.`,
@@ -124,7 +117,7 @@ export function buildNotifications(data: LeaderboardData): string[] {
     ], s(data.most_feeds.date, 2), 0))
   }
 
-  if (data.most_poop.kind === 'new') {
+  if (isNew(data.most_poop)) {
     const v = data.most_poop.value
     msgs.push(seededPick([
       `New poop record: ${v} diapers in a day. An impressive throughput.`,
