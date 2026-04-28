@@ -64,12 +64,10 @@ function getFixedRangeDates(range: '7d' | '30d'): { from: Date; to: Date } {
 export default function Stats() {
   const [range, setRange] = useState<Range>('7d')
   const [data, setData] = useState<DailyStat[]>([])
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState(false)
+  const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
 
   useEffect(() => {
-    setLoading(true) // eslint-disable-line react-hooks/set-state-in-effect
-    setError(false)
+    setStatus('loading') // eslint-disable-line react-hooks/set-state-in-effect
 
     const run = async () => {
       let from: Date
@@ -85,7 +83,7 @@ export default function Stats() {
       return getDailyStats(from, to)
     }
 
-    run().then(setData).catch(() => setError(true)).finally(() => setLoading(false))
+    run().then((d) => { setData(d); setStatus('success') }).catch(() => setStatus('error'))
   }, [range])
 
   const chartData = data.map((d) => ({ ...d, date: formatDateAxis(d.date) }))
@@ -114,14 +112,14 @@ export default function Stats() {
         </div>
       </div>
 
-      {loading && <p className="text-sm text-muted-foreground text-center py-8">Loading…</p>}
-      {error && <p className="text-sm text-destructive text-center py-8">Failed to load stats</p>}
+      {status === 'loading' && <p className="text-sm text-muted-foreground text-center py-8">Loading…</p>}
+      {status === 'error' && <p className="text-sm text-destructive text-center py-8">Failed to load stats</p>}
 
-      {!loading && !error && data.length === 0 && (
+      {status === 'success' && data.length === 0 && (
         <p className="text-sm text-muted-foreground text-center py-8">No data for this period</p>
       )}
 
-      {!loading && !error && data.length > 0 && (
+      {status === 'success' && data.length > 0 && (
         <>
           <Section title="Sleep">
             <ChartCard
