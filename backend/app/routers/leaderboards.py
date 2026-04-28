@@ -41,10 +41,7 @@ class LeaderboardData(BaseModel):
     most_feeds: BabyRecord
     most_poop: BabyRecord
     longest_potty_streak: BabyRecord
-    night_shift_claimed_today: bool
-    chief_log_claimed_today: bool
-    poop_award_claimed_today: bool
-    potty_award_claimed_today: bool
+    awards_claimed_today: list[str]
     parents: list[ParentStat]
 
 
@@ -94,10 +91,7 @@ class FeedStats:
 
 @dataclass
 class AwardFlags:
-    night_shift_claimed: bool
-    chief_log_claimed: bool
-    poop_claimed: bool
-    potty_claimed: bool
+    claimed: frozenset[str]
 
 
 def compute_sleep_stats(sleep_sessions: list[tuple], zone: ZoneInfo) -> SleepStats:
@@ -195,12 +189,16 @@ def compute_award_changes(
         prev = _winner_uid(prev_stats, key)
         return curr is not None and curr != prev
 
-    return AwardFlags(
-        night_shift_claimed=award_claimed("night_shifts"),
-        chief_log_claimed=award_claimed("total_logs"),
-        poop_claimed=award_claimed("poop_changes"),
-        potty_claimed=award_claimed("potty_assists"),
-    )
+    return AwardFlags(claimed=frozenset(
+        name
+        for stat_key, name in [
+            ("night_shifts", "night_shift"),
+            ("total_logs", "chief_log"),
+            ("poop_changes", "poop"),
+            ("potty_assists", "potty"),
+        ]
+        if award_claimed(stat_key)
+    ))
 
 
 def build_leaderboard_response(
@@ -229,10 +227,7 @@ def build_leaderboard_response(
         most_feeds=BabyRecord(value=feeds.most_feeds_count, date=feeds.most_feeds_date),
         most_poop=BabyRecord(value=feeds.most_poop_count, date=feeds.most_poop_date),
         longest_potty_streak=BabyRecord(value=feeds.longest_potty_streak, date=feeds.longest_potty_streak_date),
-        night_shift_claimed_today=awards.night_shift_claimed,
-        chief_log_claimed_today=awards.chief_log_claimed,
-        poop_award_claimed_today=awards.poop_claimed,
-        potty_award_claimed_today=awards.potty_claimed,
+        awards_claimed_today=list(awards.claimed),
         parents=parents,
     )
 

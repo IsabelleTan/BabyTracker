@@ -21,10 +21,7 @@ export interface LeaderboardData {
   most_feeds: BabyRecord
   most_poop: BabyRecord
   longest_potty_streak: BabyRecord
-  night_shift_claimed_today: boolean
-  chief_log_claimed_today: boolean
-  poop_award_claimed_today: boolean
-  potty_award_claimed_today: boolean
+  awards_claimed_today: string[]
   parents: ParentStat[]
 }
 
@@ -134,7 +131,7 @@ export function buildNotifications(data: LeaderboardData): string[] {
     ], s(data.most_poop.date, 3), 0))
   }
 
-  if (data.night_shift_claimed_today) {
+  if (data.awards_claimed_today.includes('night_shift')) {
     const w = awardWinner(data.parents, (p) => p.night_shifts)
     if (w)
       msgs.push(seededPick([
@@ -151,7 +148,7 @@ export function buildNotifications(data: LeaderboardData): string[] {
       ], s(null, 4), 0))
   }
 
-  if (data.chief_log_claimed_today) {
+  if (data.awards_claimed_today.includes('chief_log')) {
     const w = awardWinner(data.parents, (p) => p.total_logs)
     if (w)
       msgs.push(seededPick([
@@ -168,7 +165,7 @@ export function buildNotifications(data: LeaderboardData): string[] {
       ], s(null, 5), 0))
   }
 
-  if (data.poop_award_claimed_today) {
+  if (data.awards_claimed_today.includes('poop')) {
     const w = awardWinner(data.parents, (p) => p.poop_changes)
     if (w)
       msgs.push(seededPick([
@@ -185,7 +182,7 @@ export function buildNotifications(data: LeaderboardData): string[] {
       ], s(null, 6), 0))
   }
 
-  if (data.potty_award_claimed_today) {
+  if (data.awards_claimed_today.includes('potty')) {
     const w = awardWinner(data.parents, (p) => p.potty_assists)
     if (w)
       msgs.push(seededPick([

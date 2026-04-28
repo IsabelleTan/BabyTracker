@@ -18,10 +18,7 @@ function makeData(overrides: Partial<LeaderboardData> = {}): LeaderboardData {
     most_feeds: { value: null, date: null },
     most_poop: { value: null, date: null },
     longest_potty_streak: { value: null, date: null },
-    night_shift_claimed_today: false,
-    chief_log_claimed_today: false,
-    poop_award_claimed_today: false,
-    potty_award_claimed_today: false,
+    awards_claimed_today: [],
     parents: [PARENT_A, PARENT_B],
     ...overrides,
   }
@@ -72,7 +69,7 @@ describe('buildNotifications', () => {
   })
 
   it('includes winner and loser names when night shift award is claimed', () => {
-    const msgs = buildNotifications(makeData({ night_shift_claimed_today: true }))
+    const msgs = buildNotifications(makeData({ awards_claimed_today: ['night_shift'] }))
     expect(msgs).toHaveLength(1)
     expect(msgs[0]).toContain('Alice')
     expect(msgs[0]).toContain('Bob')
@@ -81,7 +78,7 @@ describe('buildNotifications', () => {
   })
 
   it('includes winner and loser names when chief log award is claimed', () => {
-    const msgs = buildNotifications(makeData({ chief_log_claimed_today: true }))
+    const msgs = buildNotifications(makeData({ awards_claimed_today: ['chief_log'] }))
     expect(msgs).toHaveLength(1)
     expect(msgs[0]).toContain('Alice')
     expect(msgs[0]).toContain('Bob')
@@ -90,7 +87,7 @@ describe('buildNotifications', () => {
   })
 
   it('includes winner and loser names when poop award is claimed', () => {
-    const msgs = buildNotifications(makeData({ poop_award_claimed_today: true }))
+    const msgs = buildNotifications(makeData({ awards_claimed_today: ['poop'] }))
     expect(msgs).toHaveLength(1)
     expect(msgs[0]).toContain('Alice')
     expect(msgs[0]).toContain('Bob')
@@ -102,7 +99,7 @@ describe('buildNotifications', () => {
     const msgs = buildNotifications(makeData({
       longest_sleep: { value: 120, date: TODAY },
       most_feeds: { value: 9, date: TODAY },
-      night_shift_claimed_today: true,
+      awards_claimed_today: ['night_shift'],
     }))
     expect(msgs).toHaveLength(3)
   })
@@ -117,7 +114,7 @@ describe('buildNotifications', () => {
   })
 
   it('includes winner and loser names when potty award is claimed', () => {
-    const msgs = buildNotifications(makeData({ potty_award_claimed_today: true }))
+    const msgs = buildNotifications(makeData({ awards_claimed_today: ['potty'] }))
     expect(msgs).toHaveLength(1)
     expect(msgs[0]).toContain('Alice')
     expect(msgs[0]).toContain('Bob')
@@ -127,7 +124,7 @@ describe('buildNotifications', () => {
 
   it('does not include award message when parents list has fewer than 2 entries', () => {
     const msgs = buildNotifications(makeData({
-      night_shift_claimed_today: true,
+      awards_claimed_today: ['night_shift'],
       parents: [PARENT_A],
     }))
     expect(msgs).toHaveLength(0)
@@ -151,10 +148,7 @@ describe('getLeaderboards', () => {
       most_feeds: { value: null, date: null },
       most_poop: { value: null, date: null },
       longest_potty_streak: { value: null, date: null },
-      night_shift_claimed_today: false,
-      chief_log_claimed_today: false,
-      poop_award_claimed_today: false,
-      potty_award_claimed_today: false,
+      awards_claimed_today: [],
       parents: [],
     }
     vi.mocked(api.get).mockResolvedValue({ status: 200, data: payload })
