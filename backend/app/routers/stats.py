@@ -13,7 +13,7 @@ from app.config import settings
 from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
-from app.utils import _utc, pair_sleep_sessions, parenting_day, safe_zone
+from app.utils import _utc, local_date, pair_sleep_sessions, safe_zone
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -106,7 +106,7 @@ async def get_daily_stats(
 
     for e in events:
         ts = _utc(e.timestamp)
-        day = parenting_day(ts, zone)
+        day = local_date(ts, zone)
         meta = e.metadata_ or {}
         if e.type == "feed":
             feeds_by_day[day].append(ts)
@@ -139,16 +139,25 @@ async def get_daily_stats(
 
     from_utc = _utc(from_)
     to_utc = _utc(to)
-    from_day = parenting_day(from_utc, zone)
-    to_day   = parenting_day(to_utc,   zone)
+    from_day = local_date(from_utc, zone)
+    to_day   = local_date(to_utc,   zone)
 
-    # Group sessions by parenting day, clamping sessions that started before the
-    # range to the first day so the first chart value isn't zero.
+    # Split each session at calendar-day boundaries so each day only counts the
+    # portion of sleep that actually fell within its 00:00–24:00 window.
     sleep_by_day: dict[date, list[tuple[datetime, datetime]]] = defaultdict(list)
     for start, end in sleep_sessions:
-        effective_day = parenting_day(max(start, from_utc), zone)
-        if from_day <= effective_day <= to_day:
-            sleep_by_day[effective_day].append((start, end))
+        current = start.astimezone(zone).date()
+        end_date = end.astimezone(zone).date()
+        while current <= end_date:
+            if from_day <= current <= to_day:
+                next_day = current + timedelta(days=1)
+                window_start = datetime(current.year, current.month, current.day, tzinfo=zone)
+                window_end   = datetime(next_day.year, next_day.month, next_day.day, tzinfo=zone)
+                clamped_start = max(start, window_start)
+                clamped_end   = min(end,   window_end)
+                if clamped_start < clamped_end:
+                    sleep_by_day[current].append((clamped_start, clamped_end))
+            current += timedelta(days=1)
 
     # Wake periods = gap between consecutive sessions
     wake_by_day: dict[date, list[float]] = defaultdict(list)
@@ -157,7 +166,7 @@ async def get_daily_stats(
         curr_start = sleep_sessions[i][0]
         wake_min   = (curr_start - prev_end).total_seconds() / 60
         if wake_min >= 0:
-            wake_by_day[parenting_day(curr_start, zone)].append(wake_min)
+            wake_by_day[local_date(curr_start, zone)].append(wake_min)
 
     results: list[DailyStat] = []
     current = from_day

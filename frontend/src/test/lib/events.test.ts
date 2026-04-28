@@ -27,51 +27,51 @@ describe('fromDateTimeLocal', () => {
   })
 })
 
-describe('currentDayStart — 5am parenting-day boundary', () => {
+describe('currentDayStart — midnight day boundary', () => {
   afterEach(() => vi.useRealTimers())
 
-  it('at 10am returns 05:00 of the same calendar day', () => {
+  it('at 10am returns 00:00 of the same calendar day', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2024, 5, 20, 10, 0, 0)) // June 20 10:00am
     const d = currentDayStart()
     expect(d.getFullYear()).toBe(2024)
     expect(d.getMonth()).toBe(5)   // June
     expect(d.getDate()).toBe(20)
-    expect(d.getHours()).toBe(5)
+    expect(d.getHours()).toBe(0)
     expect(d.getMinutes()).toBe(0)
     expect(d.getSeconds()).toBe(0)
   })
 
-  it('at exactly 5:00am returns 05:00 of the same calendar day', () => {
+  it('at exactly midnight returns 00:00 of the same calendar day', () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date(2024, 5, 20, 5, 0, 0))
+    vi.setSystemTime(new Date(2024, 5, 20, 0, 0, 0))
     const d = currentDayStart()
     expect(d.getDate()).toBe(20)
-    expect(d.getHours()).toBe(5)
+    expect(d.getHours()).toBe(0)
   })
 
-  it('at 4:59am belongs to the previous parenting day (returns 05:00 yesterday)', () => {
+  it('at 4:59am belongs to the current calendar day (returns 00:00 today)', () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date(2024, 5, 20, 4, 59, 0)) // June 20 4:59am — still June 19 parenting day
+    vi.setSystemTime(new Date(2024, 5, 20, 4, 59, 0))
     const d = currentDayStart()
-    expect(d.getDate()).toBe(19)   // June 19
-    expect(d.getHours()).toBe(5)
+    expect(d.getDate()).toBe(20)   // June 20
+    expect(d.getHours()).toBe(0)
   })
 
-  it('at 3am belongs to the previous parenting day (returns 05:00 yesterday)', () => {
+  it('at 3am belongs to the current calendar day (returns 00:00 today)', () => {
     vi.useFakeTimers()
     vi.setSystemTime(new Date(2024, 5, 20, 3, 0, 0))
     const d = currentDayStart()
-    expect(d.getDate()).toBe(19)
-    expect(d.getHours()).toBe(5)
+    expect(d.getDate()).toBe(20)
+    expect(d.getHours()).toBe(0)
   })
 
-  it('rolls back across a month boundary correctly', () => {
+  it('at 2am on the first of a month returns 00:00 of that day', () => {
     vi.useFakeTimers()
-    vi.setSystemTime(new Date(2024, 6, 1, 2, 0, 0)) // July 1 2am — parenting day June 30
+    vi.setSystemTime(new Date(2024, 6, 1, 2, 0, 0)) // July 1 2am
     const d = currentDayStart()
-    expect(d.getMonth()).toBe(5)   // June
-    expect(d.getDate()).toBe(30)
-    expect(d.getHours()).toBe(5)
+    expect(d.getMonth()).toBe(6)   // July
+    expect(d.getDate()).toBe(1)
+    expect(d.getHours()).toBe(0)
   })
 })

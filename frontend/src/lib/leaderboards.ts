@@ -1,5 +1,4 @@
 import { api } from './api'
-import { currentDayStart } from './events'
 import { formatMins } from './time'
 
 export interface ParentStat {
@@ -71,7 +70,7 @@ export function buildNotifications(data: LeaderboardData): string[] {
   const msgs: string[] = []
   // Each category gets a seed derived from its event date + a per-category offset,
   // so the chosen message is stable for that specific event but varies across categories.
-  const today = currentDayStart().toLocaleDateString('en-CA')
+  const today = new Date().toLocaleDateString('en-CA')
   const s = (date: string | null, offset: number) => dateHash((date ?? today) + offset)
 
   if (data.longest_sleep_new && data.longest_sleep_min != null) {
