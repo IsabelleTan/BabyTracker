@@ -5,7 +5,7 @@ import { getEventsSince, type BabyEvent } from '@/lib/events'
 import { getUser } from '@/lib/auth'
 import { useLeaderboardData } from '@/contexts/LeaderboardContext'
 import { isNightHours } from '@/lib/time'
-import { computeStats } from '@/lib/summaryStats'
+import { computeStats, type TrackedStat } from '@/lib/summaryStats'
 import {
   getPartnerMessage,
   partnerMessageAllowed,
@@ -62,64 +62,22 @@ export default function SummarySection({ events }: Props) {
           {/* Feed section */}
           <div className="flex flex-col gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Feed</span>
-            <StatBar
-              icon={CircleDot}
-              label="Breast"
-              value={stats.breastMinTotal}
-              avg={stats.avgBreastMin}
-              max={stats.maxBreastMin}
-              format={(v) => v > 0 ? `${v} min` : '—'}
-            />
-            <StatBar
-              icon={Milk}
-              label="Pumped"
-              value={stats.pumpedMlTotal}
-              avg={stats.avgPumpedMl}
-              max={stats.maxBottleMl}
-              format={(v) => v > 0 ? `${v} ml` : '—'}
-            />
-            <StatBar
-              icon={Cylinder}
-              label="Formula"
-              value={stats.formulaMlTotal}
-              avg={stats.avgFormulaMl}
-              max={stats.maxBottleMl}
-              format={(v) => v > 0 ? `${v} ml` : '—'}
-            />
+            <StatBar icon={CircleDot} label="Breast"  stat={stats.breast}  format={(v) => v > 0 ? `${v} min` : '—'} />
+            <StatBar icon={Milk}      label="Pumped"  stat={stats.pumped}  format={(v) => v > 0 ? `${v} ml`  : '—'} />
+            <StatBar icon={Cylinder}  label="Formula" stat={stats.formula} format={(v) => v > 0 ? `${v} ml`  : '—'} />
           </div>
 
           {/* Output section */}
           <div className="flex flex-col gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Output</span>
-            <StatBar
-              icon={Droplet}
-              label="Pee"
-              value={stats.wetCount}
-              avg={stats.avgWet}
-              max={stats.maxDiapers}
-              format={String}
-            />
-            <StatBar
-              icon={CirclePile}
-              label="Poo"
-              value={stats.dirtyCount}
-              avg={stats.avgDirty}
-              max={stats.maxDiapers}
-              format={String}
-            />
+            <StatBar icon={Droplet}    label="Pee" stat={stats.wet}   format={String} />
+            <StatBar icon={CirclePile} label="Poo" stat={stats.dirty} format={String} />
           </div>
 
           {/* Sleep section */}
           <div className="flex flex-col gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Sleep</span>
-            <StatBar
-              icon={Moon}
-              label="Sleep"
-              value={stats.totalSleepMs}
-              avg={stats.avgSleepMs}
-              max={stats.maxSleepMs}
-              format={(v) => v > 0 ? formatDuration(v) : '—'}
-            />
+            <StatBar icon={Moon} label="Sleep" stat={stats.sleep} format={(v) => v > 0 ? formatDuration(v) : '—'} />
           </div>
         </div>
         <p className="text-[10px] text-muted-foreground/60">│ 7-day rolling avg</p>
@@ -148,21 +106,17 @@ export default function SummarySection({ events }: Props) {
 function StatBar({
   icon: Icon,
   label,
-  value,
-  avg,
-  max,
+  stat,
   format,
 }: {
   icon: LucideIcon
   label: string
-  value: number
-  avg: number
-  max: number
+  stat: TrackedStat
   format: (v: number) => string
 }) {
-  const rv = Math.round(value)
-  const ra = Math.round(avg)
-  const rm = Math.round(max)
+  const rv = Math.round(stat.current)
+  const ra = Math.round(stat.average)
+  const rm = Math.round(stat.scale)
   const pct = rm > 0 ? Math.min((rv / rm) * 100, 100) : 0
   const avgPct = rm > 0 ? Math.min((ra / rm) * 100, 100) : 0
 

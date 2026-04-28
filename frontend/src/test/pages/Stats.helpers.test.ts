@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest'
-import { niceStep, computeYTicks, computeYTicksMulti } from '@/lib/chartUtils'
+import { niceStep, computeYTicks, computeYTicksMulti, computeXTicks } from '@/lib/chartUtils'
 
 describe('niceStep', () => {
   it('returns 1 when max is 0', () => {
@@ -54,6 +54,25 @@ describe('computeYTicks', () => {
     // step=5, domainMax=ceil(7/5)*5=10
     expect(ticks).toEqual([0, 5, 10])
     expect(domain).toEqual([0, 10])
+  })
+})
+
+describe('computeXTicks', () => {
+  it('returns empty array for empty data', () => {
+    expect(computeXTicks([])).toEqual([])
+  })
+
+  it('returns all dates when data length is within maxLabels + 1', () => {
+    const data = [{ date: '1/1' }, { date: '1/2' }, { date: '1/3' }]
+    expect(computeXTicks(data)).toEqual(['1/1', '1/2', '1/3'])
+  })
+
+  it('returns exactly maxLabels dates when data is longer, always including first and last', () => {
+    const data = Array.from({ length: 30 }, (_, i) => ({ date: `d${i}` }))
+    const ticks = computeXTicks(data)
+    expect(ticks).toHaveLength(7)
+    expect(ticks[0]).toBe('d0')
+    expect(ticks[6]).toBe('d29')
   })
 })
 
