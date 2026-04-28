@@ -2,7 +2,25 @@ import { formatDuration } from '@/hooks/useTimeSince'
 import { type BabyEvent, type FeedMeta, type OutputMeta } from '@/lib/events'
 import { MS_PER_DAY } from '@/lib/time'
 
-function computeSleepMs(events: BabyEvent[], capAt: Date): number {
+export interface TrackedStat {
+  current: number
+  average: number
+  scale: number
+}
+
+export interface SummaryStats {
+  breast: TrackedStat
+  pumped: TrackedStat
+  formula: TrackedStat
+  wet: TrackedStat
+  dirty: TrackedStat
+  sleep: TrackedStat
+  totalSleep: string
+}
+
+// Sums sleep duration clipped to [windowStart, capAt]. Pass all available events (not just
+// window-filtered) so sessions that started before the window are counted for their overlap.
+function computeSleepMs(events: BabyEvent[], windowStart: Date, capAt: Date): number {
   const sleepEvents = events.filter(
     (e) => e.type === 'sleep_start' || e.type === 'sleep_end',
   )
@@ -12,12 +30,15 @@ function computeSleepMs(events: BabyEvent[], capAt: Date): number {
     if (e.type === 'sleep_start') {
       openStart = new Date(e.timestamp)
     } else if (e.type === 'sleep_end' && openStart) {
-      total += new Date(e.timestamp).getTime() - openStart.getTime()
+      const clippedStart = Math.max(openStart.getTime(), windowStart.getTime())
+      const end = Math.min(new Date(e.timestamp).getTime(), capAt.getTime())
+      if (end > clippedStart) total += end - clippedStart
       openStart = null
     }
   }
   if (openStart !== null) {
-    total += capAt.getTime() - openStart.getTime()
+    const clippedStart = Math.max(openStart.getTime(), windowStart.getTime())
+    if (capAt.getTime() > clippedStart) total += capAt.getTime() - clippedStart
   }
   return total
 }
@@ -26,7 +47,7 @@ function diaperType(e: BabyEvent): 'wet' | 'dirty' | 'both' | undefined {
   return (e.metadata as OutputMeta | null)?.diaper_type
 }
 
-export function computeStats(events: BabyEvent[], now = new Date()) {
+export function computeStats(events: BabyEvent[], now = new Date()): SummaryStats {
   const windowStart = new Date(now.getTime() - MS_PER_DAY)
 
   const todayEvents = events.filter((e) => new Date(e.timestamp) >= windowStart)
@@ -55,7 +76,8 @@ export function computeStats(events: BabyEvent[], now = new Date()) {
     }
   }
 
-  const totalSleepMs = computeSleepMs(todayEvents, now)
+  // Pass all events (not just todayEvents) so sleep that started before the window still counts
+  const totalSleepMs = computeSleepMs(events, windowStart, now)
 
   const oldestMs = events.length > 0
     ? events.reduce((min, e) => Math.min(min, new Date(e.timestamp).getTime()), Infinity)
@@ -98,17 +120,11 @@ export function computeStats(events: BabyEvent[], now = new Date()) {
     dailyPumpedMls.push(dPumpedMl)
     dailyFormulaMls.push(dFormulaMl)
 
-    dailySleepMs.push(computeSleepMs(dayEvents, dayEnd))
+    // Pass all events to correctly handle sleep sessions that cross the day boundary
+    dailySleepMs.push(computeSleepMs(events, dayStart, dayEnd))
   }
 
   const avg = (arr: number[]) => arr.length > 0 ? arr.reduce((a, b) => a + b, 0) / arr.length : 0
-
-  const avgWet = avg(dailyWets)
-  const avgDirty = avg(dailyDirtys)
-  const avgBreastMin = avg(dailyBreastMins)
-  const avgPumpedMl = avg(dailyPumpedMls)
-  const avgFormulaMl = avg(dailyFormulaMls)
-  const avgSleepMs = avg(dailySleepMs)
 
   const maxDiapers = Math.max(wetCount, dirtyCount, ...dailyWets, ...dailyDirtys, 1)
   const maxBreastMin = Math.max(breastMinTotal, ...dailyBreastMins, 1)
@@ -116,22 +132,12 @@ export function computeStats(events: BabyEvent[], now = new Date()) {
   const maxSleepMs = Math.max(totalSleepMs, ...dailySleepMs, 1)
 
   return {
-    wetCount,
-    dirtyCount,
-    breastMinTotal,
-    pumpedMlTotal,
-    formulaMlTotal,
-    totalSleepMs,
+    breast:  { current: breastMinTotal, average: avg(dailyBreastMins), scale: maxBreastMin },
+    pumped:  { current: pumpedMlTotal,  average: avg(dailyPumpedMls),  scale: maxBottleMl  },
+    formula: { current: formulaMlTotal, average: avg(dailyFormulaMls), scale: maxBottleMl  },
+    wet:     { current: wetCount,       average: avg(dailyWets),       scale: maxDiapers   },
+    dirty:   { current: dirtyCount,     average: avg(dailyDirtys),     scale: maxDiapers   },
+    sleep:   { current: totalSleepMs,   average: avg(dailySleepMs),    scale: maxSleepMs   },
     totalSleep: totalSleepMs > 0 ? formatDuration(totalSleepMs) : '—',
-    avgWet,
-    avgDirty,
-    avgBreastMin,
-    avgPumpedMl,
-    avgFormulaMl,
-    avgSleepMs,
-    maxDiapers,
-    maxBreastMin,
-    maxBottleMl,
-    maxSleepMs,
   }
 }

@@ -147,7 +147,7 @@ describe('computeStats — 24h rolling totals', () => {
       evt({ type: 'feed', timestamp: at(-25 * H), metadata: { feed_type: 'bottle', bottle_type: 'pumped', amount_ml: 999 } }),
     ]
     const s = computeStats(events, NOW)
-    expect(s.pumpedMlTotal).toBe(150)
+    expect(s.pumped.current).toBe(150)
   })
 
   it('sums formula ml separately from pumped ml', () => {
@@ -156,8 +156,8 @@ describe('computeStats — 24h rolling totals', () => {
       evt({ type: 'feed', timestamp: at(-2 * H),  metadata: { feed_type: 'bottle', bottle_type: 'formula', amount_ml: 120 } }),
     ]
     const s = computeStats(events, NOW)
-    expect(s.pumpedMlTotal).toBe(80)
-    expect(s.formulaMlTotal).toBe(120)
+    expect(s.pumped.current).toBe(80)
+    expect(s.formula.current).toBe(120)
   })
 
   it('legacy bottle entries without bottle_type count as pumped', () => {
@@ -165,8 +165,8 @@ describe('computeStats — 24h rolling totals', () => {
       evt({ type: 'feed', timestamp: at(-1 * H), metadata: { feed_type: 'bottle', amount_ml: 70 } }),
     ]
     const s = computeStats(events, NOW)
-    expect(s.pumpedMlTotal).toBe(70)
-    expect(s.formulaMlTotal).toBe(0)
+    expect(s.pumped.current).toBe(70)
+    expect(s.formula.current).toBe(0)
   })
 
   it('sums breast minutes (left + right) within the window', () => {
@@ -175,7 +175,7 @@ describe('computeStats — 24h rolling totals', () => {
       evt({ type: 'feed', timestamp: at(-5 * H), metadata: { feed_type: 'breast', left_duration_min: 10, right_duration_min: null } }),
     ]
     const s = computeStats(events, NOW)
-    expect(s.breastMinTotal).toBe(23)
+    expect(s.breast.current).toBe(23)
   })
 
   it('counts wet and dirty diapers separately; "both" increments each', () => {
@@ -187,8 +187,8 @@ describe('computeStats — 24h rolling totals', () => {
       evt({ type: 'output', timestamp: at(-25 * H), metadata: { diaper_type: 'wet' } }),
     ]
     const s = computeStats(events, NOW)
-    expect(s.wetCount).toBe(2)   // wet + both
-    expect(s.dirtyCount).toBe(2) // dirty + both
+    expect(s.wet.current).toBe(2)   // wet + both
+    expect(s.dirty.current).toBe(2) // dirty + both
   })
 
   it('measures completed sleep block duration', () => {
@@ -197,7 +197,7 @@ describe('computeStats — 24h rolling totals', () => {
       evt({ type: 'sleep_end',   timestamp: at(-2 * H) }),
     ]
     const s = computeStats(events, NOW)
-    expect(s.totalSleepMs).toBe(2 * H)
+    expect(s.sleep.current).toBe(2 * H)
   })
 
   it('caps ongoing sleep at now', () => {
@@ -205,7 +205,36 @@ describe('computeStats — 24h rolling totals', () => {
       evt({ type: 'sleep_start', timestamp: at(-3 * H) }),
     ]
     const s = computeStats(events, NOW)
-    expect(s.totalSleepMs).toBe(3 * H)
+    expect(s.sleep.current).toBe(3 * H)
+  })
+
+  it('counts sleep that started before the 24h window (clips to window start)', () => {
+    const events = [
+      // Started 25h ago, no end — only the last 24h counts
+      evt({ type: 'sleep_start', timestamp: at(-25 * H) }),
+    ]
+    const s = computeStats(events, NOW)
+    expect(s.sleep.current).toBe(24 * H)
+  })
+
+  it('clips a completed sleep session that started before the 24h window', () => {
+    // Started 25h ago, ended 20h ago → only 4h overlaps the window (window_start to sleep_end)
+    const events = [
+      evt({ type: 'sleep_start', timestamp: at(-25 * H) }),
+      evt({ type: 'sleep_end',   timestamp: at(-20 * H) }),
+    ]
+    const s = computeStats(events, NOW)
+    expect(s.sleep.current).toBe(4 * H)
+  })
+
+  it('does not count a completed session that falls entirely outside the 24h window', () => {
+    // Session ended 26h ago — entirely before the window; should not inflate today's sleep
+    const events = [
+      evt({ type: 'sleep_start', timestamp: at(-30 * H) }),
+      evt({ type: 'sleep_end',   timestamp: at(-26 * H) }),
+    ]
+    const s = computeStats(events, NOW)
+    expect(s.sleep.current).toBe(0)
   })
 })
 
@@ -217,7 +246,7 @@ describe('computeStats — 7-day rolling averages', () => {
       evt({ type: 'feed', timestamp: at(-(1 + i * 24) * H), metadata: { feed_type: 'bottle', bottle_type: 'pumped', amount_ml: 70 } }),
     )
     const s = computeStats(events, NOW)
-    expect(s.avgPumpedMl).toBe(70)
+    expect(s.pumped.average).toBe(70)
   })
 
   it('averages formula ml independently from pumped', () => {
@@ -230,7 +259,7 @@ describe('computeStats — 7-day rolling averages', () => {
     ]
     const s = computeStats(events, NOW)
     // d1:60 d2:120 d3–7:0 → avg = 180/7
-    expect(s.avgFormulaMl).toBeCloseTo(180 / 7)
+    expect(s.formula.average).toBeCloseTo(180 / 7)
   })
 
   it('averages wet diaper count over 7 windows', () => {
@@ -245,7 +274,7 @@ describe('computeStats — 7-day rolling averages', () => {
     ]
     const s = computeStats(events, NOW)
     // d1:0 d2:3 d3:1 d4:0 d5:0 d6:0 d7:0 → 4/7
-    expect(s.avgWet).toBeCloseTo(4 / 7)
+    expect(s.wet.average).toBeCloseTo(4 / 7)
   })
 
   it('averages over fewer windows when history is shorter than 7 days', () => {
@@ -257,17 +286,30 @@ describe('computeStats — 7-day rolling averages', () => {
     const s = computeStats(events, NOW)
     // oldest event is 50h ago → ceil(50/24) = 3 windows used, window 3 has 200ml
     // window 1: 100, window 2: 0, window 3: 200 → avg = 300/3 = 100
-    expect(s.avgPumpedMl).toBe(100)
+    expect(s.pumped.average).toBe(100)
+  })
+
+  it('does not inflate the sleep average by counting today\'s session in every historical window', () => {
+    // One 2h sleep session today. It should count only in d=1; d=2–7 should be 0.
+    // Average = 2h / 7 windows ≈ 0.286h — NOT 2h (which would be the inflated result).
+    const events = [
+      evt({ type: 'sleep_start', timestamp: at(-3 * H) }),
+      evt({ type: 'sleep_end',   timestamp: at(-1 * H) }),
+      // Anchor oldest event to 7 days ago so nAvgDays = 7
+      evt({ type: 'feed', timestamp: at(-7 * 24 * H), metadata: { feed_type: 'bottle', amount_ml: 0 } }),
+    ]
+    const s = computeStats(events, NOW)
+    expect(s.sleep.average).toBeCloseTo(2 * H / 7, -3)
   })
 
   it('returns zero averages when there are no historical events', () => {
     const s = computeStats([], NOW)
-    expect(s.avgPumpedMl).toBe(0)
-    expect(s.avgFormulaMl).toBe(0)
-    expect(s.avgBreastMin).toBe(0)
-    expect(s.avgWet).toBe(0)
-    expect(s.avgDirty).toBe(0)
-    expect(s.avgSleepMs).toBe(0)
+    expect(s.pumped.average).toBe(0)
+    expect(s.formula.average).toBe(0)
+    expect(s.breast.average).toBe(0)
+    expect(s.wet.average).toBe(0)
+    expect(s.dirty.average).toBe(0)
+    expect(s.sleep.average).toBe(0)
   })
 })
 

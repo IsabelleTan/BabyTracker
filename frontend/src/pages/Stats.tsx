@@ -14,9 +14,36 @@ import {
 import { getDailyStats, getEarliestEventDate, type DailyStat } from '@/lib/stats'
 import { currentDayStart } from '@/lib/events'
 import { formatMins, formatDateAxis } from '@/lib/time'
-import { computeYTicksMulti, computeYTicks } from '@/lib/chartUtils'
+import { computeYTicksMulti, computeYTicks, computeXTicks } from '@/lib/chartUtils'
 
 type Range = '7d' | '30d' | 'all'
+
+type WeeklyPotty = { date: string; potty_wet: number; potty_dirty: number }
+
+function groupPottyByWeek(data: DailyStat[]): WeeklyPotty[] {
+  const weekMap = new Map<string, WeeklyPotty>()
+  for (const d of data) {
+    const date = new Date(d.date + 'T00:00:00')
+    const day = date.getDay()
+    const diff = day === 0 ? -6 : 1 - day
+    const monday = new Date(date)
+    monday.setDate(date.getDate() + diff)
+    const key = monday.toISOString().slice(0, 10)
+    if (!weekMap.has(key)) {
+      weekMap.set(key, {
+        date: `${monday.getMonth() + 1}/${monday.getDate()}`,
+        potty_wet: 0,
+        potty_dirty: 0,
+      })
+    }
+    const entry = weekMap.get(key)!
+    entry.potty_wet += d.potty_wet_count
+    entry.potty_dirty += d.potty_dirty_count
+  }
+  return [...weekMap.entries()]
+    .sort(([a], [b]) => a.localeCompare(b))
+    .map(([, v]) => v)
+}
 
 const RANGES: { label: string; value: Range }[] = [
   { label: '7 days', value: '7d' },
@@ -63,30 +90,7 @@ export default function Stats() {
 
   const chartData = data.map((d) => ({ ...d, date: formatDateAxis(d.date) }))
 
-  const weeklyPottyData = useMemo(() => {
-    const weekMap = new Map<string, { date: string; potty_wet: number; potty_dirty: number }>()
-    for (const d of data) {
-      const date = new Date(d.date + 'T00:00:00')
-      const day = date.getDay()
-      const diff = day === 0 ? -6 : 1 - day
-      const monday = new Date(date)
-      monday.setDate(date.getDate() + diff)
-      const key = monday.toISOString().slice(0, 10)
-      if (!weekMap.has(key)) {
-        weekMap.set(key, {
-          date: `${monday.getMonth() + 1}/${monday.getDate()}`,
-          potty_wet: 0,
-          potty_dirty: 0,
-        })
-      }
-      const entry = weekMap.get(key)!
-      entry.potty_wet += d.potty_wet_count
-      entry.potty_dirty += d.potty_dirty_count
-    }
-    return [...weekMap.entries()]
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([, v]) => v)
-  }, [data])
+  const weeklyPottyData = useMemo(() => groupPottyByWeek(data), [data])
 
   return (
     <div className="w-full flex flex-col gap-6 p-4">
@@ -299,16 +303,7 @@ function MultiLineChartCard({
   const yLeft  = useMemo(() => computeYTicksMulti(data, leftKeys,  leftTickStep),  [data, leftKeys,  leftTickStep])
   const yRight = useMemo(() => computeYTicksMulti(data, rightKeys, rightTickStep), [data, rightKeys, rightTickStep])
 
-  const xTicks = useMemo(() => {
-    const n = data.length
-    if (n === 0) return []
-    const dates = data.map((d) => d.date as string)
-    if (n <= 8) return dates
-    const k = 7
-    const indices = new Set<number>()
-    for (let i = 0; i < k; i++) indices.add(Math.round((i * (n - 1)) / (k - 1)))
-    return [...indices].sort((a, b) => a - b).map((i) => dates[i])
-  }, [data])
+  const xTicks = useMemo(() => computeXTicks(data), [data])
 
   const gridColor = 'oklch(0.7 0.02 27 / 40%)'
   const gridDash  = '3 3'
@@ -455,16 +450,7 @@ function ChartCard({
     })
   }, [data, hasBand, pLowKey, pHighKey])
 
-  const xTicks = useMemo(() => {
-    const n = data.length
-    if (n === 0) return []
-    const dates = data.map((d) => d.date as string)
-    if (n <= 8) return dates
-    const k = 7
-    const indices = new Set<number>()
-    for (let i = 0; i < k; i++) indices.add(Math.round((i * (n - 1)) / (k - 1)))
-    return [...indices].sort((a, b) => a - b).map((i) => dates[i])
-  }, [data])
+  const xTicks = useMemo(() => computeXTicks(data), [data])
 
   const gridColor = 'oklch(0.7 0.02 27 / 40%)'
   const gridDash = '3 3'
