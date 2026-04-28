@@ -101,3 +101,10 @@ export function trackDailyLogging(): void {
 export function getDaysLogged(): number {
   return parseInt(localStorage.getItem('logging_total_days') ?? '0', 10)
 }
+
+// ── streak reset ──────────────────────────────────────────────────────────────
+
+export function resetPottyStreak(): void {
+  localStorage.removeItem('potty_streak_count')
+  localStorage.removeItem('potty_streak_last_day')
+}

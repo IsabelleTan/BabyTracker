@@ -26,7 +26,7 @@ import {
   recordMilestoneShownToday,
   type MilestoneKey,
 } from '@/lib/funMessages'
-import { getPottyStreak, updatePottyStreak, trackPottyCount, trackDailyLogging } from '@/lib/streaks'
+import { getPottyStreak, updatePottyStreak, trackPottyCount, trackDailyLogging, resetPottyStreak } from '@/lib/streaks'
 
 export default function Home() {
   const { events, nightSessionEvents, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent } =
@@ -133,6 +133,23 @@ export default function Home() {
   // On every sync: update potty streak, check for new milestones.
   // Per-day gates in each function prevent repeated triggers across syncs.
   const babyVoiceInitDone = useRef(false)
+  const streakPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
+
+  function onStreakPressStart() {
+    streakPressTimer.current = setTimeout(() => {
+      if (window.confirm('Reset potty streak?')) {
+        resetPottyStreak()
+        setPottyStreak(0)
+      }
+    }, 600)
+  }
+
+  function onStreakPressEnd() {
+    if (streakPressTimer.current) {
+      clearTimeout(streakPressTimer.current)
+      streakPressTimer.current = null
+    }
+  }
   useEffect(() => {
     if (events.length === 0) return
 
@@ -244,7 +261,13 @@ export default function Home() {
 
         {/* Potty streak — shown when ≥2 consecutive days with potty events */}
         {pottyStreak >= 2 && (
-          <div className="flex items-center gap-1.5 px-1">
+          <div
+            className="flex items-center gap-1.5 px-1 select-none"
+            onPointerDown={onStreakPressStart}
+            onPointerUp={onStreakPressEnd}
+            onPointerLeave={onStreakPressEnd}
+            onPointerCancel={onStreakPressEnd}
+          >
             <Flame className="w-3.5 h-3.5 text-primary/70" />
             <span className="text-xs font-medium text-primary/70">{pottyStreak}-day potty streak</span>
           </div>
