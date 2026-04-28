@@ -24,12 +24,9 @@ import {
   markMilestoneSeen,
   milestoneAllowedToday,
   recordMilestoneShownToday,
-  trackDailyLogging,
-  trackPottyCount,
-  getPottyStreak,
-  updatePottyStreak,
   type MilestoneKey,
 } from '@/lib/funMessages'
+import { getPottyStreak, updatePottyStreak, trackPottyCount, trackDailyLogging } from '@/lib/streaks'
 
 export default function Home() {
   const { events, nightSessionEvents, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent } =
@@ -94,20 +91,22 @@ export default function Home() {
     await handleDeleted(id)
   }
 
-  const lastFeedDate = useMemo(() => {
-    const e = [...events].filter((e) => e.type === 'feed').at(-1)
-    return e ? new Date(e.timestamp) : null
-  }, [events])
-
-  const sleepStatus = useMemo(() => {
-    const e = [...events].filter((e) => e.type === 'sleep_start' || e.type === 'sleep_end').at(-1)
-    if (!e) return null
-    return { sleeping: e.type === 'sleep_start', since: new Date(e.timestamp) }
-  }, [events])
-
-  const lastDiaperDate = useMemo(() => {
-    const e = [...events].filter((e) => e.type === 'output').at(-1)
-    return e ? new Date(e.timestamp) : null
+  const { lastFeedDate, sleepStatus, lastDiaperDate } = useMemo(() => {
+    let lastFeed: BabyEvent | undefined
+    let lastSleepEvent: BabyEvent | undefined
+    let lastOutput: BabyEvent | undefined
+    for (const e of events) {
+      if (e.type === 'feed') lastFeed = e
+      else if (e.type === 'sleep_start' || e.type === 'sleep_end') lastSleepEvent = e
+      else if (e.type === 'output') lastOutput = e
+    }
+    return {
+      lastFeedDate:   lastFeed       ? new Date(lastFeed.timestamp)       : null,
+      sleepStatus:    lastSleepEvent
+        ? { sleeping: lastSleepEvent.type === 'sleep_start', since: new Date(lastSleepEvent.timestamp) }
+        : null,
+      lastDiaperDate: lastOutput     ? new Date(lastOutput.timestamp)     : null,
+    }
   }, [events])
 
   const isSleeping = sleepStatus?.sleeping ?? false
