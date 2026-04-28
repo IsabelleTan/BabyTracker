@@ -238,7 +238,7 @@ export function recordPartnerMessageShown(): void {
 
 // ── potty streak ──────────────────────────────────────────────────────────────
 
-/** Returns the current potty streak (consecutive parenting days with ≥1 potty event). */
+/** Returns the current potty streak (consecutive days with ≥1 potty event). */
 export function getPottyStreak(): number {
   return parseInt(localStorage.getItem('potty_streak_count') ?? '0', 10)
 }
@@ -261,9 +261,18 @@ export function updatePottyStreak(events: BabyEvent[]): number {
     return t >= dayStart && t < dayEnd
   })
 
-  if (!hasPottyToday) return getPottyStreak()
-
   const lastDay = localStorage.getItem(LAST_KEY)
+
+  if (!hasPottyToday) {
+    if (lastDay) {
+      const daysDiff = Math.floor((parseLocalDate(today) - parseLocalDate(lastDay)) / 86_400_000)
+      if (daysDiff > 1) {
+        localStorage.setItem(STREAK_KEY, '0')
+        return 0
+      }
+    }
+    return getPottyStreak()
+  }
   if (lastDay === today) return getPottyStreak()
 
   const current = parseInt(localStorage.getItem(STREAK_KEY) ?? '0', 10)
@@ -282,7 +291,7 @@ export function updatePottyStreak(events: BabyEvent[]): number {
 
 // ── potty count ───────────────────────────────────────────────────────────────
 
-/** Increment the cumulative potty-event counter, once per parenting day. */
+/** Increment the cumulative potty-event counter, once per calendar day. */
 export function trackPottyCount(events: BabyEvent[]): void {
   const TOTAL_KEY = 'potty_total_count'
   const LAST_KEY = 'potty_count_last_day'
@@ -452,8 +461,8 @@ export function markMilestoneSeen(key: MilestoneKey): void {
 // ── day-seeded rotation ───────────────────────────────────────────────────────
 
 function dayOfYear(): number {
-  const d = currentDayStart()
-  return Math.floor((d.getTime() - new Date(d.getFullYear(), 0, 0).getTime()) / 86_400_000)
+  const now = new Date()
+  return Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86_400_000)
 }
 
 function pickByDay<T>(bank: T[]): T {
@@ -470,9 +479,8 @@ export function getNightMessage(): string {
 
 // ── localStorage helpers ──────────────────────────────────────────────────────
 
-// Returns YYYY-MM-DD of the current parenting day (5am boundary, local time).
 function todayDate(): string {
-  return currentDayStart().toLocaleDateString('en-CA')
+  return new Date().toLocaleDateString('en-CA')
 }
 
 // Night session spans 21:00–06:59. Key it to the evening date (before 7am = yesterday).

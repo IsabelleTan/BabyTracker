@@ -420,41 +420,41 @@ describe('getNewMilestone — additional milestones', () => {
   })
 })
 
-// ── 5am parenting-day boundary ────────────────────────────────────────────────
+// ── midnight day boundary ─────────────────────────────────────────────────────
 
-describe('partnerMessageAllowed — 5am parenting-day boundary', () => {
+describe('partnerMessageAllowed — midnight day boundary', () => {
   beforeEach(() => { localStorage.clear() })
   afterEach(() => vi.useRealTimers())
 
-  it('blocks at 3am when message was already shown at 1am the same night (same parenting day)', () => {
+  it('blocks at 3am when message was already shown at 1am the same day', () => {
     vi.useFakeTimers()
-    // 1am June 20 — parenting day is June 19 (before 5am)
+    // 1am June 20 — calendar day June 20
     vi.setSystemTime(new Date(2024, 5, 20, 1, 0, 0))
     recordPartnerMessageShown()
 
-    // 3am June 20 — still parenting day June 19
+    // 3am June 20 — still June 20
     vi.setSystemTime(new Date(2024, 5, 20, 3, 0, 0))
     expect(partnerMessageAllowed()).toBe(false)
   })
 
-  it('allows after 3 full parenting days have passed since a pre-5am record', () => {
+  it('allows after 3 full calendar days have passed', () => {
     vi.useFakeTimers()
-    // Shown at 1am June 20 → stored as parenting day June 19
+    // Shown at 1am June 20 → stored as June 20
     vi.setSystemTime(new Date(2024, 5, 20, 1, 0, 0))
     recordPartnerMessageShown()
 
-    // 5am June 22 = parenting day June 22 (3 parenting days after June 19) → allowed
-    vi.setSystemTime(new Date(2024, 5, 22, 5, 0, 0))
+    // June 23 (3 days after June 20) → allowed
+    vi.setSystemTime(new Date(2024, 5, 23, 9, 0, 0))
     expect(partnerMessageAllowed()).toBe(true)
   })
 
-  it('still blocks at 4:59am the next calendar day (same parenting day as 9pm)', () => {
+  it('still blocks at 4:59am the next calendar day (only 1 day has passed)', () => {
     vi.useFakeTimers()
-    // Shown at 10pm June 19 → parenting day June 19
+    // Shown at 10pm June 19 → stored as June 19
     vi.setSystemTime(new Date(2024, 5, 19, 22, 0, 0))
     recordPartnerMessageShown()
 
-    // 4:59am June 20 → still parenting day June 19 (< 5am)
+    // 4:59am June 20 → calendar day June 20 (1 day passed, not 3) → still blocked
     vi.setSystemTime(new Date(2024, 5, 20, 4, 59, 0))
     expect(partnerMessageAllowed()).toBe(false)
   })
@@ -539,6 +539,28 @@ describe('potty streak', () => {
     // Skip a day
     vi.setSystemTime(new Date(2024, 5, 22, 10, 0, 0))
     const streak = updatePottyStreak([pottyEvent(new Date(2024, 5, 22, 10).toISOString())])
+    expect(streak).toBe(1)
+  })
+
+  it('resets streak to 0 when a day is missed with no potty today', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2024, 5, 20, 10, 0, 0))
+    updatePottyStreak([pottyEvent(new Date(2024, 5, 20, 10).toISOString())])
+
+    // Two days later, still no potty event — streak should expire
+    vi.setSystemTime(new Date(2024, 5, 22, 10, 0, 0))
+    const streak = updatePottyStreak([])
+    expect(streak).toBe(0)
+  })
+
+  it('keeps streak intact when no potty today but yesterday had one', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2024, 5, 20, 10, 0, 0))
+    updatePottyStreak([pottyEvent(new Date(2024, 5, 20, 10).toISOString())])
+
+    // Next day, no potty yet — streak should still be 1 (day not over)
+    vi.setSystemTime(new Date(2024, 5, 21, 10, 0, 0))
+    const streak = updatePottyStreak([])
     expect(streak).toBe(1)
   })
 })
