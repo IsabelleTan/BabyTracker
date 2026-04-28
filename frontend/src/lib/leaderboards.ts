@@ -64,7 +64,8 @@ export function buildNotifications(data: LeaderboardData): string[] {
   const msgs: string[] = []
   // Each category gets a seed derived from its event date + a per-category offset,
   // so the chosen message is stable for that specific event but varies across categories.
-  const today = new Date().toLocaleDateString('en-CA')
+  const d = new Date()
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   const s = (date: string | null, offset: number) => dateHash((date ?? today) + offset)
 
   const isNew = (r: BabyRecord) => r.date === today && r.value != null
