@@ -1,10 +1,11 @@
 from collections import defaultdict
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
+from typing import Annotated, Literal, Union
 from zoneinfo import ZoneInfo
 
 from fastapi import APIRouter, Depends, Query, Request, Response
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -20,6 +21,10 @@ from app.utils import _utc, local_date, output_dirty, output_at_diaper, output_a
 
 router = APIRouter(prefix="/leaderboards", tags=["leaderboards"])
 
+# Alias avoids Python 3.12 scoping issue where a field named 'date' with a default
+# shadows the datetime.date type during annotation evaluation.
+_Date = date
+
 
 class ParentStat(BaseModel):
     display_name: str
@@ -29,24 +34,34 @@ class ParentStat(BaseModel):
     potty_assists: int
 
 
+class OldBabyRecord(BaseModel):
+    kind: Literal["old"] = "old"
+    value: float | None = None
+    date: _Date | None = None
+
+
+class NewBabyRecord(BaseModel):
+    kind: Literal["new"] = "new"
+    value: float
+    date: date
+
+
+BabyRecord = Annotated[Union[NewBabyRecord, OldBabyRecord], Field(discriminator="kind")]
+
+
+def _make_record(value: float | None, record_date: date | None, today: date) -> OldBabyRecord | NewBabyRecord:
+    if record_date == today and value is not None:
+        return NewBabyRecord(value=value, date=record_date)
+    return OldBabyRecord(value=value, date=record_date)
+
+
 class LeaderboardData(BaseModel):
-    longest_sleep_min: float | None
-    longest_sleep_date: date | None
-    longest_sleep_new: bool
-    best_night_min: float | None
-    best_night_date: date | None
-    best_night_new: bool
-    worst_night_min: float | None
-    worst_night_date: date | None
-    most_feeds_count: int | None
-    most_feeds_date: date | None
-    most_feeds_new: bool
-    most_poop_count: int | None
-    most_poop_date: date | None
-    most_poop_new: bool
-    longest_potty_streak: int | None
-    longest_potty_streak_date: date | None
-    longest_potty_streak_new: bool
+    longest_sleep: BabyRecord
+    best_night: BabyRecord
+    worst_night: BabyRecord
+    most_feeds: BabyRecord
+    most_poop: BabyRecord
+    longest_potty_streak: BabyRecord
     night_shift_claimed_today: bool
     chief_log_claimed_today: bool
     poop_award_claimed_today: bool
@@ -230,23 +245,12 @@ def build_leaderboard_response(
     ]
 
     return LeaderboardData(
-        longest_sleep_min=sleep.longest_sleep_min,
-        longest_sleep_date=sleep.longest_sleep_date,
-        longest_sleep_new=sleep.longest_sleep_date == today,
-        best_night_min=sleep.best_night_min,
-        best_night_date=sleep.best_night_date,
-        best_night_new=sleep.best_night_date == today,
-        worst_night_min=sleep.worst_night_min,
-        worst_night_date=sleep.worst_night_date,
-        most_feeds_count=feeds.most_feeds_count,
-        most_feeds_date=feeds.most_feeds_date,
-        most_feeds_new=feeds.most_feeds_date == today,
-        most_poop_count=feeds.most_poop_count,
-        most_poop_date=feeds.most_poop_date,
-        most_poop_new=feeds.most_poop_date == today,
-        longest_potty_streak=feeds.longest_potty_streak,
-        longest_potty_streak_date=feeds.longest_potty_streak_date,
-        longest_potty_streak_new=feeds.longest_potty_streak_date == today,
+        longest_sleep=_make_record(sleep.longest_sleep_min, sleep.longest_sleep_date, today),
+        best_night=_make_record(sleep.best_night_min, sleep.best_night_date, today),
+        worst_night=OldBabyRecord(value=sleep.worst_night_min, date=sleep.worst_night_date),
+        most_feeds=_make_record(feeds.most_feeds_count, feeds.most_feeds_date, today),
+        most_poop=_make_record(feeds.most_poop_count, feeds.most_poop_date, today),
+        longest_potty_streak=_make_record(feeds.longest_potty_streak, feeds.longest_potty_streak_date, today),
         night_shift_claimed_today=awards.night_shift_claimed,
         chief_log_claimed_today=awards.chief_log_claimed,
         poop_award_claimed_today=awards.poop_claimed,

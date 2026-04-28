@@ -9,20 +9,12 @@ const PARENT_B: ParentStat = { display_name: 'Bob', night_shifts: 3, total_logs:
 
 function makeData(overrides: Partial<LeaderboardData> = {}): LeaderboardData {
   return {
-    longest_sleep_min: null,
-    longest_sleep_date: null,
-    longest_sleep_new: false,
-    best_night_min: null,
-    best_night_date: null,
-    best_night_new: false,
-    worst_night_min: null,
-    worst_night_date: null,
-    most_feeds_count: null,
-    most_feeds_date: null,
-    most_feeds_new: false,
-    most_poop_count: null,
-    most_poop_date: null,
-    most_poop_new: false,
+    longest_sleep: { kind: 'old', value: null, date: null },
+    best_night: { kind: 'old', value: null, date: null },
+    worst_night: { kind: 'old', value: null, date: null },
+    most_feeds: { kind: 'old', value: null, date: null },
+    most_poop: { kind: 'old', value: null, date: null },
+    longest_potty_streak: { kind: 'old', value: null, date: null },
     night_shift_claimed_today: false,
     chief_log_claimed_today: false,
     poop_award_claimed_today: false,
@@ -39,9 +31,7 @@ describe('buildNotifications', () => {
 
   it('includes a message for a new longest sleep record', () => {
     const msgs = buildNotifications(makeData({
-      longest_sleep_new: true,
-      longest_sleep_min: 180,
-      longest_sleep_date: '2024-01-15',
+      longest_sleep: { kind: 'new', value: 180, date: '2024-01-15' },
     }))
     expect(msgs).toHaveLength(1)
     expect(msgs[0]).toContain('3h')
@@ -49,9 +39,7 @@ describe('buildNotifications', () => {
 
   it('includes a message for a new best night record', () => {
     const msgs = buildNotifications(makeData({
-      best_night_new: true,
-      best_night_min: 360,
-      best_night_date: '2024-01-15',
+      best_night: { kind: 'new', value: 360, date: '2024-01-15' },
     }))
     expect(msgs).toHaveLength(1)
     expect(msgs[0]).toContain('6h')
@@ -59,9 +47,7 @@ describe('buildNotifications', () => {
 
   it('includes a message for a new most feeds record', () => {
     const msgs = buildNotifications(makeData({
-      most_feeds_new: true,
-      most_feeds_count: 12,
-      most_feeds_date: '2024-01-15',
+      most_feeds: { kind: 'new', value: 12, date: '2024-01-15' },
     }))
     expect(msgs).toHaveLength(1)
     expect(msgs[0]).toContain('12')
@@ -69,9 +55,7 @@ describe('buildNotifications', () => {
 
   it('includes a message for a new most poop record', () => {
     const msgs = buildNotifications(makeData({
-      most_poop_new: true,
-      most_poop_count: 7,
-      most_poop_date: '2024-01-15',
+      most_poop: { kind: 'new', value: 7, date: '2024-01-15' },
     }))
     expect(msgs).toHaveLength(1)
     expect(msgs[0]).toContain('7')
@@ -106,12 +90,8 @@ describe('buildNotifications', () => {
 
   it('accumulates multiple messages when several records and awards trigger at once', () => {
     const msgs = buildNotifications(makeData({
-      longest_sleep_new: true,
-      longest_sleep_min: 120,
-      longest_sleep_date: '2024-01-15',
-      most_feeds_new: true,
-      most_feeds_count: 9,
-      most_feeds_date: '2024-01-15',
+      longest_sleep: { kind: 'new', value: 120, date: '2024-01-15' },
+      most_feeds: { kind: 'new', value: 9, date: '2024-01-15' },
       night_shift_claimed_today: true,
     }))
     expect(msgs).toHaveLength(3)
@@ -119,9 +99,7 @@ describe('buildNotifications', () => {
 
   it('produces a stable (deterministic) message for a given date', () => {
     const data = makeData({
-      longest_sleep_new: true,
-      longest_sleep_min: 180,
-      longest_sleep_date: '2024-01-15',
+      longest_sleep: { kind: 'new', value: 180, date: '2024-01-15' },
     })
     const first = buildNotifications(data)[0]
     const second = buildNotifications(data)[0]
@@ -157,13 +135,16 @@ describe('getLeaderboards', () => {
 
   it('returns parsed data when the server responds with 200', async () => {
     const payload: LeaderboardData = {
-      longest_sleep_min: 180, longest_sleep_date: '2024-01-15', longest_sleep_new: false,
-      best_night_min: null, best_night_date: null, best_night_new: false,
-      worst_night_min: null, worst_night_date: null,
-      most_feeds_count: null, most_feeds_date: null, most_feeds_new: false,
-      most_poop_count: null, most_poop_date: null, most_poop_new: false,
-      night_shift_claimed_today: false, chief_log_claimed_today: false,
-      poop_award_claimed_today: false, potty_award_claimed_today: false,
+      longest_sleep: { kind: 'old', value: 180, date: '2024-01-15' },
+      best_night: { kind: 'old', value: null, date: null },
+      worst_night: { kind: 'old', value: null, date: null },
+      most_feeds: { kind: 'old', value: null, date: null },
+      most_poop: { kind: 'old', value: null, date: null },
+      longest_potty_streak: { kind: 'old', value: null, date: null },
+      night_shift_claimed_today: false,
+      chief_log_claimed_today: false,
+      poop_award_claimed_today: false,
+      potty_award_claimed_today: false,
       parents: [],
     }
     vi.mocked(api.get).mockResolvedValue({ status: 200, data: payload })
