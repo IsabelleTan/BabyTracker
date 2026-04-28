@@ -31,7 +31,7 @@ function computeSleepMs(events: BabyEvent[], windowStart: Date, capAt: Date): nu
       openStart = new Date(e.timestamp)
     } else if (e.type === 'sleep_end' && openStart) {
       const clippedStart = Math.max(openStart.getTime(), windowStart.getTime())
-      const end = new Date(e.timestamp).getTime()
+      const end = Math.min(new Date(e.timestamp).getTime(), capAt.getTime())
       if (end > clippedStart) total += end - clippedStart
       openStart = null
     }

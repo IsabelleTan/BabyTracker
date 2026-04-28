@@ -226,6 +226,16 @@ describe('computeStats — 24h rolling totals', () => {
     const s = computeStats(events, NOW)
     expect(s.sleep.current).toBe(4 * H)
   })
+
+  it('does not count a completed session that falls entirely outside the 24h window', () => {
+    // Session ended 26h ago — entirely before the window; should not inflate today's sleep
+    const events = [
+      evt({ type: 'sleep_start', timestamp: at(-30 * H) }),
+      evt({ type: 'sleep_end',   timestamp: at(-26 * H) }),
+    ]
+    const s = computeStats(events, NOW)
+    expect(s.sleep.current).toBe(0)
+  })
 })
 
 describe('computeStats — 7-day rolling averages', () => {
@@ -277,6 +287,19 @@ describe('computeStats — 7-day rolling averages', () => {
     // oldest event is 50h ago → ceil(50/24) = 3 windows used, window 3 has 200ml
     // window 1: 100, window 2: 0, window 3: 200 → avg = 300/3 = 100
     expect(s.pumped.average).toBe(100)
+  })
+
+  it('does not inflate the sleep average by counting today\'s session in every historical window', () => {
+    // One 2h sleep session today. It should count only in d=1; d=2–7 should be 0.
+    // Average = 2h / 7 windows ≈ 0.286h — NOT 2h (which would be the inflated result).
+    const events = [
+      evt({ type: 'sleep_start', timestamp: at(-3 * H) }),
+      evt({ type: 'sleep_end',   timestamp: at(-1 * H) }),
+      // Anchor oldest event to 7 days ago so nAvgDays = 7
+      evt({ type: 'feed', timestamp: at(-7 * 24 * H), metadata: { feed_type: 'bottle', amount_ml: 0 } }),
+    ]
+    const s = computeStats(events, NOW)
+    expect(s.sleep.average).toBeCloseTo(2 * H / 7, -3)
   })
 
   it('returns zero averages when there are no historical events', () => {
