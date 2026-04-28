@@ -154,10 +154,10 @@ async def test_leaderboards_sleep_records(client_with_family):
 
     r = await client.get("/leaderboards", headers=headers)
     data = r.json()
-    assert data["longest_sleep_min"] == 180.0
-    assert data["longest_sleep_date"] == base.date().isoformat()
-    assert data["best_night_min"] is not None
-    assert data["best_night_min"] > 0
+    assert data["longest_sleep"]["value"] == 180.0
+    assert data["longest_sleep"]["date"] == base.date().isoformat()
+    assert data["best_night"]["value"] is not None
+    assert data["best_night"]["value"] > 0
 
 
 @pytest.mark.asyncio
@@ -175,8 +175,8 @@ async def test_leaderboards_most_feeds_record(client_with_family):
 
     r = await client.get("/leaderboards", headers=headers)
     data = r.json()
-    assert data["most_feeds_count"] == 3
-    assert data["most_feeds_date"] == base_date.isoformat()
+    assert data["most_feeds"]["value"] == 3
+    assert data["most_feeds"]["date"] == base_date.isoformat()
 
 
 @pytest.mark.asyncio
@@ -195,8 +195,8 @@ async def test_leaderboards_most_poop_record(client_with_family):
     r = await client.get("/leaderboards", headers=headers)
     data = r.json()
     # "dirty" and "both" count; "wet" does not
-    assert data["most_poop_count"] == 2
-    assert data["most_poop_date"] == base_date.isoformat()
+    assert data["most_poop"]["value"] == 2
+    assert data["most_poop"]["date"] == base_date.isoformat()
 
 
 # ── Night sleep overlap edge cases ────────────────────────────────────────────
@@ -214,8 +214,8 @@ async def test_leaderboards_sleep_crossing_midnight_counts_toward_night(client_w
 
     r = await client.get("/leaderboards", headers=headers)
     data = r.json()
-    assert data["best_night_min"] is not None
-    assert data["best_night_min"] > 0
+    assert data["best_night"]["value"] is not None
+    assert data["best_night"]["value"] > 0
 
 
 @pytest.mark.asyncio
@@ -231,8 +231,8 @@ async def test_leaderboards_daytime_only_sleep_yields_no_best_night(client_with_
 
     r = await client.get("/leaderboards", headers=headers)
     data = r.json()
-    # No night overlap → best_night_min should be None or 0
-    assert data["best_night_min"] is None or data["best_night_min"] == 0
+    # No night overlap → best_night value should be None or 0
+    assert data["best_night"]["value"] is None or data["best_night"]["value"] == 0
 
 
 @pytest.mark.asyncio
@@ -255,10 +255,10 @@ async def test_leaderboards_best_and_worst_night_differ_across_sessions(client_w
 
     r = await client.get("/leaderboards", headers=headers)
     data = r.json()
-    assert data["best_night_min"] is not None
-    assert data["worst_night_min"] is not None
-    assert data["best_night_min"] > data["worst_night_min"]
-    assert data["best_night_date"] != data["worst_night_date"]
+    assert data["best_night"]["value"] is not None
+    assert data["worst_night"]["value"] is not None
+    assert data["best_night"]["value"] > data["worst_night"]["value"]
+    assert data["best_night"]["date"] != data["worst_night"]["date"]
 
 
 # ── Potty streak unit tests ───────────────────────────────────────────────────
@@ -342,5 +342,5 @@ async def test_leaderboards_longest_potty_streak(client_with_family):
 
     r = await client.get("/leaderboards", headers=headers)
     data = r.json()
-    assert data["longest_potty_streak"] == 3
-    assert data["longest_potty_streak_date"] is not None
+    assert data["longest_potty_streak"]["value"] == 3
+    assert data["longest_potty_streak"]["date"] is not None

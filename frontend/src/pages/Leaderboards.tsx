@@ -172,42 +172,45 @@ function AwardCard({
 // ── Records ──────────────────────────────────────────────────────────────────
 
 function RecordsSection({ data }: { data: LeaderboardData }) {
+  const today = new Date().toLocaleDateString('en-CA')
+  const isNew = (r: { date: string | null }) => r.date === today
+
   const rows: { label: string; value: string; sub: string; isNew: boolean }[] = [
     {
       label: 'Longest sleep',
-      value: formatMins(data.longest_sleep_min),
-      sub: formatDateShort(data.longest_sleep_date),
-      isNew: data.longest_sleep_new,
+      value: formatMins(data.longest_sleep.value),
+      sub: formatDateShort(data.longest_sleep.date),
+      isNew: isNew(data.longest_sleep),
     },
     {
       label: 'Best night',
-      value: formatMins(data.best_night_min),
-      sub: formatDateShort(data.best_night_date),
-      isNew: data.best_night_new,
+      value: formatMins(data.best_night.value),
+      sub: formatDateShort(data.best_night.date),
+      isNew: isNew(data.best_night),
     },
     {
       label: 'Worst night',
-      value: formatMins(data.worst_night_min),
-      sub: formatDateShort(data.worst_night_date),
+      value: formatMins(data.worst_night.value),
+      sub: formatDateShort(data.worst_night.date),
       isNew: false,
     },
     {
       label: 'Most feeds in a day',
-      value: data.most_feeds_count != null ? String(data.most_feeds_count) : '—',
-      sub: formatDateShort(data.most_feeds_date),
-      isNew: data.most_feeds_new,
+      value: data.most_feeds.value != null ? String(data.most_feeds.value) : '—',
+      sub: formatDateShort(data.most_feeds.date),
+      isNew: isNew(data.most_feeds),
     },
     {
       label: 'Most poop diapers in a day',
-      value: data.most_poop_count != null ? String(data.most_poop_count) : '—',
-      sub: formatDateShort(data.most_poop_date),
-      isNew: data.most_poop_new,
+      value: data.most_poop.value != null ? String(data.most_poop.value) : '—',
+      sub: formatDateShort(data.most_poop.date),
+      isNew: isNew(data.most_poop),
     },
     {
       label: 'Longest potty streak',
-      value: data.longest_potty_streak != null ? `${data.longest_potty_streak} days` : '—',
-      sub: formatDateShort(data.longest_potty_streak_date),
-      isNew: data.longest_potty_streak_new,
+      value: data.longest_potty_streak.value != null ? `${data.longest_potty_streak.value} days` : '—',
+      sub: formatDateShort(data.longest_potty_streak.date),
+      isNew: isNew(data.longest_potty_streak),
     },
   ]
 

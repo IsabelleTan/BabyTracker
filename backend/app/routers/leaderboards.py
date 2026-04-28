@@ -29,24 +29,18 @@ class ParentStat(BaseModel):
     potty_assists: int
 
 
+class BabyRecord(BaseModel):
+    value: float | None
+    date: date | None
+
+
 class LeaderboardData(BaseModel):
-    longest_sleep_min: float | None
-    longest_sleep_date: date | None
-    longest_sleep_new: bool
-    best_night_min: float | None
-    best_night_date: date | None
-    best_night_new: bool
-    worst_night_min: float | None
-    worst_night_date: date | None
-    most_feeds_count: int | None
-    most_feeds_date: date | None
-    most_feeds_new: bool
-    most_poop_count: int | None
-    most_poop_date: date | None
-    most_poop_new: bool
-    longest_potty_streak: int | None
-    longest_potty_streak_date: date | None
-    longest_potty_streak_new: bool
+    longest_sleep: BabyRecord
+    best_night: BabyRecord
+    worst_night: BabyRecord
+    most_feeds: BabyRecord
+    most_poop: BabyRecord
+    longest_potty_streak: BabyRecord
     night_shift_claimed_today: bool
     chief_log_claimed_today: bool
     poop_award_claimed_today: bool
@@ -210,7 +204,6 @@ def compute_award_changes(
 
 
 def build_leaderboard_response(
-    today: date,
     sleep: SleepStats,
     feeds: FeedStats,
     awards: AwardFlags,
@@ -230,23 +223,12 @@ def build_leaderboard_response(
     ]
 
     return LeaderboardData(
-        longest_sleep_min=sleep.longest_sleep_min,
-        longest_sleep_date=sleep.longest_sleep_date,
-        longest_sleep_new=sleep.longest_sleep_date == today,
-        best_night_min=sleep.best_night_min,
-        best_night_date=sleep.best_night_date,
-        best_night_new=sleep.best_night_date == today,
-        worst_night_min=sleep.worst_night_min,
-        worst_night_date=sleep.worst_night_date,
-        most_feeds_count=feeds.most_feeds_count,
-        most_feeds_date=feeds.most_feeds_date,
-        most_feeds_new=feeds.most_feeds_date == today,
-        most_poop_count=feeds.most_poop_count,
-        most_poop_date=feeds.most_poop_date,
-        most_poop_new=feeds.most_poop_date == today,
-        longest_potty_streak=feeds.longest_potty_streak,
-        longest_potty_streak_date=feeds.longest_potty_streak_date,
-        longest_potty_streak_new=feeds.longest_potty_streak_date == today,
+        longest_sleep=BabyRecord(value=sleep.longest_sleep_min, date=sleep.longest_sleep_date),
+        best_night=BabyRecord(value=sleep.best_night_min, date=sleep.best_night_date),
+        worst_night=BabyRecord(value=sleep.worst_night_min, date=sleep.worst_night_date),
+        most_feeds=BabyRecord(value=feeds.most_feeds_count, date=feeds.most_feeds_date),
+        most_poop=BabyRecord(value=feeds.most_poop_count, date=feeds.most_poop_date),
+        longest_potty_streak=BabyRecord(value=feeds.longest_potty_streak, date=feeds.longest_potty_streak_date),
         night_shift_claimed_today=awards.night_shift_claimed,
         chief_log_claimed_today=awards.chief_log_claimed,
         poop_award_claimed_today=awards.poop_claimed,
@@ -304,4 +286,4 @@ async def get_leaderboards(
     prev_stats = _compute_parent_stats([e for e in events if _utc(e.timestamp) < today_start], users)
     awards = compute_award_changes(curr_stats, prev_stats)
 
-    return build_leaderboard_response(today, sleep, feeds, awards, curr_stats, users)
+    return build_leaderboard_response(sleep, feeds, awards, curr_stats, users)

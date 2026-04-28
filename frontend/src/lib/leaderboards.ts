@@ -9,24 +9,18 @@ export interface ParentStat {
   potty_assists: number
 }
 
+export interface BabyRecord {
+  value: number | null
+  date: string | null
+}
+
 export interface LeaderboardData {
-  longest_sleep_min: number | null
-  longest_sleep_date: string | null
-  longest_sleep_new: boolean
-  best_night_min: number | null
-  best_night_date: string | null
-  best_night_new: boolean
-  worst_night_min: number | null
-  worst_night_date: string | null
-  most_feeds_count: number | null
-  most_feeds_date: string | null
-  most_feeds_new: boolean
-  most_poop_count: number | null
-  most_poop_date: string | null
-  most_poop_new: boolean
-  longest_potty_streak: number | null
-  longest_potty_streak_date: string | null
-  longest_potty_streak_new: boolean
+  longest_sleep: BabyRecord
+  best_night: BabyRecord
+  worst_night: BabyRecord
+  most_feeds: BabyRecord
+  most_poop: BabyRecord
+  longest_potty_streak: BabyRecord
   night_shift_claimed_today: boolean
   chief_log_claimed_today: boolean
   poop_award_claimed_today: boolean
@@ -70,11 +64,14 @@ export function buildNotifications(data: LeaderboardData): string[] {
   const msgs: string[] = []
   // Each category gets a seed derived from its event date + a per-category offset,
   // so the chosen message is stable for that specific event but varies across categories.
-  const today = new Date().toLocaleDateString('en-CA')
+  const d = new Date()
+  const today = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   const s = (date: string | null, offset: number) => dateHash((date ?? today) + offset)
 
-  if (data.longest_sleep_new && data.longest_sleep_min != null) {
-    const v = formatMins(data.longest_sleep_min)
+  const isNew = (r: BabyRecord) => r.date === today && r.value != null
+
+  if (isNew(data.longest_sleep)) {
+    const v = formatMins(data.longest_sleep.value)
     msgs.push(seededPick([
       `New longest sleep record: ${v}. Who slipped melatonin in the bottle?`,
       `${v} in one stretch — new record! Treasure this. Tell no one. Make no changes.`,
@@ -86,11 +83,11 @@ export function buildNotifications(data: LeaderboardData): string[] {
       `Longest sleep on record: ${v}. We're not saying it's a miracle, but…`,
       `${v} without waking — new record! The baby is finally showing mercy.`,
       `New longest sleep record: ${v}. Whatever you did last night, do it again.`,
-    ], s(data.longest_sleep_date, 0), 0))
+    ], s(data.longest_sleep.date, 0), 0))
   }
 
-  if (data.best_night_new && data.best_night_min != null) {
-    const v = formatMins(data.best_night_min)
+  if (isNew(data.best_night)) {
+    const v = formatMins(data.best_night.value)
     msgs.push(seededPick([
       `New best night on record: ${v}. Frame this night and never speak of it again.`,
       `${v} of night sleep — new record! You may cautiously feel like a human again.`,
@@ -102,11 +99,11 @@ export function buildNotifications(data: LeaderboardData): string[] {
       `New record night: ${v} of sleep. The tide is turning.`,
       `${v} — new best night! This calls for a hot coffee, drunk while still hot.`,
       `New best night: ${v}. Don't get used to it, but also: allow yourself to hope.`,
-    ], s(data.best_night_date, 1), 0))
+    ], s(data.best_night.date, 1), 0))
   }
 
-  if (data.most_feeds_new && data.most_feeds_count != null) {
-    const v = data.most_feeds_count
+  if (isNew(data.most_feeds)) {
+    const v = data.most_feeds.value
     msgs.push(seededPick([
       `New most feeds in a day: ${v}. This baby is basically a subscription service.`,
       `${v} feeds today — new record. The kitchen is open around the clock.`,
@@ -118,11 +115,11 @@ export function buildNotifications(data: LeaderboardData): string[] {
       `New record: ${v} feeds! Did the baby read a "how to keep parents busy" guide?`,
       `${v} feeds — new most-feeds record. Baby running on full-tank all day.`,
       `New daily feeds record: ${v}. We're not saying the baby is a bottomless pit, but…`,
-    ], s(data.most_feeds_date, 2), 0))
+    ], s(data.most_feeds.date, 2), 0))
   }
 
-  if (data.most_poop_new && data.most_poop_count != null) {
-    const v = data.most_poop_count
+  if (isNew(data.most_poop)) {
+    const v = data.most_poop.value
     msgs.push(seededPick([
       `New poop record: ${v} diapers in a day. An impressive throughput.`,
       `${v} dirty diapers today — new record. The factory is running at full capacity.`,
@@ -134,7 +131,7 @@ export function buildNotifications(data: LeaderboardData): string[] {
       `New poop record: ${v}. Baby is communicating something. Loudly.`,
       `${v} poop diapers — new record. Laundry is having a very bad day.`,
       `New record: ${v} dirty diapers. Baby: 1, diaper supply: struggling.`,
-    ], s(data.most_poop_date, 3), 0))
+    ], s(data.most_poop.date, 3), 0))
   }
 
   if (data.night_shift_claimed_today) {
