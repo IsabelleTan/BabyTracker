@@ -445,13 +445,12 @@ function ChartCard({
     [data, dataKey, tickStep, hasBand, pHighKey],
   )
 
-  // Add _bandHeight = p90 - p10 per point so stacked Areas can render the band
   const chartData = useMemo(() => {
     if (!hasBand) return data
     return data.map((d) => {
-      const p10 = d[pLowKey!] as number | null | undefined
-      const p90 = d[pHighKey!] as number | null | undefined
-      return { ...d, _bandHeight: p10 != null && p90 != null ? p90 - p10 : null }
+      const p25 = d[pLowKey!] as number | null | undefined
+      const p75 = d[pHighKey!] as number | null | undefined
+      return { ...d, _bandHeight: p25 != null && p75 != null ? p75 - p25 : null }
     })
   }, [data, hasBand, pLowKey, pHighKey])
 
