@@ -15,10 +15,8 @@ import {
   recordPartnerMessageShown,
   nightMessageShouldShow,
   markNightMessageShown,
-  getPottyStreak,
-  updatePottyStreak,
-  trackPottyCount,
 } from '@/lib/funMessages'
+import { getPottyStreak, updatePottyStreak, trackPottyCount } from '@/lib/streaks'
 import type { BabyEvent } from '@/lib/events'
 
 // ── helpers ───────────────────────────────────────────────────────────────────

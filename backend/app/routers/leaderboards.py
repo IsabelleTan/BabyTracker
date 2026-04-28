@@ -16,7 +16,7 @@ from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
 from app.models.user_baby import UserBaby
-from app.utils import _utc, local_date, pair_sleep_sessions, safe_zone, NIGHT_SHIFT_START, NIGHT_SHIFT_END
+from app.utils import _utc, local_date, output_dirty, output_at_diaper, output_at_potty, pair_sleep_sessions, safe_zone, NIGHT_SHIFT_START, NIGHT_SHIFT_END
 
 router = APIRouter(prefix="/leaderboards", tags=["leaderboards"])
 
@@ -66,9 +66,9 @@ def _compute_parent_stats(evts: list, users: dict[str, str]) -> dict[str, dict]:
             s[uid]["night_shifts"] += 1
         if e.type == "output":
             meta = e.metadata_ or {}
-            if meta.get("diaper_type") in ("dirty", "both") and meta.get("location", "diaper") == "diaper":
+            if output_dirty(meta) and output_at_diaper(meta):
                 s[uid]["poop_changes"] += 1
-            if meta.get("location") == "potty":
+            if output_at_potty(meta):
                 s[uid]["potty_assists"] += 1
     return s
 
@@ -149,7 +149,7 @@ def compute_feed_stats(events: list, zone: ZoneInfo) -> FeedStats:
             feeds_by_day[local_date(e.timestamp, zone)] += 1
         elif e.type == "output":
             meta = e.metadata_ or {}
-            if meta.get("diaper_type") in ("dirty", "both") and meta.get("location", "diaper") == "diaper":
+            if output_dirty(meta) and output_at_diaper(meta):
                 poop_by_day[local_date(e.timestamp, zone)] += 1
 
     most_feeds_count: int | None = None
@@ -168,7 +168,7 @@ def compute_feed_stats(events: list, zone: ZoneInfo) -> FeedStats:
     for e in events:
         if e.type == "output":
             meta = e.metadata_ or {}
-            if meta.get("location") == "potty":
+            if output_at_potty(meta):
                 potty_days.add(local_date(e.timestamp, zone))
 
     longest_potty_streak: int | None = None

@@ -13,7 +13,7 @@ from app.config import settings
 from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
-from app.utils import _utc, local_date, pair_sleep_sessions, safe_zone
+from app.utils import _utc, local_date, output_dirty, output_at_potty, output_wet, pair_sleep_sessions, safe_zone
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -141,16 +141,14 @@ async def get_daily_stats(
                     pumped_ml_by_day[day] += ml  # "pumped" or legacy entries without bottle_type
         elif e.type == "output":
             outputs_by_day[day].append(ts)
-            dtype = meta.get("diaper_type", "")
-            location = meta.get("location", "diaper")
-            if dtype in ("wet", "both"):
+            if output_wet(meta):
                 wet_by_day[day] += 1
-            if dtype in ("dirty", "both"):
+            if output_dirty(meta):
                 dirty_by_day[day] += 1
-            if location == "potty":
-                if dtype in ("wet", "both"):
+            if output_at_potty(meta):
+                if output_wet(meta):
                     potty_wet_by_day[day] += 1
-                if dtype in ("dirty", "both"):
+                if output_dirty(meta):
                     potty_dirty_by_day[day] += 1
         elif e.type in ("sleep_start", "sleep_end"):
             raw_sleep_events.append((e.type, ts))

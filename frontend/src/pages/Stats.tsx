@@ -43,16 +43,17 @@ export default function Stats() {
   useEffect(() => {
     setLoading(true) // eslint-disable-line react-hooks/set-state-in-effect
     setError(false)
-    const to = new Date()
-    to.setHours(23, 59, 59, 999)
 
     const run = async () => {
       let from: Date
+      let to: Date
       if (range === 'all') {
         const earliest = await getEarliestEventDate()
         from = currentDayStart(earliest ?? new Date())
+        to = new Date()
+        to.setHours(23, 59, 59, 999)
       } else {
-        from = getFixedRangeDates(range).from
+        ({ from, to } = getFixedRangeDates(range))
       }
       return getDailyStats(from, to)
     }

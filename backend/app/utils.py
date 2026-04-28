@@ -21,6 +21,22 @@ def local_date(ts: datetime, zone: ZoneInfo) -> date:
     return _utc(ts).astimezone(zone).date()
 
 
+def output_wet(meta: dict) -> bool:
+    return meta.get("diaper_type", "") in ("wet", "both")
+
+
+def output_dirty(meta: dict) -> bool:
+    return meta.get("diaper_type", "") in ("dirty", "both")
+
+
+def output_at_potty(meta: dict) -> bool:
+    return meta.get("location", "diaper") == "potty"
+
+
+def output_at_diaper(meta: dict) -> bool:
+    return meta.get("location", "diaper") == "diaper"
+
+
 def pair_sleep_sessions(
     sleep_events: list[tuple[str, datetime]],
 ) -> list[tuple[datetime, datetime]]:

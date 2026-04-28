@@ -32,9 +32,9 @@ export function useSync() {
         try {
           await apiLogEvent(p as LogEventPayload)
           await removePending(p.id)
-        } catch {
-          // Offline or server error — leave in queue, stop flushing
-          break
+        } catch (err) {
+          // Network error (no response) — stop flushing; server errors (4xx/5xx) can be skipped
+          if (!(err as { response?: unknown })?.response) break
         }
       }
 
