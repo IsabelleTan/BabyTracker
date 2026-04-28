@@ -3,11 +3,17 @@ import { api } from './api'
 export interface DailyStat {
   date: string // YYYY-MM-DD
   feed_count: number
-  avg_feed_interval_min: number | null
+  median_feed_interval_min: number | null
+  p25_feed_interval_min: number | null
+  p75_feed_interval_min: number | null
   total_sleep_min: number
   sleep_session_count: number
-  avg_sleep_session_min: number | null
-  avg_wake_min: number | null
+  median_sleep_session_min: number | null
+  p25_sleep_session_min: number | null
+  p75_sleep_session_min: number | null
+  median_wake_min: number | null
+  p25_wake_min: number | null
+  p75_wake_min: number | null
   output_count: number
   wet_count: number
   dirty_count: number

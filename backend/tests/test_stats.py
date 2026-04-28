@@ -15,8 +15,8 @@ async def test_stats_zero_events(client_with_family):
     assert day["total_sleep_min"] == 0
     assert day["sleep_session_count"] == 0
     assert day["output_count"] == 0
-    assert day["avg_feed_interval_min"] is None
-    assert day["avg_sleep_session_min"] is None
+    assert day["median_feed_interval_min"] is None
+    assert day["median_sleep_session_min"] is None
 
 
 @pytest.mark.asyncio
@@ -34,7 +34,7 @@ async def test_stats_feed_interval(client_with_family):
     assert r.status_code == 200
     day = r.json()[0]
     assert day["feed_count"] == 2
-    assert day["avg_feed_interval_min"] == 120.0
+    assert day["median_feed_interval_min"] == 120.0
 
 
 @pytest.mark.asyncio
@@ -51,7 +51,7 @@ async def test_stats_single_sleep_session(client_with_family):
     day = r.json()[0]
     assert day["sleep_session_count"] == 1
     assert day["total_sleep_min"] == 120
-    assert day["avg_sleep_session_min"] == 120.0
+    assert day["median_sleep_session_min"] == 120.0
 
 
 @pytest.mark.asyncio
@@ -112,7 +112,26 @@ async def test_stats_wake_time_between_sessions(client_with_family):
 
     r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-15T00:00:00Z"}, headers=headers)
     day = r.json()[0]
-    assert day["avg_wake_min"] == 60.0
+    assert day["median_wake_min"] == 60.0
+
+
+@pytest.mark.asyncio
+async def test_stats_percentile_band(client_with_family):
+    """Three sleep sessions give p25/median/p75 = 45/60/75 min."""
+    client, headers = client_with_family
+    for sid, start, end in [
+        ("sb1", "08:00", "08:30"),  # 30 min
+        ("sb2", "10:00", "11:00"),  # 60 min
+        ("sb3", "13:00", "14:30"),  # 90 min
+    ]:
+        await client.post("/events", json={"id": sid, "type": "sleep_start", "timestamp": f"2024-01-15T{start}:00Z"}, headers=headers)
+        await client.post("/events", json={"id": f"e{sid}", "type": "sleep_end", "timestamp": f"2024-01-15T{end}:00Z"}, headers=headers)
+
+    r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-15T00:00:00Z"}, headers=headers)
+    day = r.json()[0]
+    assert day["p25_sleep_session_min"] == 45.0
+    assert day["median_sleep_session_min"] == 60.0
+    assert day["p75_sleep_session_min"] == 75.0
 
 
 @pytest.mark.asyncio
@@ -166,7 +185,7 @@ async def test_stats_daily_no_events_returns_zeros(client_with_family):
         assert day["feed_count"] == 0
         assert day["output_count"] == 0
         assert day["total_sleep_min"] == 0
-        assert day["avg_feed_interval_min"] is None
+        assert day["median_feed_interval_min"] is None
 
 
 @pytest.mark.asyncio

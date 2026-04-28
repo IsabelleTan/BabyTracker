@@ -18,14 +18,34 @@ from app.utils import _utc, local_date, pair_sleep_sessions, safe_zone
 router = APIRouter(prefix="/stats", tags=["stats"])
 
 
+def _percentiles(values: list[float], ps: list[float]) -> list[float | None]:
+    if not values:
+        return [None] * len(ps)
+    s = sorted(values)
+    n = len(s)
+    result = []
+    for p in ps:
+        idx = p / 100 * (n - 1)
+        lo = int(idx)
+        hi = min(lo + 1, n - 1)
+        result.append(round(s[lo] + (s[hi] - s[lo]) * (idx - lo), 1))
+    return result
+
+
 class DailyStat(BaseModel):
     date: date
     feed_count: int
-    avg_feed_interval_min: float | None
+    median_feed_interval_min: float | None
+    p25_feed_interval_min: float | None
+    p75_feed_interval_min: float | None
     total_sleep_min: int
     sleep_session_count: int
-    avg_sleep_session_min: float | None
-    avg_wake_min: float | None
+    median_sleep_session_min: float | None
+    p25_sleep_session_min: float | None
+    p75_sleep_session_min: float | None
+    median_wake_min: float | None
+    p25_wake_min: float | None
+    p75_wake_min: float | None
     output_count: int
     wet_count: int
     dirty_count: int
@@ -174,30 +194,38 @@ async def get_daily_stats(
         day = current
 
         feed_times = feeds_by_day.get(day, [])
-        avg_feed_interval: float | None = None
+        feed_intervals: list[float] = []
         if len(feed_times) >= 2:
-            intervals = [
+            feed_intervals = [
                 (feed_times[i] - feed_times[i - 1]).total_seconds() / 60
                 for i in range(1, len(feed_times))
             ]
-            avg_feed_interval = round(sum(intervals) / len(intervals), 1)
 
         sessions = sleep_by_day.get(day, [])
-        total_sleep = sum((e - s).total_seconds() / 60 for s, e in sessions)
-        avg_sleep: float | None = round(total_sleep / len(sessions), 1) if sessions else None
+        session_durations = [(e - s).total_seconds() / 60 for s, e in sessions]
+        total_sleep_min = sum(session_durations)
 
         wakes = wake_by_day.get(day, [])
-        avg_wake: float | None = round(sum(wakes) / len(wakes), 1) if wakes else None
+
+        p25_feed, median_feed, p75_feed = _percentiles(feed_intervals, [25, 50, 75])
+        p25_session, median_session, p75_session = _percentiles(session_durations, [25, 50, 75])
+        p25_wake, median_wake, p75_wake = _percentiles(wakes, [25, 50, 75])
 
         results.append(
             DailyStat(
                 date=day,
                 feed_count=len(feed_times),
-                avg_feed_interval_min=avg_feed_interval,
-                total_sleep_min=round(total_sleep),
+                median_feed_interval_min=median_feed,
+                p25_feed_interval_min=p25_feed,
+                p75_feed_interval_min=p75_feed,
+                total_sleep_min=round(total_sleep_min),
                 sleep_session_count=len(sessions),
-                avg_sleep_session_min=avg_sleep,
-                avg_wake_min=avg_wake,
+                median_sleep_session_min=median_session,
+                p25_sleep_session_min=p25_session,
+                p75_sleep_session_min=p75_session,
+                median_wake_min=median_wake,
+                p25_wake_min=p25_wake,
+                p75_wake_min=p75_wake,
                 output_count=len(outputs_by_day.get(day, [])),
                 wet_count=wet_by_day.get(day, 0),
                 dirty_count=dirty_by_day.get(day, 0),

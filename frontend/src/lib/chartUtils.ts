@@ -43,3 +43,4 @@ export function computeYTicks(
   for (let t = 0; t <= domainMax; t += step) ticks.push(t)
   return { ticks, domain: [0, domainMax] }
 }
+
