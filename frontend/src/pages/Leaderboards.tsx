@@ -5,12 +5,12 @@ import NightToggle from '@/components/NightToggle'
 import { formatMins, formatDateShort } from '@/lib/time'
 
 export default function Leaderboards() {
-  const { data, loading, error, notifications } = useLeaderboardData()
+  const { data, status, notifications } = useLeaderboardData()
 
-  if (loading) {
+  if (status === 'loading') {
     return <p className="text-sm text-muted-foreground text-center py-16">Loading…</p>
   }
-  if (error) {
+  if (status === 'error') {
     return <p className="text-sm text-destructive text-center py-16">Failed to load leaderboards</p>
   }
   if (!data) {
