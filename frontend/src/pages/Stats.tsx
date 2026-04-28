@@ -412,6 +412,10 @@ function MultiLineChartCard({
   )
 }
 
+function snakeToLabel(key: string) {
+  return key.replace(/_/g, ' ').replace(/^./, (c) => c.toUpperCase())
+}
+
 function ChartCard({
   title,
   data,
@@ -518,25 +522,28 @@ function ChartCard({
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const entry = props.payload.find((p: any) => p.name === '__median__')
                 if (!entry || entry.value == null) return null
+                const formatted = formatTick ? formatTick(entry.value as number) : String(entry.value)
                 return (
-                  <div style={contentStyle}>
-                    <p>{formatTick ? formatTick(entry.value as number) : String(entry.value)}</p>
+                  <div style={{ ...contentStyle, padding: '10px' }}>
+                    <p style={{ margin: 0, marginBottom: 4 }}>{props.label}</p>
+                    <p style={{ margin: 0, color: entry.color ?? color }}>{title} : {formatted}</p>
                   </div>
                 )
               }}
             />
             {/* Transparent filler from 0 → p25, then visible band from p25 → p75 */}
-            <Area type="monotone" dataKey={pLowKey} name="__p25__" stackId="band" fill="transparent" stroke="none" legendType="none" isAnimationActive={false} />
-            <Area type="monotone" dataKey="_bandHeight" name="__p75__" stackId="band" fill={color} fillOpacity={0.2} stroke="none" legendType="none" isAnimationActive={false} />
+            <Area type="monotone" dataKey={pLowKey} name="__p25__" stackId="band" fill="transparent" stroke="none" legendType="none" isAnimationActive={false} activeDot={false} />
+            <Area type="monotone" dataKey="_bandHeight" name="__p75__" stackId="band" fill={color} fillOpacity={0.2} stroke="none" legendType="none" isAnimationActive={false} activeDot={false} />
             <Line type="monotone" dataKey={dataKey} name="__median__" stroke={color} strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
           </ComposedChart>
         ) : (
           <LineChart data={data} margin={{ top: 4, right: 12, left: -16, bottom: 0 }}>
             {sharedAxes}
             <Tooltip
-              formatter={(value) =>
-                formatTick ? formatTick(value as number | null) : String(value)
-              }
+              formatter={(value, name) => [
+                formatTick ? formatTick(value as number | null) : String(value),
+                snakeToLabel(String(name)),
+              ]}
               contentStyle={contentStyle}
             />
             <Line type="monotone" dataKey={dataKey} stroke={color} strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
