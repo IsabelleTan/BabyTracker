@@ -70,7 +70,7 @@ function AwardsSection({ data }: { data: LeaderboardData }) {
       subtitle: 'Most events logged overall',
       getValue: (p) => p.total_logs,
       formatValue: (n) => `${n} logs`,
-      claimedToday: data.chief_log_claimed_today,
+      claimedToday: data.awards_claimed_today.includes('chief_log'),
     },
     {
       icon: <Swords className="w-5 h-5" />,
@@ -78,7 +78,7 @@ function AwardsSection({ data }: { data: LeaderboardData }) {
       subtitle: 'Most events logged between 9 pm – 7 am',
       getValue: (p) => p.night_shifts,
       formatValue: (n) => `${n} logs`,
-      claimedToday: data.night_shift_claimed_today,
+      claimedToday: data.awards_claimed_today.includes('night_shift'),
     },
     {
       icon: <Toilet className="w-5 h-5" />,
@@ -86,7 +86,7 @@ function AwardsSection({ data }: { data: LeaderboardData }) {
       subtitle: 'Most poop diapers changed',
       getValue: (p) => p.poop_changes,
       formatValue: (n) => `${n} changes`,
-      claimedToday: data.poop_award_claimed_today,
+      claimedToday: data.awards_claimed_today.includes('poop'),
     },
     {
       icon: <WandSparkles className="w-5 h-5" />,
@@ -94,7 +94,7 @@ function AwardsSection({ data }: { data: LeaderboardData }) {
       subtitle: 'Most potty events logged',
       getValue: (p) => p.potty_assists,
       formatValue: (n) => `${n} assists`,
-      claimedToday: data.potty_award_claimed_today,
+      claimedToday: data.awards_claimed_today.includes('potty'),
     },
   ]
 
