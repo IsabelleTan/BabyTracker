@@ -191,7 +191,7 @@ export default function Stats() {
                   dataKey: 'pumped_ml',
                   name: 'Pumped',
                   color: 'oklch(0.52 0.16 165)',
-                  dashed: true,
+                  strokeStyle: 'dashed',
                   yAxisId: 'right',
                   formatValue: (v) => `${Math.round(v)} ml`,
                 },
@@ -199,7 +199,7 @@ export default function Stats() {
                   dataKey: 'formula_ml',
                   name: 'Formula',
                   color: 'oklch(0.60 0.15 50)',
-                  dashed: true,
+                  strokeStyle: 'dotted',
                   yAxisId: 'right',
                   formatValue: (v) => `${Math.round(v)} ml`,
                 },
@@ -218,6 +218,7 @@ export default function Stats() {
                   dataKey: 'wet_count',
                   name: 'Pee',
                   color: 'oklch(0.52 0.17 225)',
+                  strokeStyle: 'dashed',
                   yAxisId: 'left',
                 },
                 {
@@ -238,6 +239,7 @@ export default function Stats() {
                     dataKey: 'potty_wet',
                     name: 'Pee',
                     color: 'oklch(0.52 0.17 225)',
+                    strokeStyle: 'dashed',
                     yAxisId: 'left',
                   },
                   {
@@ -271,7 +273,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 type ChartLine = {
   dataKey: string
   color: string
-  dashed?: boolean
+  strokeStyle?: 'dashed' | 'dotted'
   name: string
   yAxisId?: 'left' | 'right'
   formatValue?: (v: number) => string
@@ -318,7 +320,7 @@ function MultiLineChartCard({
                   x1="0" y1="4" x2="16" y2="4"
                   stroke={line.color}
                   strokeWidth="2"
-                  strokeDasharray={line.dashed ? '4 2' : undefined}
+                  strokeDasharray={line.strokeStyle === 'dotted' ? '2 2' : line.strokeStyle === 'dashed' ? '4 2' : undefined}
                 />
               </svg>
               <span className="text-[10px] text-muted-foreground">{line.name}</span>
@@ -393,7 +395,7 @@ function MultiLineChartCard({
               name={line.name}
               stroke={line.color}
               strokeWidth={2}
-              strokeDasharray={line.dashed ? '5 3' : undefined}
+              strokeDasharray={line.strokeStyle === 'dotted' ? '2 2' : line.strokeStyle === 'dashed' ? '5 3' : undefined}
               yAxisId={line.yAxisId ?? 'left'}
               dot={false}
               activeDot={{ r: 4 }}
