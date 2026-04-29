@@ -1,4 +1,5 @@
-export const MS_PER_DAY = 24 * 60 * 60 * 1000
+export const MS_PER_MIN = 60_000
+export const MS_PER_DAY = 24 * 60 * MS_PER_MIN
 
 /** True between 21:00 and 07:00 — matches NIGHT_SHIFT_START/END and useNightMode auto-switch. */
 export function isNightHours(date: Date = new Date()): boolean {
@@ -6,13 +7,37 @@ export function isNightHours(date: Date = new Date()): boolean {
   return h >= 21 || h < 7
 }
 
-/** "Xm" / "Xh Ym" — format a duration given as minutes. */
-export function formatMins(mins: number | null | undefined): string {
-  if (mins == null) return '—'
-  const h = Math.floor(mins / 60)
-  const m = Math.round(mins % 60)
+/** "Xm" / "Xh Ym" — format a duration as minutes, or as elapsed time between two dates. */
+export function formatDuration(mins: number | null | undefined): string
+export function formatDuration(from: Date, to?: Date): string
+export function formatDuration(minsOrFrom: number | null | undefined | Date, to?: Date): string {
+  if (minsOrFrom instanceof Date) {
+    const totalMins = Math.floor(((to ?? new Date()).getTime() - minsOrFrom.getTime()) / 60_000)
+    const h = Math.floor(totalMins / 60), m = totalMins % 60
+    if (h === 0) return `${m}m`
+    return m === 0 ? `${h}h` : `${h}h ${m}m`
+  }
+  if (minsOrFrom == null) return '—'
+  const h = Math.floor(minsOrFrom / 60)
+  const m = Math.round(minsOrFrom % 60)
   if (h === 0) return `${m}m`
   return m === 0 ? `${h}h` : `${h}h ${m}m`
+}
+
+/**
+ * Returns a y-axis tick formatter whose unit (h vs m) is fixed to the scale of the axis.
+ * Pass the domain max so that all ticks — including 0 — use the same unit.
+ */
+export function timeAxisFormatter(maxMins: number): (v: number | null) => string {
+  const useHours = maxMins >= 60
+  return (mins) => {
+    if (mins == null) return ''
+    if (mins === 0) return useHours ? '0h' : '0m'
+    const h = Math.floor(mins / 60)
+    const m = Math.round(mins % 60)
+    if (h === 0) return `${m}m`
+    return m === 0 ? `${h}h` : `${h}h ${m}m`
+  }
 }
 
 /** "M/D" — compact numeric date for chart axes (e.g. "4/25"). */
@@ -49,17 +74,4 @@ export function formatUntil(date: Date): string {
   if (mins < 60) return `in ${mins}m`
   const h = Math.floor(mins / 60), m = mins % 60
   return m === 0 ? `in ${h}h` : `in ${h}h ${m}m`
-}
-
-/** "Xm" / "Xh Ym" — elapsed time between two dates (defaults to now). */
-export function formatDuration(from: Date, to: Date = new Date()): string {
-  const totalMins = Math.floor((to.getTime() - from.getTime()) / 60_000)
-  const h = Math.floor(totalMins / 60), m = totalMins % 60
-  if (h === 0) return `${m}m`
-  return m === 0 ? `${h}h` : `${h}h ${m}m`
-}
-
-/** "Xm" / "Xh Ym" — format a duration given as milliseconds. */
-export function formatDurationMs(ms: number): string {
-  return formatDuration(new Date(0), new Date(ms))
 }

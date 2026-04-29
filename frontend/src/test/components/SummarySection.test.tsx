@@ -125,7 +125,8 @@ const NOW = new Date(2024, 5, 20, 10, 0, 0)
 function at(offsetMs: number): string {
   return new Date(NOW.getTime() + offsetMs).toISOString()
 }
-const H = 3_600_000 // 1 hour in ms
+const H = 3_600_000 // 1 hour in ms (used for at() offsets)
+const HOUR = 60     // 1 hour in minutes (used for sleep assertions)
 
 function evt(overrides: Partial<BabyEvent> & { timestamp: string }): BabyEvent {
   return {
@@ -197,7 +198,7 @@ describe('computeStats — 24h rolling totals', () => {
       evt({ type: 'sleep_end',   timestamp: at(-2 * H) }),
     ]
     const s = computeStats(events, NOW)
-    expect(s.sleep.current).toBe(2 * H)
+    expect(s.sleep.current).toBe(2 * HOUR)
   })
 
   it('caps ongoing sleep at now', () => {
@@ -205,7 +206,7 @@ describe('computeStats — 24h rolling totals', () => {
       evt({ type: 'sleep_start', timestamp: at(-3 * H) }),
     ]
     const s = computeStats(events, NOW)
-    expect(s.sleep.current).toBe(3 * H)
+    expect(s.sleep.current).toBe(3 * HOUR)
   })
 
   it('counts sleep that started before the 24h window (clips to window start)', () => {
@@ -214,7 +215,7 @@ describe('computeStats — 24h rolling totals', () => {
       evt({ type: 'sleep_start', timestamp: at(-25 * H) }),
     ]
     const s = computeStats(events, NOW)
-    expect(s.sleep.current).toBe(24 * H)
+    expect(s.sleep.current).toBe(24 * HOUR)
   })
 
   it('clips a completed sleep session that started before the 24h window', () => {
@@ -224,7 +225,7 @@ describe('computeStats — 24h rolling totals', () => {
       evt({ type: 'sleep_end',   timestamp: at(-20 * H) }),
     ]
     const s = computeStats(events, NOW)
-    expect(s.sleep.current).toBe(4 * H)
+    expect(s.sleep.current).toBe(4 * HOUR)
   })
 
   it('does not count a completed session that falls entirely outside the 24h window', () => {
@@ -299,7 +300,7 @@ describe('computeStats — 7-day rolling averages', () => {
       evt({ type: 'feed', timestamp: at(-7 * 24 * H), metadata: { feed_type: 'bottle', amount_ml: 0 } }),
     ]
     const s = computeStats(events, NOW)
-    expect(s.sleep.average).toBeCloseTo(2 * H / 7, -3)
+    expect(s.sleep.average).toBeCloseTo(2 * HOUR / 7, -3)
   })
 
   it('returns zero averages when there are no historical events', () => {
