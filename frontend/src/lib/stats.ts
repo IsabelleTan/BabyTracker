@@ -4,16 +4,13 @@ export interface DailyStat {
   date: string // YYYY-MM-DD
   feed_count: number
   median_feed_interval_min: number | null
-  p25_feed_interval_min: number | null
-  p75_feed_interval_min: number | null
+  feed_intervals_min: number[]
   total_sleep_min: number
   sleep_session_count: number
   median_sleep_session_min: number | null
-  p25_sleep_session_min: number | null
-  p75_sleep_session_min: number | null
+  sleep_session_durations_min: number[]
   median_wake_min: number | null
-  p25_wake_min: number | null
-  p75_wake_min: number | null
+  wake_durations_min: number[]
   output_count: number
   wet_count: number
   dirty_count: number
