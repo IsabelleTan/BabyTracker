@@ -116,12 +116,12 @@ async def test_stats_wake_time_between_sessions(client_with_family):
 
 
 @pytest.mark.asyncio
-async def test_stats_percentile_band(client_with_family):
-    """Three sleep sessions give p25/median/p75 = 45/60/75 min."""
+async def test_stats_sleep_session_durations(client_with_family):
+    """Three sleep sessions: all individual durations, median, and wake times are returned correctly."""
     client, headers = client_with_family
     for sid, start, end in [
-        ("sb1", "08:00", "08:30"),  # 30 min
-        ("sb2", "10:00", "11:00"),  # 60 min
+        ("sb1", "08:00", "08:30"),  # 30 min  — wake after: 90 min
+        ("sb2", "10:00", "11:00"),  # 60 min  — wake after: 120 min
         ("sb3", "13:00", "14:30"),  # 90 min
     ]:
         await client.post("/events", json={"id": sid, "type": "sleep_start", "timestamp": f"2024-01-15T{start}:00Z"}, headers=headers)
@@ -129,9 +129,10 @@ async def test_stats_percentile_band(client_with_family):
 
     r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-15T00:00:00Z"}, headers=headers)
     day = r.json()[0]
-    assert day["p25_sleep_session_min"] == 45.0
+    assert day["sleep_session_durations_min"] == [30.0, 60.0, 90.0]
     assert day["median_sleep_session_min"] == 60.0
-    assert day["p75_sleep_session_min"] == 75.0
+    assert day["wake_durations_min"] == [90.0, 120.0]
+    assert day["median_wake_min"] == 105.0
 
 
 @pytest.mark.asyncio

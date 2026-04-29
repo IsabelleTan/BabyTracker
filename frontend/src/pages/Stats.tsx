@@ -1,10 +1,8 @@
 import { useState, useEffect, useMemo } from 'react'
 import NightToggle from '@/components/NightToggle'
 import {
-  ComposedChart,
   LineChart,
   Line,
-  Area,
   XAxis,
   YAxis,
   Tooltip,
@@ -141,8 +139,7 @@ export default function Stats() {
               title="Median session length"
               data={chartData}
               dataKey="median_sleep_session_min"
-              pLowKey="p25_sleep_session_min"
-              pHighKey="p75_sleep_session_min"
+              rawKey="sleep_session_durations_min"
               color="oklch(0.55 0.15 250)"
               timeAxis
               tickStep={60}
@@ -151,8 +148,7 @@ export default function Stats() {
               title="Median wake time between naps"
               data={chartData}
               dataKey="median_wake_min"
-              pLowKey="p25_wake_min"
-              pHighKey="p75_wake_min"
+              rawKey="wake_durations_min"
               color="oklch(0.55 0.15 250)"
               timeAxis
               tickStep={60}
@@ -170,8 +166,7 @@ export default function Stats() {
               title="Median feed interval"
               data={chartData}
               dataKey="median_feed_interval_min"
-              pLowKey="p25_feed_interval_min"
-              pHighKey="p75_feed_interval_min"
+              rawKey="feed_intervals_min"
               color="var(--color-primary)"
               timeAxis
               tickStep={60}
@@ -420,8 +415,7 @@ function ChartCard({
   formatTick,
   timeAxis,
   tickStep,
-  pLowKey,
-  pHighKey,
+  rawKey,
 }: {
   title: string
   data: Record<string, unknown>[]
@@ -430,29 +424,37 @@ function ChartCard({
   formatTick?: (v: number | null) => string
   timeAxis?: boolean
   tickStep?: number
-  pLowKey?: string
-  pHighKey?: string
+  rawKey?: string
 }) {
-  const hasBand = pLowKey != null && pHighKey != null
+  const hasRaw = rawKey != null
+
+  const { dotData, slotKeys } = useMemo(() => {
+    if (!hasRaw) return { dotData: data, slotKeys: [] as string[] }
+    const maxSlots = data.reduce(
+      (m, d) => Math.max(m, ((d[rawKey] as number[]) ?? []).length),
+      0,
+    )
+    const keys = Array.from({ length: maxSlots }, (_, i) => `_v${i}`)
+    const transformed = data.map((d) => {
+      const vals = (d[rawKey] as number[]) ?? []
+      const slots: Record<string, number | null> = {}
+      for (let i = 0; i < maxSlots; i++) {
+        slots[`_v${i}`] = i < vals.length ? vals[i] : null
+      }
+      return { ...d, ...slots }
+    })
+    return { dotData: transformed, slotKeys: keys }
+  }, [data, hasRaw, rawKey])
 
   const yConfig = useMemo(
     () =>
-      hasBand
-        ? computeYTicksMulti(data, [dataKey, pHighKey!], tickStep)
+      hasRaw
+        ? computeYTicksMulti(dotData, [dataKey, ...slotKeys], tickStep)
         : computeYTicks(data, dataKey, tickStep),
-    [data, dataKey, tickStep, hasBand, pHighKey],
+    [data, dotData, dataKey, tickStep, hasRaw, slotKeys],
   )
 
   const resolvedFormatTick = timeAxis ? timeAxisFormatter(yConfig.domain[1]) : (formatTick ?? String)
-
-  const chartData = useMemo(() => {
-    if (!hasBand) return data
-    return data.map((d) => {
-      const p25 = d[pLowKey!] as number | null | undefined
-      const p75 = d[pHighKey!] as number | null | undefined
-      return { ...d, _bandHeight: p25 != null && p75 != null ? p75 - p25 : null }
-    })
-  }, [data, hasBand, pLowKey, pHighKey])
 
   const xTicks = useMemo(() => computeXTicks(data), [data])
 
@@ -496,15 +498,10 @@ function ChartCard({
 
   return (
     <div className="w-full rounded-xl border border-primary/35 bg-card px-3 py-3 flex flex-col gap-3">
-      <div className="flex flex-col gap-0.5">
-        <span className="text-sm font-medium">{title}</span>
-        {hasBand && (
-          <span className="text-[10px] text-muted-foreground">shaded band: 25th–75th percentile</span>
-        )}
-      </div>
+      <span className="text-sm font-medium">{title}</span>
       <ResponsiveContainer width="100%" height={150}>
-        {hasBand ? (
-          <ComposedChart data={chartData} margin={{ top: 4, right: 12, left: -16, bottom: 0 }}>
+        {hasRaw ? (
+          <LineChart data={dotData} margin={{ top: 4, right: 12, left: -16, bottom: 0 }}>
             {sharedAxes}
             <Tooltip
               content={(props) => {
@@ -521,11 +518,32 @@ function ChartCard({
                 )
               }}
             />
-            {/* Transparent filler from 0 → p25, then visible band from p25 → p75 */}
-            <Area type="monotone" dataKey={pLowKey} name="__p25__" stackId="band" fill="transparent" stroke="none" legendType="none" isAnimationActive={false} activeDot={false} />
-            <Area type="monotone" dataKey="_bandHeight" name="__p75__" stackId="band" fill={color} fillOpacity={0.2} stroke="none" legendType="none" isAnimationActive={false} activeDot={false} />
-            <Line type="monotone" dataKey={dataKey} name="__median__" stroke={color} strokeWidth={2} dot={false} activeDot={{ r: 4 }} connectNulls />
-          </ComposedChart>
+            {slotKeys.map((key) => (
+              <Line
+                key={key}
+                type="monotone"
+                dataKey={key}
+                stroke={color}
+                strokeWidth={0}
+                dot={{ r: 3, fill: color, fillOpacity: 0.45 }}
+                activeDot={false}
+                legendType="none"
+                isAnimationActive={false}
+                connectNulls={false}
+              />
+            ))}
+            <Line
+              type="monotone"
+              dataKey={dataKey}
+              name="__median__"
+              stroke={color}
+              strokeWidth={2}
+              dot={{ r: 5, fill: color, stroke: 'white', strokeWidth: 2 }}
+              activeDot={{ r: 5, fill: color, stroke: 'white', strokeWidth: 2 }}
+              connectNulls
+              isAnimationActive={false}
+            />
+          </LineChart>
         ) : (
           <LineChart data={data} margin={{ top: 4, right: 12, left: -16, bottom: 0 }}>
             {sharedAxes}

@@ -36,16 +36,13 @@ class DailyStat(BaseModel):
     date: date
     feed_count: int
     median_feed_interval_min: float | None
-    p25_feed_interval_min: float | None
-    p75_feed_interval_min: float | None
+    feed_intervals_min: list[float]
     total_sleep_min: int
     sleep_session_count: int
     median_sleep_session_min: float | None
-    p25_sleep_session_min: float | None
-    p75_sleep_session_min: float | None
+    sleep_session_durations_min: list[float]
     median_wake_min: float | None
-    p25_wake_min: float | None
-    p75_wake_min: float | None
+    wake_durations_min: list[float]
     output_count: int
     wet_count: int
     dirty_count: int
@@ -205,25 +202,22 @@ async def get_daily_stats(
 
         wakes = wake_by_day.get(day, [])
 
-        p25_feed, median_feed, p75_feed = _percentiles(feed_intervals, [25, 50, 75])
-        p25_session, median_session, p75_session = _percentiles(session_durations, [25, 50, 75])
-        p25_wake, median_wake, p75_wake = _percentiles(wakes, [25, 50, 75])
+        [median_feed] = _percentiles(feed_intervals, [50])
+        [median_session] = _percentiles(session_durations, [50])
+        [median_wake] = _percentiles(wakes, [50])
 
         results.append(
             DailyStat(
                 date=day,
                 feed_count=len(feed_times),
                 median_feed_interval_min=median_feed,
-                p25_feed_interval_min=p25_feed,
-                p75_feed_interval_min=p75_feed,
+                feed_intervals_min=feed_intervals,
                 total_sleep_min=round(total_sleep_min),
                 sleep_session_count=len(sessions),
                 median_sleep_session_min=median_session,
-                p25_sleep_session_min=p25_session,
-                p75_sleep_session_min=p75_session,
+                sleep_session_durations_min=session_durations,
                 median_wake_min=median_wake,
-                p25_wake_min=p25_wake,
-                p75_wake_min=p75_wake,
+                wake_durations_min=wakes,
                 output_count=len(outputs_by_day.get(day, [])),
                 wet_count=wet_by_day.get(day, 0),
                 dirty_count=dirty_by_day.get(day, 0),
