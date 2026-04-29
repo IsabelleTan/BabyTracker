@@ -535,7 +535,7 @@ function ChartCard({
               dataKey={dataKey}
               name="__median__"
               stroke={color}
-              strokeWidth={2.5}
+              strokeWidth={2}
               dot={{ r: 5, fill: color, stroke: 'white', strokeWidth: 2 }}
               activeDot={{ r: 5, fill: color, stroke: 'white', strokeWidth: 2 }}
               connectNulls
