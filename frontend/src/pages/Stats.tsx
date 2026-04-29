@@ -441,10 +441,7 @@ function ChartCard({
     [data, dataKey, tickStep, hasBand, pHighKey],
   )
 
-  const resolvedFormatTick = useMemo(
-    () => timeAxis ? timeAxisFormatter(yConfig.domain[1]) : (formatTick ?? String),
-    [timeAxis, yConfig.domain, formatTick],
-  )
+  const resolvedFormatTick = timeAxis ? timeAxisFormatter(yConfig.domain[1]) : (formatTick ?? String)
 
   const chartData = useMemo(() => {
     if (!hasBand) return data
