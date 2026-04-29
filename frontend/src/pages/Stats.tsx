@@ -13,7 +13,7 @@ import {
 } from 'recharts'
 import { getDailyStats, getEarliestEventDate, type DailyStat } from '@/lib/stats'
 import { currentDayStart } from '@/lib/events'
-import { formatMins, formatDateAxis } from '@/lib/time'
+import { timeAxisFormatter, formatDateAxis } from '@/lib/time'
 import { computeYTicksMulti, computeYTicks, computeXTicks } from '@/lib/chartUtils'
 
 type Range = '7d' | '30d' | 'all'
@@ -127,7 +127,7 @@ export default function Stats() {
               data={chartData}
               dataKey="total_sleep_min"
               color="oklch(0.55 0.15 250)"
-              formatTick={formatMins}
+              timeAxis
               tickStep={300}
             />
             <ChartCard
@@ -144,7 +144,7 @@ export default function Stats() {
               pLowKey="p25_sleep_session_min"
               pHighKey="p75_sleep_session_min"
               color="oklch(0.55 0.15 250)"
-              formatTick={formatMins}
+              timeAxis
               tickStep={60}
             />
             <ChartCard
@@ -154,7 +154,7 @@ export default function Stats() {
               pLowKey="p25_wake_min"
               pHighKey="p75_wake_min"
               color="oklch(0.55 0.15 250)"
-              formatTick={formatMins}
+              timeAxis
               tickStep={60}
             />
           </Section>
@@ -173,7 +173,7 @@ export default function Stats() {
               pLowKey="p25_feed_interval_min"
               pHighKey="p75_feed_interval_min"
               color="var(--color-primary)"
-              formatTick={formatMins}
+              timeAxis
               tickStep={60}
             />
             <MultiLineChartCard
@@ -416,6 +416,7 @@ function ChartCard({
   dataKey,
   color,
   formatTick,
+  timeAxis,
   tickStep,
   pLowKey,
   pHighKey,
@@ -425,6 +426,7 @@ function ChartCard({
   dataKey: string
   color: string
   formatTick?: (v: number | null) => string
+  timeAxis?: boolean
   tickStep?: number
   pLowKey?: string
   pHighKey?: string
@@ -438,6 +440,8 @@ function ChartCard({
         : computeYTicks(data, dataKey, tickStep),
     [data, dataKey, tickStep, hasBand, pHighKey],
   )
+
+  const resolvedFormatTick = timeAxis ? timeAxisFormatter(yConfig.domain[1]) : (formatTick ?? String)
 
   const chartData = useMemo(() => {
     if (!hasBand) return data
@@ -479,7 +483,7 @@ function ChartCard({
         tick={{ fontSize: 10 }}
         tickLine={false}
         axisLine={false}
-        tickFormatter={formatTick ?? String}
+        tickFormatter={resolvedFormatTick}
         width={48}
         ticks={yConfig.ticks}
         domain={yConfig.domain}
@@ -506,7 +510,7 @@ function ChartCard({
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 const entry = props.payload.find((p: any) => p.name === '__median__')
                 if (!entry || entry.value == null) return null
-                const formatted = formatTick ? formatTick(entry.value as number) : String(entry.value)
+                const formatted = resolvedFormatTick(entry.value as number)
                 return (
                   <div style={{ ...contentStyle, padding: '10px' }}>
                     <p style={{ margin: 0, marginBottom: 4 }}>{props.label}</p>
@@ -525,7 +529,7 @@ function ChartCard({
             {sharedAxes}
             <Tooltip
               formatter={(value, name) => [
-                formatTick ? formatTick(value as number | null) : String(value),
+                resolvedFormatTick(value as number | null),
                 snakeToLabel(String(name)),
               ]}
               contentStyle={contentStyle}

@@ -1,4 +1,4 @@
-from datetime import date, datetime, timezone, timedelta
+from datetime import date, datetime, time, timezone, timedelta
 import pytest
 
 from app.routers.leaderboards import _compute_parent_stats, _winner_uid, compute_feed_stats
@@ -333,7 +333,7 @@ async def test_leaderboards_longest_potty_streak(client_with_family):
     client, headers = client_with_family
     base_date = (datetime.now(timezone.utc) - timedelta(days=30)).date()
     for i in range(3):
-        ts = datetime(base_date.year, base_date.month, base_date.day + i, 10, 0, 0, tzinfo=timezone.utc)
+        ts = datetime.combine(base_date + timedelta(days=i), time(10, 0, 0), tzinfo=timezone.utc)
         await client.post("/events", json={
             "id": f"potty-streak-{i}", "type": "output",
             "timestamp": ts.isoformat(),

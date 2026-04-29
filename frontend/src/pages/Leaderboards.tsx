@@ -2,7 +2,7 @@ import { Trophy, Sparkles, Crown, Swords, Toilet, WandSparkles } from 'lucide-re
 import { type LeaderboardData, type ParentStat } from '@/lib/leaderboards'
 import { useLeaderboardData } from '@/contexts/LeaderboardContext'
 import NightToggle from '@/components/NightToggle'
-import { formatMins, formatDateShort } from '@/lib/time'
+import { formatDuration, formatDateShort } from '@/lib/time'
 
 export default function Leaderboards() {
   const { data, status, notifications } = useLeaderboardData()
@@ -178,19 +178,19 @@ function RecordsSection({ data }: { data: LeaderboardData }) {
   const rows: { label: string; value: string; sub: string; isNew: boolean }[] = [
     {
       label: 'Longest sleep',
-      value: formatMins(data.longest_sleep.value),
+      value: formatDuration(data.longest_sleep.value),
       sub: formatDateShort(data.longest_sleep.date),
       isNew: isNew(data.longest_sleep),
     },
     {
       label: 'Best night',
-      value: formatMins(data.best_night.value),
+      value: formatDuration(data.best_night.value),
       sub: formatDateShort(data.best_night.date),
       isNew: isNew(data.best_night),
     },
     {
       label: 'Worst night',
-      value: formatMins(data.worst_night.value),
+      value: formatDuration(data.worst_night.value),
       sub: formatDateShort(data.worst_night.date),
       isNew: false,
     },

@@ -1,5 +1,5 @@
 import { api } from './api'
-import { formatMins } from './time'
+import { formatDuration } from './time'
 
 export interface ParentStat {
   display_name: string
@@ -68,7 +68,7 @@ export function buildNotifications(data: LeaderboardData): string[] {
   const isNew = (r: BabyRecord) => r.date === today && r.value != null
 
   if (isNew(data.longest_sleep)) {
-    const v = formatMins(data.longest_sleep.value)
+    const v = formatDuration(data.longest_sleep.value)
     msgs.push(seededPick([
       `New longest sleep record: ${v}. Who slipped melatonin in the bottle?`,
       `${v} in one stretch — new record! Treasure this. Tell no one. Make no changes.`,
@@ -84,7 +84,7 @@ export function buildNotifications(data: LeaderboardData): string[] {
   }
 
   if (isNew(data.best_night)) {
-    const v = formatMins(data.best_night.value)
+    const v = formatDuration(data.best_night.value)
     msgs.push(seededPick([
       `New best night on record: ${v}. Frame this night and never speak of it again.`,
       `${v} of night sleep — new record! You may cautiously feel like a human again.`,

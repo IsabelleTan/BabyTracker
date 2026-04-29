@@ -1,10 +1,9 @@
 import { useMemo, useEffect, useRef, useState } from 'react'
 import { Milk, Moon, Droplet, CirclePile, CircleDot, Cylinder, Sparkles, Users, type LucideIcon } from 'lucide-react'
-import { formatDuration } from '@/hooks/useTimeSince'
 import { getEventsSince, type BabyEvent } from '@/lib/events'
 import { getUser } from '@/lib/auth'
 import { useLeaderboardData } from '@/contexts/LeaderboardContext'
-import { isNightHours } from '@/lib/time'
+import { isNightHours, formatDuration } from '@/lib/time'
 import { computeStats, type TrackedStat } from '@/lib/summaryStats'
 import {
   getPartnerMessage,
