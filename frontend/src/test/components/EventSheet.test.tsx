@@ -19,72 +19,60 @@ describe('EventSheet — feed', () => {
 
   beforeEach(() => vi.clearAllMocks())
 
-  it('renders breast feed fields by default', () => {
+  it('renders all three feed sections (Breast, Pumped, Formula) always visible', () => {
     render(<EventSheet type="feed" onSave={onSave} onDismiss={onDismiss} />)
     expect(screen.getByText('Feed')).toBeInTheDocument()
     expect(screen.getByLabelText('Left (min)')).toBeInTheDocument()
     expect(screen.getByLabelText('Right (min)')).toBeInTheDocument()
+    expect(screen.getByLabelText('Pumped (ml)')).toBeInTheDocument()
+    expect(screen.getByLabelText('Formula (ml)')).toBeInTheDocument()
   })
 
-  it('save with empty breast fields sends null durations', () => {
+  it('Save button is disabled when all fields are empty', () => {
     render(<EventSheet type="feed" onSave={onSave} onDismiss={onDismiss} />)
+    expect(screen.getByRole('button', { name: 'Save' })).toBeDisabled()
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
-    expect(onSave).toHaveBeenCalledOnce()
-    const [, metadata] = onSave.mock.calls[0]
-    expect(metadata).toMatchObject({
-      feed_type: 'breast',
-      left_duration_min: null,
-      right_duration_min: null,
-    })
+    expect(onSave).not.toHaveBeenCalled()
   })
 
-  it('save with breast durations filled sends numeric values', () => {
+  it('Save button enables once a field is filled', () => {
+    render(<EventSheet type="feed" onSave={onSave} onDismiss={onDismiss} />)
+    fireEvent.change(screen.getByLabelText('Left (min)'), { target: { value: '5' } })
+    expect(screen.getByRole('button', { name: 'Save' })).not.toBeDisabled()
+  })
+
+  it('save with breast durations sends numeric values for L/R', () => {
     render(<EventSheet type="feed" onSave={onSave} onDismiss={onDismiss} />)
     fireEvent.change(screen.getByLabelText('Left (min)'), { target: { value: '10' } })
     fireEvent.change(screen.getByLabelText('Right (min)'), { target: { value: '8' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     const [, metadata] = onSave.mock.calls[0]
-    expect(metadata).toMatchObject({ feed_type: 'breast', left_duration_min: 10, right_duration_min: 8 })
+    expect(metadata).toMatchObject({ breast_left_min: 10, breast_right_min: 8 })
   })
 
-  it('switching to pumped shows ml field and hides breast fields', () => {
+  it('save with only pumped filled sends pumped_ml', () => {
     render(<EventSheet type="feed" onSave={onSave} onDismiss={onDismiss} />)
-    fireEvent.click(screen.getByRole('button', { name: /pumped/i }))
-    expect(screen.queryByLabelText('Left (min)')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Amount (ml)')).toBeInTheDocument()
-  })
-
-  it('switching to formula shows ml field and hides breast fields', () => {
-    render(<EventSheet type="feed" onSave={onSave} onDismiss={onDismiss} />)
-    fireEvent.click(screen.getByRole('button', { name: /formula/i }))
-    expect(screen.queryByLabelText('Left (min)')).not.toBeInTheDocument()
-    expect(screen.getByLabelText('Amount (ml)')).toBeInTheDocument()
-  })
-
-  it('save as pumped sends bottle_type pumped and amount_ml in metadata', () => {
-    render(<EventSheet type="feed" onSave={onSave} onDismiss={onDismiss} />)
-    fireEvent.click(screen.getByRole('button', { name: /pumped/i }))
-    fireEvent.change(screen.getByLabelText('Amount (ml)'), { target: { value: '120' } })
+    fireEvent.change(screen.getByLabelText('Pumped (ml)'), { target: { value: '120' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     const [, metadata] = onSave.mock.calls[0]
-    expect(metadata).toMatchObject({ feed_type: 'bottle', bottle_type: 'pumped', amount_ml: 120 })
+    expect(metadata).toMatchObject({ pumped_ml: 120, breast_left_min: null, formula_ml: null })
   })
 
-  it('save as formula sends bottle_type formula and amount_ml in metadata', () => {
+  it('save with only formula filled sends formula_ml', () => {
     render(<EventSheet type="feed" onSave={onSave} onDismiss={onDismiss} />)
-    fireEvent.click(screen.getByRole('button', { name: /formula/i }))
-    fireEvent.change(screen.getByLabelText('Amount (ml)'), { target: { value: '90' } })
+    fireEvent.change(screen.getByLabelText('Formula (ml)'), { target: { value: '90' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     const [, metadata] = onSave.mock.calls[0]
-    expect(metadata).toMatchObject({ feed_type: 'bottle', bottle_type: 'formula', amount_ml: 90 })
+    expect(metadata).toMatchObject({ formula_ml: 90, breast_left_min: null, pumped_ml: null })
   })
 
-  it('save as pumped with empty ml sends null', () => {
+  it('save with breast + pumped sends combined metadata', () => {
     render(<EventSheet type="feed" onSave={onSave} onDismiss={onDismiss} />)
-    fireEvent.click(screen.getByRole('button', { name: /pumped/i }))
+    fireEvent.change(screen.getByLabelText('Left (min)'), { target: { value: '5' } })
+    fireEvent.change(screen.getByLabelText('Pumped (ml)'), { target: { value: '60' } })
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     const [, metadata] = onSave.mock.calls[0]
-    expect(metadata).toMatchObject({ feed_type: 'bottle', bottle_type: 'pumped', amount_ml: null })
+    expect(metadata).toMatchObject({ breast_left_min: 5, breast_right_min: null, pumped_ml: 60, formula_ml: null })
   })
 })
 
@@ -156,7 +144,7 @@ describe('EventSheet — sleep', () => {
     render(<EventSheet type="sleep_start" onSave={onSave} onDismiss={onDismiss} />)
     expect(screen.getByText('Sleep started')).toBeInTheDocument()
     expect(screen.queryByLabelText('Left (min)')).not.toBeInTheDocument()
-    expect(screen.queryByText('Type')).not.toBeInTheDocument()
+    expect(screen.queryByText('Breast')).not.toBeInTheDocument()
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     const [, metadata] = onSave.mock.calls[0]
     expect(metadata).toBeNull()
@@ -182,7 +170,7 @@ describe('EventSheet — edit mode', () => {
     const event: import('@/lib/events').BabyEvent = {
       id: 'e1', type: 'feed', timestamp: new Date().toISOString(),
       logged_by: 'u1', display_name: 'P1',
-      metadata: { feed_type: 'breast', left_duration_min: 5, right_duration_min: 3 },
+      metadata: { breast_left_min: 5, breast_right_min: 3, pumped_ml: null, formula_ml: null },
     }
     render(<EventSheet type="feed" initialEvent={event} onSave={onSave} onDelete={onDelete} onDismiss={onDismiss} />)
     expect(screen.getByRole('button', { name: 'Save' })).toBeInTheDocument()
@@ -205,21 +193,42 @@ describe('EventSheet — edit mode', () => {
     const event: import('@/lib/events').BabyEvent = {
       id: 'e1', type: 'feed', timestamp: new Date().toISOString(),
       logged_by: 'u1', display_name: 'P1',
-      metadata: { feed_type: 'breast', left_duration_min: 12, right_duration_min: 7 },
+      metadata: { breast_left_min: 12, breast_right_min: 7, pumped_ml: null, formula_ml: null },
     }
     render(<EventSheet type="feed" initialEvent={event} onSave={onSave} onDelete={onDelete} onDismiss={onDismiss} />)
     expect((screen.getByLabelText('Left (min)') as HTMLInputElement).value).toBe('12')
     expect((screen.getByLabelText('Right (min)') as HTMLInputElement).value).toBe('7')
   })
 
-  it('pre-fills bottle amount from initialEvent', () => {
+  it('pre-fills pumped amount from initialEvent', () => {
     const event: import('@/lib/events').BabyEvent = {
       id: 'e2', type: 'feed', timestamp: new Date().toISOString(),
       logged_by: 'u1', display_name: 'P1',
-      metadata: { feed_type: 'bottle', bottle_type: 'formula', amount_ml: 120 },
+      metadata: { breast_left_min: null, breast_right_min: null, pumped_ml: 120, formula_ml: null },
     }
     render(<EventSheet type="feed" initialEvent={event} onSave={onSave} onDelete={onDelete} onDismiss={onDismiss} />)
-    expect((screen.getByLabelText('Amount (ml)') as HTMLInputElement).value).toBe('120')
+    expect((screen.getByLabelText('Pumped (ml)') as HTMLInputElement).value).toBe('120')
+  })
+
+  it('pre-fills formula amount from initialEvent', () => {
+    const event: import('@/lib/events').BabyEvent = {
+      id: 'e3', type: 'feed', timestamp: new Date().toISOString(),
+      logged_by: 'u1', display_name: 'P1',
+      metadata: { breast_left_min: null, breast_right_min: null, pumped_ml: null, formula_ml: 90 },
+    }
+    render(<EventSheet type="feed" initialEvent={event} onSave={onSave} onDelete={onDelete} onDismiss={onDismiss} />)
+    expect((screen.getByLabelText('Formula (ml)') as HTMLInputElement).value).toBe('90')
+  })
+
+  it('pre-fills breast + pumped combined event', () => {
+    const event: import('@/lib/events').BabyEvent = {
+      id: 'e4', type: 'feed', timestamp: new Date().toISOString(),
+      logged_by: 'u1', display_name: 'P1',
+      metadata: { breast_left_min: 8, breast_right_min: null, pumped_ml: 60, formula_ml: null },
+    }
+    render(<EventSheet type="feed" initialEvent={event} onSave={onSave} onDelete={onDelete} onDismiss={onDismiss} />)
+    expect((screen.getByLabelText('Left (min)') as HTMLInputElement).value).toBe('8')
+    expect((screen.getByLabelText('Pumped (ml)') as HTMLInputElement).value).toBe('60')
   })
 
   it('does not show Delete button without onDelete prop', () => {

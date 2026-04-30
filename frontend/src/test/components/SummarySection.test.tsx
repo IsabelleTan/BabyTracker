@@ -57,12 +57,12 @@ describe('SummarySection — today stats', () => {
   it('counts feeds and diapers from today only', async () => {
     const events: BabyEvent[] = [
       // Today: 2 pumped feeds (80ml each = 160ml total) + 2 wet diapers
-      makeEvent({ type: 'feed',   timestamp: todayAt(7),  metadata: { feed_type: 'bottle', bottle_type: 'pumped', amount_ml: 80 } }),
-      makeEvent({ type: 'feed',   timestamp: todayAt(9),  metadata: { feed_type: 'bottle', bottle_type: 'pumped', amount_ml: 80 } }),
+      makeEvent({ type: 'feed',   timestamp: todayAt(7),  metadata: { pumped_ml: 80 } }),
+      makeEvent({ type: 'feed',   timestamp: todayAt(9),  metadata: { pumped_ml: 80 } }),
       makeEvent({ type: 'output', timestamp: todayAt(8),  metadata: { diaper_type: 'wet' } }),
       makeEvent({ type: 'output', timestamp: todayAt(9),  metadata: { diaper_type: 'wet' } }),
       // Outside 24h window — must not count
-      makeEvent({ type: 'feed',   timestamp: hoursAgo(25), metadata: { feed_type: 'bottle', bottle_type: 'pumped', amount_ml: 999 } }),
+      makeEvent({ type: 'feed',   timestamp: hoursAgo(25), metadata: { pumped_ml: 999 } }),
       makeEvent({ type: 'output', timestamp: hoursAgo(25), metadata: { diaper_type: 'wet' } }),
     ]
     render(<SummarySection events={events} />)
@@ -142,10 +142,10 @@ function evt(overrides: Partial<BabyEvent> & { timestamp: string }): BabyEvent {
 describe('computeStats — 24h rolling totals', () => {
   it('sums pumped ml within the window and ignores events outside', () => {
     const events = [
-      evt({ type: 'feed', timestamp: at(-1 * H),  metadata: { feed_type: 'bottle', bottle_type: 'pumped', amount_ml: 100 } }),
-      evt({ type: 'feed', timestamp: at(-23 * H), metadata: { feed_type: 'bottle', bottle_type: 'pumped', amount_ml: 50 } }),
+      evt({ type: 'feed', timestamp: at(-1 * H),  metadata: { pumped_ml: 100 } }),
+      evt({ type: 'feed', timestamp: at(-23 * H), metadata: { pumped_ml: 50 } }),
       // exactly 25h ago — outside window
-      evt({ type: 'feed', timestamp: at(-25 * H), metadata: { feed_type: 'bottle', bottle_type: 'pumped', amount_ml: 999 } }),
+      evt({ type: 'feed', timestamp: at(-25 * H), metadata: { pumped_ml: 999 } }),
     ]
     const s = computeStats(events, NOW)
     expect(s.pumped.current).toBe(150)
@@ -153,27 +153,27 @@ describe('computeStats — 24h rolling totals', () => {
 
   it('sums formula ml separately from pumped ml', () => {
     const events = [
-      evt({ type: 'feed', timestamp: at(-1 * H),  metadata: { feed_type: 'bottle', bottle_type: 'pumped',  amount_ml: 80 } }),
-      evt({ type: 'feed', timestamp: at(-2 * H),  metadata: { feed_type: 'bottle', bottle_type: 'formula', amount_ml: 120 } }),
+      evt({ type: 'feed', timestamp: at(-1 * H), metadata: { pumped_ml: 80 } }),
+      evt({ type: 'feed', timestamp: at(-2 * H), metadata: { formula_ml: 120 } }),
     ]
     const s = computeStats(events, NOW)
     expect(s.pumped.current).toBe(80)
     expect(s.formula.current).toBe(120)
   })
 
-  it('legacy bottle entries without bottle_type count as pumped', () => {
+  it('combined event contributes to both breast and pumped stats', () => {
     const events = [
-      evt({ type: 'feed', timestamp: at(-1 * H), metadata: { feed_type: 'bottle', amount_ml: 70 } }),
+      evt({ type: 'feed', timestamp: at(-1 * H), metadata: { breast_left_min: 8, pumped_ml: 60 } }),
     ]
     const s = computeStats(events, NOW)
-    expect(s.pumped.current).toBe(70)
-    expect(s.formula.current).toBe(0)
+    expect(s.breast.current).toBe(8)
+    expect(s.pumped.current).toBe(60)
   })
 
   it('sums breast minutes (left + right) within the window', () => {
     const events = [
-      evt({ type: 'feed', timestamp: at(-2 * H), metadata: { feed_type: 'breast', left_duration_min: 8, right_duration_min: 5 } }),
-      evt({ type: 'feed', timestamp: at(-5 * H), metadata: { feed_type: 'breast', left_duration_min: 10, right_duration_min: null } }),
+      evt({ type: 'feed', timestamp: at(-2 * H), metadata: { breast_left_min: 8, breast_right_min: 5 } }),
+      evt({ type: 'feed', timestamp: at(-5 * H), metadata: { breast_left_min: 10, breast_right_min: null } }),
     ]
     const s = computeStats(events, NOW)
     expect(s.breast.current).toBe(23)
@@ -244,7 +244,7 @@ describe('computeStats — 7-day rolling averages', () => {
     // d=1 is now-24h→now; d=7 is now-168h→now-144h.
     // Place one 70ml pumped event in each window: at -1h, -25h, -49h, …, -145h.
     const events = Array.from({ length: 7 }, (_, i) =>
-      evt({ type: 'feed', timestamp: at(-(1 + i * 24) * H), metadata: { feed_type: 'bottle', bottle_type: 'pumped', amount_ml: 70 } }),
+      evt({ type: 'feed', timestamp: at(-(1 + i * 24) * H), metadata: { pumped_ml: 70 } }),
     )
     const s = computeStats(events, NOW)
     expect(s.pumped.average).toBe(70)
@@ -254,9 +254,9 @@ describe('computeStats — 7-day rolling averages', () => {
     // One 60ml formula event in window d=1, one 120ml formula event in window d=2; rest empty.
     // Extend to 7 windows with a non-formula event at -145h.
     const events = [
-      evt({ type: 'feed', timestamp: at(-1 * H),   metadata: { feed_type: 'bottle', bottle_type: 'formula', amount_ml: 60 } }),
-      evt({ type: 'feed', timestamp: at(-25 * H),  metadata: { feed_type: 'bottle', bottle_type: 'formula', amount_ml: 120 } }),
-      evt({ type: 'feed', timestamp: at(-145 * H), metadata: { feed_type: 'breast', left_duration_min: 5, right_duration_min: 5 } }),
+      evt({ type: 'feed', timestamp: at(-1 * H),   metadata: { formula_ml: 60 } }),
+      evt({ type: 'feed', timestamp: at(-25 * H),  metadata: { formula_ml: 120 } }),
+      evt({ type: 'feed', timestamp: at(-145 * H), metadata: { breast_left_min: 5, breast_right_min: 5 } }),
     ]
     const s = computeStats(events, NOW)
     // d1:60 d2:120 d3–7:0 → avg = 180/7
@@ -271,7 +271,7 @@ describe('computeStats — 7-day rolling averages', () => {
       evt({ type: 'output', timestamp: at(-27 * H), metadata: { diaper_type: 'wet' } }),
       evt({ type: 'output', timestamp: at(-28 * H), metadata: { diaper_type: 'wet' } }),
       evt({ type: 'output', timestamp: at(-50 * H), metadata: { diaper_type: 'wet' } }),
-      evt({ type: 'feed',   timestamp: at(-145 * H), metadata: { feed_type: 'bottle', amount_ml: 0 } }),
+      evt({ type: 'feed',   timestamp: at(-145 * H), metadata: { pumped_ml: 0 } }),
     ]
     const s = computeStats(events, NOW)
     // d1:0 d2:3 d3:1 d4:0 d5:0 d6:0 d7:0 → 4/7
@@ -281,8 +281,8 @@ describe('computeStats — 7-day rolling averages', () => {
   it('averages over fewer windows when history is shorter than 7 days', () => {
     // Only 2 days of history: one event 26h ago (window 1) and one 50h ago (window 2)
     const events = [
-      evt({ type: 'feed', timestamp: at(-26 * H), metadata: { feed_type: 'bottle', bottle_type: 'pumped', amount_ml: 100 } }),
-      evt({ type: 'feed', timestamp: at(-50 * H), metadata: { feed_type: 'bottle', bottle_type: 'pumped', amount_ml: 200 } }),
+      evt({ type: 'feed', timestamp: at(-26 * H), metadata: { pumped_ml: 100 } }),
+      evt({ type: 'feed', timestamp: at(-50 * H), metadata: { pumped_ml: 200 } }),
     ]
     const s = computeStats(events, NOW)
     // oldest event is 50h ago → ceil(50/24) = 3 windows used, window 3 has 200ml
@@ -297,7 +297,7 @@ describe('computeStats — 7-day rolling averages', () => {
       evt({ type: 'sleep_start', timestamp: at(-3 * H) }),
       evt({ type: 'sleep_end',   timestamp: at(-1 * H) }),
       // Anchor oldest event to 7 days ago so nAvgDays = 7
-      evt({ type: 'feed', timestamp: at(-7 * 24 * H), metadata: { feed_type: 'bottle', amount_ml: 0 } }),
+      evt({ type: 'feed', timestamp: at(-7 * 24 * H), metadata: { pumped_ml: 0 } }),
     ]
     const s = computeStats(events, NOW)
     expect(s.sleep.average).toBeCloseTo(2 * HOUR / 7, -3)

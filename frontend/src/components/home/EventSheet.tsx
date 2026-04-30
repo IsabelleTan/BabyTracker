@@ -6,7 +6,7 @@ import {
   DrawerTitle,
   DrawerFooter,
 } from '@/components/ui/drawer'
-import { Droplet, Droplets, CirclePile, Milk, CircleDot, Cylinder, Baby, Toilet, Trash2, Moon, Sun, AlertTriangle } from 'lucide-react'
+import { Droplet, Droplets, CirclePile, Baby, Toilet, Trash2, Moon, Sun, AlertTriangle } from 'lucide-react'
 import { fromDateTimeLocal, type EventType, type BabyEvent, type EventMeta, type FeedMeta, type OutputMeta } from '@/lib/events'
 
 interface EventSheetProps {
@@ -377,22 +377,6 @@ function BreastFeedForm({
   )
 }
 
-function BottleFeedForm({ amountMl, setAmountMl }: { amountMl: string; setAmountMl: (v: string) => void }) {
-  return (
-    <div className="space-y-1.5">
-      <label htmlFor="amount-ml" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Amount (ml)</label>
-      <input
-        id="amount-ml"
-        type="number"
-        min="0"
-        placeholder="—"
-        value={amountMl}
-        onChange={(e) => setAmountMl(e.target.value)}
-        className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
-      />
-    </div>
-  )
-}
 
 function OutputForm({
   outputLocation, setOutputLocation, diaperType, setDiaperType,
@@ -453,10 +437,10 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
   const [selHour,   setSelHour]   = useState(0)
   const [selMinute, setSelMinute] = useState(0)
 
-  const [feedType,   setFeedType]   = useState<'breast' | 'pumped' | 'formula'>('breast')
   const [leftMin,    setLeftMin]    = useState('')
   const [rightMin,   setRightMin]   = useState('')
-  const [amountMl,   setAmountMl]   = useState('')
+  const [pumpedMl,   setPumpedMl]   = useState('')
+  const [formulaMl,  setFormulaMl]  = useState('')
   const [diaperType, setDiaperType] = useState<'wet' | 'dirty' | 'both'>('wet')
   const [outputLocation, setOutputLocation] = useState<'diaper' | 'potty' | 'accident'>('diaper')
 
@@ -515,29 +499,22 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
         setSelMinute(Math.floor(d.getMinutes() / 5))
 
         const m = initialEvent.metadata
-        if (initialEvent.type === 'feed' && m) {
-          const fm = m as FeedMeta
-          if (fm.feed_type === 'breast') {
-            setFeedType('breast')
-            setLeftMin(fm.left_duration_min  != null ? String(fm.left_duration_min)  : '')
-            setRightMin(fm.right_duration_min != null ? String(fm.right_duration_min) : '')
-            setAmountMl('')
-          } else if (fm.feed_type === 'bottle') {
-            setFeedType(fm.bottle_type === 'formula' ? 'formula' : 'pumped')
-            setAmountMl(fm.amount_ml != null ? String(fm.amount_ml) : '')
-            setLeftMin('')
-            setRightMin('')
-          }
+        if (initialEvent.type === 'feed') {
+          const fm = (m ?? {}) as FeedMeta & Record<string, unknown>
+          setLeftMin(fm.breast_left_min != null ? String(fm.breast_left_min) : '')
+          setRightMin(fm.breast_right_min != null ? String(fm.breast_right_min) : '')
+          setPumpedMl(fm.pumped_ml != null ? String(fm.pumped_ml) : '')
+          setFormulaMl(fm.formula_ml != null ? String(fm.formula_ml) : '')
         } else if (initialEvent.type === 'output' && m) {
           const om = m as OutputMeta
           setDiaperType(om.diaper_type)
           setOutputLocation(om.location)
         } else {
-          // sleep_start / sleep_end — no metadata
-          setFeedType('breast')
+          // sleep_start / sleep_end / vitamin_d — no metadata
           setLeftMin('')
           setRightMin('')
-          setAmountMl('')
+          setPumpedMl('')
+          setFormulaMl('')
           setDiaperType('wet')
           setOutputLocation('diaper')
         }
@@ -549,10 +526,10 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
         setSelYear(1)
         setSelHour(now.getHours())
         setSelMinute(Math.floor(now.getMinutes() / 5))
-        setFeedType('breast')
         setLeftMin('')
         setRightMin('')
-        setAmountMl('')
+        setPumpedMl('')
+        setFormulaMl('')
         setDiaperType('wet')
         setOutputLocation('diaper')
       }
@@ -600,23 +577,23 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
     }
   }
 
+  const feedEmpty = type === 'feed' && !leftMin && !rightMin && !leftRunning && !rightRunning && !pumpedMl && !formulaMl
+
   function buildMetadata(): EventMeta {
     if (type === 'feed') {
-      if (feedType === 'breast') {
-        // If a timer is still running when saving, use its current elapsed value
-        const lMin = leftRunning
-          ? Math.round((Date.now() - leftStartMsRef.current) / 60000)
-          : (leftMin ? Number(leftMin) : null)
-        const rMin = rightRunning
-          ? Math.round((Date.now() - rightStartMsRef.current) / 60000)
-          : (rightMin ? Number(rightMin) : null)
-        return {
-          feed_type: 'breast',
-          left_duration_min:  lMin,
-          right_duration_min: rMin,
-        }
+      // If a timer is still running when saving, use its current elapsed value
+      const lMin = leftRunning
+        ? Math.round((Date.now() - leftStartMsRef.current) / 60000)
+        : (leftMin ? Number(leftMin) : null)
+      const rMin = rightRunning
+        ? Math.round((Date.now() - rightStartMsRef.current) / 60000)
+        : (rightMin ? Number(rightMin) : null)
+      return {
+        breast_left_min:  lMin,
+        breast_right_min: rMin,
+        pumped_ml:  pumpedMl  ? Number(pumpedMl)  : null,
+        formula_ml: formulaMl ? Number(formulaMl) : null,
       }
-      return { feed_type: 'bottle', bottle_type: feedType, amount_ml: amountMl ? Number(amountMl) : null }
     }
     if (type === 'output') return { diaper_type: diaperType, location: outputLocation }
     return null
@@ -709,29 +686,39 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
           {type === 'feed' && (
             <>
               <div className="space-y-1.5">
-                <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Type</label>
-                <SegmentedControl
-                  options={['breast', 'pumped', 'formula'] as const}
-                  value={feedType}
-                  onChange={setFeedType}
-                  labels={{
-                    breast:  <span className="flex items-center justify-center gap-1.5"><CircleDot className="w-3.5 h-3.5" />Breast</span>,
-                    pumped:  <span className="flex items-center justify-center gap-1.5"><Milk      className="w-3.5 h-3.5" />Pumped</span>,
-                    formula: <span className="flex items-center justify-center gap-1.5"><Cylinder  className="w-3.5 h-3.5" />Formula</span>,
-                  }}
-                />
-              </div>
-              {feedType === 'breast' ? (
+                <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Breast</label>
                 <BreastFeedForm
-                  leftMin={leftMin}        setLeftMin={setLeftMin}
-                  rightMin={rightMin}      setRightMin={setRightMin}
-                  leftRunning={leftRunning}   rightRunning={rightRunning}
+                  leftMin={leftMin}          setLeftMin={setLeftMin}
+                  rightMin={rightMin}        setRightMin={setRightMin}
+                  leftRunning={leftRunning}  rightRunning={rightRunning}
                   leftElapsedMs={leftElapsedMs} rightElapsedMs={rightElapsedMs}
                   onToggleLeft={toggleLeftTimer} onToggleRight={toggleRightTimer}
                 />
-              ) : (
-                <BottleFeedForm amountMl={amountMl} setAmountMl={setAmountMl} />
-              )}
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="pumped-ml" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Pumped (ml)</label>
+                <input
+                  id="pumped-ml"
+                  type="number"
+                  min="0"
+                  placeholder="—"
+                  value={pumpedMl}
+                  onChange={(e) => setPumpedMl(e.target.value)}
+                  className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label htmlFor="formula-ml" className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Formula (ml)</label>
+                <input
+                  id="formula-ml"
+                  type="number"
+                  min="0"
+                  placeholder="—"
+                  value={formulaMl}
+                  onChange={(e) => setFormulaMl(e.target.value)}
+                  className="w-full h-11 rounded-md border border-input bg-background px-3 text-sm outline-none focus:ring-2 focus:ring-ring"
+                />
+              </div>
             </>
           )}
 
@@ -757,7 +744,8 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
               </button>
               <button
                 onClick={handleSave}
-                className="flex-1 h-11 rounded-md bg-primary text-primary-foreground font-medium text-sm"
+                disabled={feedEmpty}
+                className="flex-1 h-11 rounded-md bg-primary text-primary-foreground font-medium text-sm disabled:opacity-40"
               >
                 Save
               </button>
@@ -765,7 +753,8 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
           ) : (
             <button
               onClick={handleSave}
-              className="w-full h-11 rounded-md bg-primary text-primary-foreground font-medium text-sm"
+              disabled={feedEmpty}
+              className="w-full h-11 rounded-md bg-primary text-primary-foreground font-medium text-sm disabled:opacity-40"
             >
               Save
             </button>

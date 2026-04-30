@@ -27,7 +27,7 @@ async def test_stats_feed_interval(client_with_family):
         await client.post("/events", json={
             "id": f"feed-{i}", "type": "feed",
             "timestamp": f"2024-01-15T{time}:00Z",
-            "metadata": {"feed_type": "bottle", "amount_ml": 100},
+            "metadata": {"pumped_ml": 100},
         }, headers=headers)
 
     r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-15T00:00:00Z"}, headers=headers)
@@ -150,7 +150,7 @@ async def test_stats_range_returns_earliest_event(client_with_family):
     client, headers = client_with_family
     await client.post("/events", json={
         "id": "range-feed", "type": "feed", "timestamp": "2024-01-10T08:00:00Z",
-        "metadata": {"feed_type": "bottle", "amount_ml": 100},
+        "metadata": {"pumped_ml": 100},
     }, headers=headers)
 
     r = await client.get("/stats/range", headers=headers)
@@ -197,7 +197,7 @@ async def test_stats_daily_boundary_inclusive(client_with_family):
     await client.post("/events", json={
         "id": "boundary-feed", "type": "feed",
         "timestamp": "2024-02-01T00:00:00Z",
-        "metadata": {"feed_type": "bottle", "amount_ml": 100},
+        "metadata": {"pumped_ml": 100},
     }, headers=headers)
 
     r = await client.get("/stats/daily", params={
@@ -256,23 +256,23 @@ async def test_stats_wet_dirty_breakdown(client_with_family):
 
 @pytest.mark.asyncio
 async def test_stats_breast_min_and_bottle_ml(client_with_family):
-    """breast_min sums left+right durations; pumped_ml and formula_ml are split by bottle_type."""
+    """breast_min sums left+right durations; pumped_ml and formula_ml are tracked separately."""
     client, headers = client_with_family
     await client.post("/events", json={
         "id": "bf1", "type": "feed", "timestamp": "2024-03-06T07:00:00Z",
-        "metadata": {"feed_type": "breast", "left_duration_min": 10, "right_duration_min": 8},
+        "metadata": {"breast_left_min": 10, "breast_right_min": 8},
     }, headers=headers)
     await client.post("/events", json={
         "id": "bf2", "type": "feed", "timestamp": "2024-03-06T10:00:00Z",
-        "metadata": {"feed_type": "breast", "left_duration_min": 5, "right_duration_min": None},
+        "metadata": {"breast_left_min": 5, "breast_right_min": None},
     }, headers=headers)
     await client.post("/events", json={
         "id": "bt1", "type": "feed", "timestamp": "2024-03-06T13:00:00Z",
-        "metadata": {"feed_type": "bottle", "bottle_type": "pumped", "amount_ml": 120},
+        "metadata": {"pumped_ml": 120},
     }, headers=headers)
     await client.post("/events", json={
         "id": "bt2", "type": "feed", "timestamp": "2024-03-06T16:00:00Z",
-        "metadata": {"feed_type": "bottle", "bottle_type": "formula", "amount_ml": 90},
+        "metadata": {"formula_ml": 90},
     }, headers=headers)
 
     r = await client.get("/stats/daily", params={
@@ -296,7 +296,7 @@ async def test_stats_cross_family_isolation(client_with_family):
     await client.post("/events", json={
         "id": "isolation-feed", "type": "feed",
         "timestamp": "2024-01-15T10:00:00Z",
-        "metadata": {"feed_type": "bottle", "amount_ml": 100},
+        "metadata": {"pumped_ml": 100},
     }, headers=headers)
 
     # user-1 sees it in their stats
@@ -316,12 +316,12 @@ async def test_stats_cross_family_isolation(client_with_family):
 
 
 @pytest.mark.asyncio
-async def test_stats_legacy_bottle_counts_as_pumped(client_with_family):
-    """Bottle events without bottle_type (legacy) are counted in pumped_ml."""
+async def test_stats_combined_feed_event(client_with_family):
+    """A single event with breast + pumped fields contributes to both stats."""
     client, headers = client_with_family
     await client.post("/events", json={
-        "id": "legacy-bt", "type": "feed", "timestamp": "2024-03-07T09:00:00Z",
-        "metadata": {"feed_type": "bottle", "amount_ml": 100},
+        "id": "combined-feed", "type": "feed", "timestamp": "2024-03-07T09:00:00Z",
+        "metadata": {"breast_left_min": 8, "breast_right_min": 5, "pumped_ml": 60},
     }, headers=headers)
 
     r = await client.get("/stats/daily", params={
@@ -329,8 +329,10 @@ async def test_stats_legacy_bottle_counts_as_pumped(client_with_family):
         "to":   "2024-03-07T23:59:59Z",
     }, headers=headers)
     day = r.json()[0]
-    assert day["pumped_ml"]  == 100.0
+    assert day["breast_min"] == 13.0   # 8 + 5
+    assert day["pumped_ml"]  == 60.0
     assert day["formula_ml"] == 0.0
+    assert day["feed_count"] == 1
 
 
 @pytest.mark.asyncio
