@@ -94,7 +94,7 @@ describe('EventSheet — output', () => {
 
   beforeEach(() => vi.clearAllMocks())
 
-  it('renders output type and location selectors', () => {
+  it('renders output type and location selectors including accident', () => {
     render(<EventSheet type="output" onSave={onSave} onDismiss={onDismiss} />)
     expect(screen.getByText('Output')).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /pee/i })).toBeInTheDocument()
@@ -102,6 +102,7 @@ describe('EventSheet — output', () => {
     expect(screen.getByRole('button', { name: /both/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /diaper/i })).toBeInTheDocument()
     expect(screen.getByRole('button', { name: /potty/i })).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /accident/i })).toBeInTheDocument()
   })
 
   it('save sends default diaper_type wet and location diaper', () => {
@@ -125,6 +126,23 @@ describe('EventSheet — output', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Save' }))
     const [, metadata] = onSave.mock.calls[0]
     expect(metadata).toEqual({ diaper_type: 'wet', location: 'potty' })
+  })
+
+  it('selecting accident changes the saved location to accident', () => {
+    render(<EventSheet type="output" onSave={onSave} onDismiss={onDismiss} />)
+    fireEvent.click(screen.getByRole('button', { name: /accident/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    const [, metadata] = onSave.mock.calls[0]
+    expect(metadata).toEqual({ diaper_type: 'wet', location: 'accident' })
+  })
+
+  it('accident with poo saves diaper_type dirty and location accident', () => {
+    render(<EventSheet type="output" onSave={onSave} onDismiss={onDismiss} />)
+    fireEvent.click(screen.getByRole('button', { name: /accident/i }))
+    fireEvent.click(screen.getByRole('button', { name: /poo/i }))
+    fireEvent.click(screen.getByRole('button', { name: 'Save' }))
+    const [, metadata] = onSave.mock.calls[0]
+    expect(metadata).toEqual({ diaper_type: 'dirty', location: 'accident' })
   })
 })
 

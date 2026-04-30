@@ -20,7 +20,7 @@ class BreastFeedMetadata(BaseModel):
 
 class OutputMetadata(BaseModel):
     diaper_type: Literal["wet", "dirty", "both"]
-    location: Literal["diaper", "potty"] = "diaper"
+    location: Literal["diaper", "potty", "accident"] = "diaper"
 
 
 _FeedMetadata = Annotated[

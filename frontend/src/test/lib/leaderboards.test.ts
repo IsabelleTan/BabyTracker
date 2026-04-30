@@ -4,8 +4,8 @@ import { buildNotifications, getLeaderboards, type LeaderboardData, type ParentS
 vi.mock('@/lib/api', () => ({ api: { get: vi.fn() } }))
 import { api } from '@/lib/api'
 
-const PARENT_A: ParentStat = { display_name: 'Alice', night_shifts: 10, total_logs: 20, poop_changes: 5, potty_assists: 8 }
-const PARENT_B: ParentStat = { display_name: 'Bob', night_shifts: 3, total_logs: 8, poop_changes: 2, potty_assists: 3 }
+const PARENT_A: ParentStat = { display_name: 'Alice', night_shifts: 10, total_logs: 20, poop_changes: 5, potty_assists: 8, accident_cleanups: 4 }
+const PARENT_B: ParentStat = { display_name: 'Bob', night_shifts: 3, total_logs: 8, poop_changes: 2, potty_assists: 3, accident_cleanups: 1 }
 
 const TODAY = new Date().toLocaleDateString('en-CA')
 const OLD_DATE = '2024-01-15'
@@ -18,6 +18,7 @@ function makeData(overrides: Partial<LeaderboardData> = {}): LeaderboardData {
     most_feeds: { value: null, date: null },
     most_poop: { value: null, date: null },
     longest_potty_streak: { value: null, date: null },
+    total_accidents: 0,
     awards_claimed_today: [],
     parents: [PARENT_A, PARENT_B],
     ...overrides,
@@ -122,6 +123,15 @@ describe('buildNotifications', () => {
     expect(msgs[0]).toContain('3')
   })
 
+  it('includes winner and loser names when accident award is claimed', () => {
+    const msgs = buildNotifications(makeData({ awards_claimed_today: ['accident'] }))
+    expect(msgs).toHaveLength(1)
+    expect(msgs[0]).toContain('Alice')
+    expect(msgs[0]).toContain('Bob')
+    expect(msgs[0]).toContain('4')
+    expect(msgs[0]).toContain('1')
+  })
+
   it('does not include award message when parents list has fewer than 2 entries', () => {
     const msgs = buildNotifications(makeData({
       awards_claimed_today: ['night_shift'],
@@ -148,6 +158,7 @@ describe('getLeaderboards', () => {
       most_feeds: { value: null, date: null },
       most_poop: { value: null, date: null },
       longest_potty_streak: { value: null, date: null },
+      total_accidents: 0,
       awards_claimed_today: [],
       parents: [],
     }

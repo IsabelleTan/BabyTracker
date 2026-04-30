@@ -7,6 +7,7 @@ export interface ParentStat {
   total_logs: number
   poop_changes: number
   potty_assists: number
+  accident_cleanups: number
 }
 
 export interface BabyRecord {
@@ -21,6 +22,7 @@ export interface LeaderboardData {
   most_feeds: BabyRecord
   most_poop: BabyRecord
   longest_potty_streak: BabyRecord
+  total_accidents: number
   awards_claimed_today: string[]
   parents: ParentStat[]
 }
@@ -192,6 +194,18 @@ export function buildNotifications(data: LeaderboardData): string[] {
         `New Potty Whisperer: ${w.winner.display_name}! ${w.winnerScore} potty events vs ${w.loserScore} from ${w.loser.display_name}. Worth celebrating.`,
         `${w.winner.display_name} leads potty assists: ${w.winnerScore} vs ${w.loserScore} from ${w.loser.display_name}. Potty Whisperer earned.`,
       ], s(null, 7), 0))
+  }
+
+  if (data.awards_claimed_today.includes('accident')) {
+    const w = awardWinner(data.parents, (p) => p.accident_cleanups)
+    if (w)
+      msgs.push(seededPick([
+        `${w.winner.display_name} claims the Murphy's Law Medal! ${w.winnerScore} accidents handled vs ${w.loserScore} from ${w.loser.display_name}. Heroic, truly.`,
+        `Murphy's Law Medal goes to ${w.winner.display_name}! ${w.winnerScore} cleanups vs ${w.loserScore} from ${w.loser.display_name}. They've seen things.`,
+        `${w.winner.display_name} leads accident cleanups: ${w.winnerScore} vs ${w.loserScore} from ${w.loser.display_name}. Murphy's Law Medal claimed.`,
+        `New Murphy's Law Medal holder: ${w.winner.display_name}! ${w.winnerScore} accidents vs ${w.loserScore}. ${w.loser.display_name} considers themselves lucky.`,
+        `${w.winner.display_name} earned the Murphy's Law Medal with ${w.winnerScore} cleanups. ${w.loser.display_name} got away with only ${w.loserScore}. Fortune favors the other one.`,
+      ], s(null, 8), 0))
   }
 
   return msgs

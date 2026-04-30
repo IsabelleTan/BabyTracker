@@ -13,7 +13,7 @@ from app.config import settings
 from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
-from app.utils import _utc, local_date, output_dirty, output_at_potty, output_wet, pair_sleep_sessions, safe_zone
+from app.utils import _utc, local_date, output_dirty, output_at_potty, output_at_accident, output_wet, pair_sleep_sessions, safe_zone
 
 router = APIRouter(prefix="/stats", tags=["stats"])
 
@@ -48,6 +48,8 @@ class DailyStat(BaseModel):
     dirty_count: int
     potty_wet_count: int
     potty_dirty_count: int
+    accident_wet_count: int
+    accident_dirty_count: int
     breast_min: float
     pumped_ml: float
     formula_ml: float
@@ -116,6 +118,8 @@ async def get_daily_stats(
     dirty_by_day: dict[date, int] = defaultdict(int)
     potty_wet_by_day: dict[date, int] = defaultdict(int)
     potty_dirty_by_day: dict[date, int] = defaultdict(int)
+    accident_wet_by_day: dict[date, int] = defaultdict(int)
+    accident_dirty_by_day: dict[date, int] = defaultdict(int)
     breast_min_by_day: dict[date, float] = defaultdict(float)
     pumped_ml_by_day: dict[date, float] = defaultdict(float)
     formula_ml_by_day: dict[date, float] = defaultdict(float)
@@ -147,6 +151,11 @@ async def get_daily_stats(
                     potty_wet_by_day[day] += 1
                 if output_dirty(meta):
                     potty_dirty_by_day[day] += 1
+            if output_at_accident(meta):
+                if output_wet(meta):
+                    accident_wet_by_day[day] += 1
+                if output_dirty(meta):
+                    accident_dirty_by_day[day] += 1
         elif e.type in ("sleep_start", "sleep_end"):
             raw_sleep_events.append((e.type, ts))
 
@@ -223,6 +232,8 @@ async def get_daily_stats(
                 dirty_count=dirty_by_day.get(day, 0),
                 potty_wet_count=potty_wet_by_day.get(day, 0),
                 potty_dirty_count=potty_dirty_by_day.get(day, 0),
+                accident_wet_count=accident_wet_by_day.get(day, 0),
+                accident_dirty_count=accident_dirty_by_day.get(day, 0),
                 breast_min=round(breast_min_by_day.get(day, 0.0), 1),
                 pumped_ml=round(pumped_ml_by_day.get(day, 0.0), 1),
                 formula_ml=round(formula_ml_by_day.get(day, 0.0), 1),

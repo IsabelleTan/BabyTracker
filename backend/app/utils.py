@@ -37,6 +37,10 @@ def output_at_diaper(meta: dict) -> bool:
     return meta.get("location", "diaper") == "diaper"
 
 
+def output_at_accident(meta: dict) -> bool:
+    return meta.get("location", "diaper") == "accident"
+
+
 def pair_sleep_sessions(
     sleep_events: list[tuple[str, datetime]],
 ) -> list[tuple[datetime, datetime]]:

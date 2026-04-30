@@ -59,3 +59,24 @@ def test_pair_second_start_before_end_replaces_open():
     result = pair_sleep_sessions([("sleep_start", s1), ("sleep_start", s2), ("sleep_end", end)])
     # s2 is the active start because it replaced s1
     assert result == [(s2, end)]
+
+
+# ── output_at_accident ────────────────────────────────────────────────────────
+
+from app.utils import output_at_accident
+
+
+def test_output_at_accident_returns_true_for_accident():
+    assert output_at_accident({"location": "accident"}) is True
+
+
+def test_output_at_accident_returns_false_for_diaper():
+    assert output_at_accident({"location": "diaper"}) is False
+
+
+def test_output_at_accident_returns_false_for_potty():
+    assert output_at_accident({"location": "potty"}) is False
+
+
+def test_output_at_accident_defaults_to_false_when_missing():
+    assert output_at_accident({}) is False

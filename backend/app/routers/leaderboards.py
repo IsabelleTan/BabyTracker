@@ -16,7 +16,7 @@ from app.limiter import limiter
 from app.models.event import Event
 from app.models.user import User
 from app.models.user_baby import UserBaby
-from app.utils import _utc, local_date, output_dirty, output_at_diaper, output_at_potty, pair_sleep_sessions, safe_zone, NIGHT_SHIFT_START, NIGHT_SHIFT_END
+from app.utils import _utc, local_date, output_dirty, output_at_accident, output_at_diaper, output_at_potty, output_wet, pair_sleep_sessions, safe_zone, NIGHT_SHIFT_START, NIGHT_SHIFT_END
 
 router = APIRouter(prefix="/leaderboards", tags=["leaderboards"])
 
@@ -27,6 +27,7 @@ class ParentStat(BaseModel):
     total_logs: int
     poop_changes: int
     potty_assists: int
+    accident_cleanups: int
 
 
 class BabyRecord(BaseModel):
@@ -41,12 +42,13 @@ class LeaderboardData(BaseModel):
     most_feeds: BabyRecord
     most_poop: BabyRecord
     longest_potty_streak: BabyRecord
+    total_accidents: int
     awards_claimed_today: list[str]
     parents: list[ParentStat]
 
 
 def _compute_parent_stats(evts: list, users: dict[str, str]) -> dict[str, dict]:
-    s = {uid: {"night_shifts": 0, "total_logs": 0, "poop_changes": 0, "potty_assists": 0} for uid in users}
+    s = {uid: {"night_shifts": 0, "total_logs": 0, "poop_changes": 0, "potty_assists": 0, "accident_cleanups": 0} for uid in users}
     for e in evts:
         uid = e.logged_by
         if uid not in s:
@@ -61,6 +63,8 @@ def _compute_parent_stats(evts: list, users: dict[str, str]) -> dict[str, dict]:
                 s[uid]["poop_changes"] += 1
             if output_at_potty(meta):
                 s[uid]["potty_assists"] += 1
+            if output_at_accident(meta):
+                s[uid]["accident_cleanups"] += 1
     return s
 
 
@@ -87,6 +91,7 @@ class FeedStats:
     most_poop_date: date | None
     longest_potty_streak: int | None
     longest_potty_streak_date: date | None
+    total_accidents: int
 
 
 @dataclass
@@ -132,6 +137,7 @@ def compute_sleep_stats(sleep_sessions: list[tuple], zone: ZoneInfo) -> SleepSta
 def compute_feed_stats(events: list, zone: ZoneInfo) -> FeedStats:
     feeds_by_day: dict[date, int] = defaultdict(int)
     poop_by_day: dict[date, int] = defaultdict(int)
+    total_accidents = 0
     for e in events:
         if e.type == "feed":
             feeds_by_day[local_date(e.timestamp, zone)] += 1
@@ -139,6 +145,8 @@ def compute_feed_stats(events: list, zone: ZoneInfo) -> FeedStats:
             meta = e.metadata_ or {}
             if output_dirty(meta) and output_at_diaper(meta):
                 poop_by_day[local_date(e.timestamp, zone)] += 1
+            if output_at_accident(meta):
+                total_accidents += 1
 
     most_feeds_count: int | None = None
     most_feeds_date: date | None = None
@@ -177,7 +185,7 @@ def compute_feed_stats(events: list, zone: ZoneInfo) -> FeedStats:
         longest_potty_streak = best_streak
         longest_potty_streak_date = best_end
 
-    return FeedStats(most_feeds_count, most_feeds_date, most_poop_count, most_poop_date, longest_potty_streak, longest_potty_streak_date)
+    return FeedStats(most_feeds_count, most_feeds_date, most_poop_count, most_poop_date, longest_potty_streak, longest_potty_streak_date, total_accidents)
 
 
 def compute_award_changes(
@@ -196,6 +204,7 @@ def compute_award_changes(
             ("total_logs", "chief_log"),
             ("poop_changes", "poop"),
             ("potty_assists", "potty"),
+            ("accident_cleanups", "accident"),
         ]
         if award_claimed(stat_key)
     ))
@@ -215,6 +224,7 @@ def build_leaderboard_response(
             total_logs=v["total_logs"],
             poop_changes=v["poop_changes"],
             potty_assists=v["potty_assists"],
+            accident_cleanups=v["accident_cleanups"],
         )
         for uid, v in curr_stats.items()
         if uid in users
@@ -227,6 +237,7 @@ def build_leaderboard_response(
         most_feeds=BabyRecord(value=feeds.most_feeds_count, date=feeds.most_feeds_date),
         most_poop=BabyRecord(value=feeds.most_poop_count, date=feeds.most_poop_date),
         longest_potty_streak=BabyRecord(value=feeds.longest_potty_streak, date=feeds.longest_potty_streak_date),
+        total_accidents=feeds.total_accidents,
         awards_claimed_today=list(awards.claimed),
         parents=parents,
     )
