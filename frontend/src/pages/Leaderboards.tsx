@@ -1,4 +1,4 @@
-import { Trophy, Sparkles, Crown, Swords, Toilet, WandSparkles } from 'lucide-react'
+import { Trophy, Sparkles, Crown, Swords, Toilet, WandSparkles, AlertTriangle } from 'lucide-react'
 import { type LeaderboardData, type ParentStat } from '@/lib/leaderboards'
 import { useLeaderboardData } from '@/contexts/LeaderboardContext'
 import NightToggle from '@/components/NightToggle'
@@ -95,6 +95,14 @@ function AwardsSection({ data }: { data: LeaderboardData }) {
       getValue: (p) => p.potty_assists,
       formatValue: (n) => `${n} assists`,
       claimedToday: data.awards_claimed_today.includes('potty'),
+    },
+    {
+      icon: <AlertTriangle className="w-5 h-5" />,
+      title: "Murphy's Law Medal",
+      subtitle: 'Most accidents cleaned up',
+      getValue: (p) => p.accident_cleanups,
+      formatValue: (n) => `${n} cleanups`,
+      claimedToday: data.awards_claimed_today.includes('accident'),
     },
   ]
 
@@ -211,6 +219,12 @@ function RecordsSection({ data }: { data: LeaderboardData }) {
       value: data.longest_potty_streak.value != null ? `${data.longest_potty_streak.value} days` : '—',
       sub: formatDateShort(data.longest_potty_streak.date),
       isNew: isNew(data.longest_potty_streak),
+    },
+    {
+      label: 'Total accidents',
+      value: data.total_accidents > 0 ? String(data.total_accidents) : '—',
+      sub: '',
+      isNew: false,
     },
   ]
 

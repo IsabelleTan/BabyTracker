@@ -14,6 +14,7 @@ What it generates:
       - Feeding:  breast-heavy early → mix of breast/bottle (pumped 80%→25%, formula 20%→75%); interval 2h → 3.5h
       - Sleep:    many short naps + night waking → fewer longer naps + longer overnight
       - Diapers:  8-10/day newborn → 5-7/day at 4 months; wet/dirty/both mix
+      - Accidents: occasional from day 90+ (~15% of days, 1-2 at a time)
   • Growth spurts at ~3-4 weeks and ~3 months (more feeding, less sleep)
   • Today's events seeded up to the current time
   • All events use deterministic UUIDs — re-running is safe (idempotent)
@@ -136,12 +137,12 @@ def ev_sleep_end(ts: datetime, tag: str) -> dict:
     return {"id": det_id("sleep-end", iso(ts), tag), "type": "sleep_end", "timestamp": iso(ts), "metadata": None}
 
 
-def ev_diaper(ts: datetime, dtype: str, tag: str) -> dict:
+def ev_diaper(ts: datetime, dtype: str, tag: str, location: str = "diaper") -> dict:
     return {
         "id": det_id("output", iso(ts), tag),
         "type": "output",
         "timestamp": iso(ts),
-        "metadata": {"diaper_type": dtype, "location": "diaper"},
+        "metadata": {"diaper_type": dtype, "location": location},
     }
 
 
@@ -254,6 +255,13 @@ def build_day(day: date, day_index: int) -> list[dict]:
     for ti, t in enumerate(diaper_times):
         dtype = random.choices(["wet", "dirty", "both"], weights=[0.55, 0.30, 0.15])[0]
         events.append(ev_diaper(t, dtype, f"{tag}-dia{ti}"))
+
+    # ── Accidents (potty training age only, day 90+) ──────────────────────────
+    if day_index >= 90 and random.random() < 0.15:
+        for ai in range(random.randint(1, 2)):
+            t = local_to_utc(day, random.uniform(8.0, 20.0))
+            dtype = random.choices(["wet", "dirty", "both"], weights=[0.60, 0.20, 0.20])[0]
+            events.append(ev_diaper(t, dtype, f"{tag}-acc{ai}", location="accident"))
 
     return events
 

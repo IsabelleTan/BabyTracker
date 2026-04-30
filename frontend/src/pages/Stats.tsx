@@ -16,10 +16,24 @@ import { computeYTicksMulti, computeYTicks, computeXTicks } from '@/lib/chartUti
 
 type Range = '7d' | '30d' | 'all'
 
-type WeeklyPotty = { date: string; potty_wet: number; potty_dirty: number }
+const COLORS = {
+  sleep:   'oklch(0.55 0.15 250)',
+  feeds:   'var(--color-primary)',
+  pumped:  'oklch(0.52 0.16 165)',
+  formula: 'oklch(0.60 0.15 50)',
+  pee:     'oklch(0.52 0.17 225)',
+  poo:     'oklch(0.52 0.11 55)',
+}
 
-function groupPottyByWeek(data: DailyStat[]): WeeklyPotty[] {
-  const weekMap = new Map<string, WeeklyPotty>()
+type WeeklyPotty = { date: string; potty_wet: number; potty_dirty: number }
+type WeeklyAccident = { date: string; accident_wet: number; accident_dirty: number }
+
+function groupByWeek<T extends object>(
+  data: DailyStat[],
+  init: () => T,
+  accumulate: (entry: T, d: DailyStat) => void,
+): T[] {
+  const weekMap = new Map<string, T & { date: string }>()
   for (const d of data) {
     const date = new Date(d.date + 'T00:00:00')
     const day = date.getDay()
@@ -28,19 +42,35 @@ function groupPottyByWeek(data: DailyStat[]): WeeklyPotty[] {
     monday.setDate(date.getDate() + diff)
     const key = monday.toISOString().slice(0, 10)
     if (!weekMap.has(key)) {
-      weekMap.set(key, {
-        date: `${monday.getMonth() + 1}/${monday.getDate()}`,
-        potty_wet: 0,
-        potty_dirty: 0,
-      })
+      weekMap.set(key, { date: `${monday.getMonth() + 1}/${monday.getDate()}`, ...init() })
     }
-    const entry = weekMap.get(key)!
-    entry.potty_wet += d.potty_wet_count
-    entry.potty_dirty += d.potty_dirty_count
+    accumulate(weekMap.get(key)!, d)
   }
   return [...weekMap.entries()]
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([, v]) => v)
+}
+
+function groupPottyByWeek(data: DailyStat[]): WeeklyPotty[] {
+  return groupByWeek<WeeklyPotty>(
+    data,
+    () => ({ date: '', potty_wet: 0, potty_dirty: 0 }),
+    (entry, d) => {
+      entry.potty_wet += d.potty_wet_count
+      entry.potty_dirty += d.potty_dirty_count
+    },
+  )
+}
+
+function groupAccidentsByWeek(data: DailyStat[]): WeeklyAccident[] {
+  return groupByWeek<WeeklyAccident>(
+    data,
+    () => ({ date: '', accident_wet: 0, accident_dirty: 0 }),
+    (entry, d) => {
+      entry.accident_wet += d.accident_wet_count
+      entry.accident_dirty += d.accident_dirty_count
+    },
+  )
 }
 
 const RANGES: { label: string; value: Range }[] = [
@@ -87,6 +117,7 @@ export default function Stats() {
   const chartData = data.map((d) => ({ ...d, date: formatDateAxis(d.date) }))
 
   const weeklyPottyData = useMemo(() => groupPottyByWeek(data), [data])
+  const weeklyAccidentData = useMemo(() => groupAccidentsByWeek(data), [data])
 
   return (
     <div className="w-full flex flex-col gap-6 p-4">
@@ -124,7 +155,7 @@ export default function Stats() {
               title="Total sleep"
               data={chartData}
               dataKey="total_sleep_min"
-              color="oklch(0.55 0.15 250)"
+              color={COLORS.sleep}
               timeAxis
               tickStep={300}
             />
@@ -132,7 +163,7 @@ export default function Stats() {
               title="Sleep sessions"
               data={chartData}
               dataKey="sleep_session_count"
-              color="oklch(0.55 0.15 250)"
+              color={COLORS.sleep}
               tickStep={2}
             />
             <ChartCard
@@ -140,7 +171,7 @@ export default function Stats() {
               data={chartData}
               dataKey="median_sleep_session_min"
               rawKey="sleep_session_durations_min"
-              color="oklch(0.55 0.15 250)"
+              color={COLORS.sleep}
               timeAxis
               tickStep={60}
             />
@@ -149,7 +180,7 @@ export default function Stats() {
               data={chartData}
               dataKey="median_wake_min"
               rawKey="wake_durations_min"
-              color="oklch(0.55 0.15 250)"
+              color={COLORS.sleep}
               timeAxis
               tickStep={60}
             />
@@ -160,14 +191,14 @@ export default function Stats() {
               title="Feeds per day"
               data={chartData}
               dataKey="feed_count"
-              color="var(--color-primary)"
+              color={COLORS.feeds}
             />
             <ChartCard
               title="Median feed interval"
               data={chartData}
               dataKey="median_feed_interval_min"
               rawKey="feed_intervals_min"
-              color="var(--color-primary)"
+              color={COLORS.feeds}
               timeAxis
               tickStep={60}
             />
@@ -178,14 +209,14 @@ export default function Stats() {
                 {
                   dataKey: 'breast_min',
                   name: 'Breast',
-                  color: 'var(--color-primary)',
+                  color: COLORS.feeds,
                   yAxisId: 'left',
                   formatValue: (v) => `${Math.round(v)} min`,
                 },
                 {
                   dataKey: 'pumped_ml',
                   name: 'Pumped',
-                  color: 'oklch(0.52 0.16 165)',
+                  color: COLORS.pumped,
                   strokeStyle: 'dashed',
                   yAxisId: 'right',
                   formatValue: (v) => `${Math.round(v)} ml`,
@@ -193,7 +224,7 @@ export default function Stats() {
                 {
                   dataKey: 'formula_ml',
                   name: 'Formula',
-                  color: 'oklch(0.60 0.15 50)',
+                  color: COLORS.formula,
                   strokeStyle: 'dotted',
                   yAxisId: 'right',
                   formatValue: (v) => `${Math.round(v)} ml`,
@@ -212,14 +243,14 @@ export default function Stats() {
                 {
                   dataKey: 'wet_count',
                   name: 'Pee',
-                  color: 'oklch(0.52 0.17 225)',
+                  color: COLORS.pee,
                   strokeStyle: 'dashed',
                   yAxisId: 'left',
                 },
                 {
                   dataKey: 'dirty_count',
                   name: 'Poo',
-                  color: 'oklch(0.52 0.11 55)',
+                  color: COLORS.poo,
                   yAxisId: 'left',
                 },
               ]}
@@ -233,14 +264,36 @@ export default function Stats() {
                   {
                     dataKey: 'potty_wet',
                     name: 'Pee',
-                    color: 'oklch(0.52 0.17 225)',
+                    color: COLORS.pee,
                     strokeStyle: 'dashed',
                     yAxisId: 'left',
                   },
                   {
                     dataKey: 'potty_dirty',
                     name: 'Poo',
-                    color: 'oklch(0.52 0.11 55)',
+                    color: COLORS.poo,
+                    yAxisId: 'left',
+                  },
+                ]}
+                leftTickStep={1}
+              />
+            )}
+            {weeklyAccidentData.some((w) => w.accident_wet > 0 || w.accident_dirty > 0) && (
+              <MultiLineChartCard
+                title="Accidents per week"
+                data={weeklyAccidentData}
+                lines={[
+                  {
+                    dataKey: 'accident_wet',
+                    name: 'Pee',
+                    color: COLORS.pee,
+                    strokeStyle: 'dashed',
+                    yAxisId: 'left',
+                  },
+                  {
+                    dataKey: 'accident_dirty',
+                    name: 'Poo',
+                    color: COLORS.poo,
                     yAxisId: 'left',
                   },
                 ]}
@@ -525,7 +578,7 @@ function ChartCard({
                 dataKey={key}
                 stroke={color}
                 strokeWidth={0}
-                dot={{ r: 3, fill: color, fillOpacity: 0.45 }}
+                dot={{ r: 3, fill: 'oklch(0.6 0 0)', fillOpacity: 0.5 }}
                 activeDot={false}
                 legendType="none"
                 isAnimationActive={false}
@@ -538,8 +591,8 @@ function ChartCard({
               name="__median__"
               stroke={color}
               strokeWidth={2}
-              dot={{ r: 5, fill: color, stroke: 'white', strokeWidth: 2 }}
-              activeDot={{ r: 5, fill: color, stroke: 'white', strokeWidth: 2 }}
+              dot={{ r: 5, fill: color, strokeWidth: 0 }}
+              activeDot={{ r: 5, fill: color, strokeWidth: 0 }}
               connectNulls
               isAnimationActive={false}
             />

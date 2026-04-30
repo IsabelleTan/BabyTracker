@@ -279,6 +279,13 @@ def scenario_realistic() -> list[dict]:
             dt = random.choices(["wet", "dirty", "both"], [0.55, 0.25, 0.20])[0]
             add("output", t, {"diaper_type": dt, "location": "diaper"})
 
+        # Accidents (only once potty training begins, ~day 90+; ~15% chance per day, 1–2 at a time)
+        if age_days >= 90 and random.random() < 0.15:
+            for _ in range(random.randint(1, 2)):
+                t = day_base + timedelta(hours=_rng(8, 20))
+                dt = random.choices(["wet", "dirty", "both"], [0.60, 0.20, 0.20])[0]
+                add("output", t, {"diaper_type": dt, "location": "accident"})
+
         return evts
 
     events: list[dict] = []

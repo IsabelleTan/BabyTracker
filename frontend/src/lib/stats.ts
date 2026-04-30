@@ -16,6 +16,8 @@ export interface DailyStat {
   dirty_count: number
   potty_wet_count: number
   potty_dirty_count: number
+  accident_wet_count: number
+  accident_dirty_count: number
   breast_min: number
   pumped_ml: number
   formula_ml: number

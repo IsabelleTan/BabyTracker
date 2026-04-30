@@ -6,7 +6,7 @@ import {
   DrawerTitle,
   DrawerFooter,
 } from '@/components/ui/drawer'
-import { Droplet, Droplets, CirclePile, Milk, CircleDot, Cylinder, Baby, Toilet, Trash2, Moon, Sun } from 'lucide-react'
+import { Droplet, Droplets, CirclePile, Milk, CircleDot, Cylinder, Baby, Toilet, Trash2, Moon, Sun, AlertTriangle } from 'lucide-react'
 import { fromDateTimeLocal, type EventType, type BabyEvent, type EventMeta, type FeedMeta, type OutputMeta } from '@/lib/events'
 
 interface EventSheetProps {
@@ -397,7 +397,7 @@ function BottleFeedForm({ amountMl, setAmountMl }: { amountMl: string; setAmount
 function OutputForm({
   outputLocation, setOutputLocation, diaperType, setDiaperType,
 }: {
-  outputLocation: 'diaper' | 'potty'; setOutputLocation: (v: 'diaper' | 'potty') => void
+  outputLocation: 'diaper' | 'potty' | 'accident'; setOutputLocation: (v: 'diaper' | 'potty' | 'accident') => void
   diaperType: 'wet' | 'dirty' | 'both'; setDiaperType: (v: 'wet' | 'dirty' | 'both') => void
 }) {
   return (
@@ -405,12 +405,13 @@ function OutputForm({
       <div className="space-y-1.5">
         <label className="text-xs font-medium uppercase tracking-wide text-muted-foreground">Where</label>
         <SegmentedControl
-          options={['diaper', 'potty'] as const}
+          options={['diaper', 'potty', 'accident'] as const}
           value={outputLocation}
           onChange={setOutputLocation}
           labels={{
-            diaper: <span className="flex items-center justify-center gap-1.5"><Baby   className="w-3.5 h-3.5" />Diaper</span>,
-            potty:  <span className="flex items-center justify-center gap-1.5"><Toilet className="w-3.5 h-3.5" />Potty</span>,
+            diaper: <span className="flex items-center justify-center gap-1.5"><Baby className="w-3.5 h-3.5" />Diaper</span>,
+            potty: <span className="flex items-center justify-center gap-1.5"><Toilet className="w-3.5 h-3.5" />Potty</span>,
+            accident: <span className="flex items-center justify-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5" />Accident</span>,
           }}
         />
       </div>
@@ -457,7 +458,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
   const [rightMin,   setRightMin]   = useState('')
   const [amountMl,   setAmountMl]   = useState('')
   const [diaperType, setDiaperType] = useState<'wet' | 'dirty' | 'both'>('wet')
-  const [outputLocation, setOutputLocation] = useState<'diaper' | 'potty'>('diaper')
+  const [outputLocation, setOutputLocation] = useState<'diaper' | 'potty' | 'accident'>('diaper')
 
   // Breastfeed timers
   const [leftRunning,    setLeftRunning]    = useState(false)

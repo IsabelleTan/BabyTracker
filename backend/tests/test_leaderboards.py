@@ -325,6 +325,33 @@ def test_compute_feed_stats_potty_streak_none_when_no_potty_events():
     assert stats.longest_potty_streak_date is None
 
 
+# ── Accident unit tests ────────────────────────────────────────────────────────
+
+def test_compute_parent_stats_accident_cleanups():
+    users = {"u1": "Parent 1"}
+    events = [
+        _FakeEvent("u1", 10, "output", "wet",   "accident"),
+        _FakeEvent("u1", 11, "output", "dirty", "accident"),
+        _FakeEvent("u1", 12, "output", "both",  "accident"),
+        _FakeEvent("u1", 13, "output", "dirty", "diaper"),   # diaper doesn't count
+        _FakeEvent("u1", 14, "output", "wet",   "potty"),    # potty doesn't count
+    ]
+    stats = _compute_parent_stats(events, users)
+    assert stats["u1"]["accident_cleanups"] == 3
+
+
+def test_compute_feed_stats_total_accidents():
+    events = [
+        _FakePottyEvent("2024-02-01", location="accident"),
+        _FakePottyEvent("2024-02-01", location="accident"),
+        _FakePottyEvent("2024-02-02", location="accident"),
+        _FakePottyEvent("2024-02-03", location="diaper"),   # not an accident
+        _FakePottyEvent("2024-02-04", location="potty"),    # not an accident
+    ]
+    stats = compute_feed_stats(events, safe_zone("UTC"))
+    assert stats.total_accidents == 3
+
+
 # ── Potty streak integration test ─────────────────────────────────────────────
 
 @pytest.mark.asyncio
@@ -344,3 +371,39 @@ async def test_leaderboards_longest_potty_streak(client_with_family):
     data = r.json()
     assert data["longest_potty_streak"]["value"] == 3
     assert data["longest_potty_streak"]["date"] is not None
+
+
+@pytest.mark.asyncio
+async def test_leaderboards_total_accidents(client_with_family):
+    """Accident events are summed into total_accidents across all time."""
+    client, headers = client_with_family
+    base_date = (datetime.now(timezone.utc) - timedelta(days=30)).date()
+    for i in range(3):
+        ts = datetime(base_date.year, base_date.month, base_date.day, 8 + i, 0, 0, tzinfo=timezone.utc)
+        await client.post("/events", json={
+            "id": f"acc-{i}", "type": "output",
+            "timestamp": ts.isoformat(),
+            "metadata": {"diaper_type": "wet", "location": "accident"},
+        }, headers=headers)
+
+    r = await client.get("/leaderboards", headers=headers)
+    data = r.json()
+    assert data["total_accidents"] == 3
+
+
+@pytest.mark.asyncio
+async def test_leaderboards_accident_cleanup_counted_for_parent(client_with_family):
+    """Parent stat accident_cleanups increments for every logged accident."""
+    client, headers = client_with_family
+    base_date = (datetime.now(timezone.utc) - timedelta(days=30)).date()
+    for i in range(2):
+        ts = datetime(base_date.year, base_date.month, base_date.day, 9 + i, 0, 0, tzinfo=timezone.utc)
+        await client.post("/events", json={
+            "id": f"pa-acc-{i}", "type": "output",
+            "timestamp": ts.isoformat(),
+            "metadata": {"diaper_type": "dirty", "location": "accident"},
+        }, headers=headers)
+
+    r = await client.get("/leaderboards", headers=headers)
+    parents = {p["display_name"]: p for p in r.json()["parents"]}
+    assert parents["Parent 1"]["accident_cleanups"] == 2

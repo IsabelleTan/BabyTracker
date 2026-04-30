@@ -19,7 +19,7 @@ export type FeedMeta = BottleFeedMeta | BreastFeedMeta
 
 export interface OutputMeta {
   diaper_type: 'wet' | 'dirty' | 'both'
-  location: 'diaper' | 'potty'
+  location: 'diaper' | 'potty' | 'accident'
 }
 
 export type EventMeta = FeedMeta | OutputMeta | null

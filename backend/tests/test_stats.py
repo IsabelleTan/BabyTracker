@@ -331,3 +331,50 @@ async def test_stats_legacy_bottle_counts_as_pumped(client_with_family):
     day = r.json()[0]
     assert day["pumped_ml"]  == 100.0
     assert day["formula_ml"] == 0.0
+
+
+@pytest.mark.asyncio
+async def test_stats_accident_counts_breakdown(client_with_family):
+    """Accident events appear in accident_wet/dirty counts and also roll into wet/dirty totals."""
+    client, headers = client_with_family
+    await client.post("/events", json={
+        "id": "acc-wet", "type": "output",
+        "timestamp": "2024-04-01T09:00:00Z",
+        "metadata": {"diaper_type": "wet", "location": "accident"},
+    }, headers=headers)
+    await client.post("/events", json={
+        "id": "acc-both", "type": "output",
+        "timestamp": "2024-04-01T14:00:00Z",
+        "metadata": {"diaper_type": "both", "location": "accident"},
+    }, headers=headers)
+
+    r = await client.get("/stats/daily", params={
+        "from": "2024-04-01T00:00:00Z",
+        "to":   "2024-04-01T23:59:59Z",
+    }, headers=headers)
+    day = r.json()[0]
+    assert day["output_count"]        == 2
+    assert day["accident_wet_count"]  == 2  # wet + both
+    assert day["accident_dirty_count"] == 1  # both only
+    assert day["wet_count"]           == 2  # accidents roll into the total
+    assert day["dirty_count"]         == 1
+
+
+@pytest.mark.asyncio
+async def test_stats_accident_does_not_appear_in_potty_counts(client_with_family):
+    """An accident event must not be counted in potty_wet_count or potty_dirty_count."""
+    client, headers = client_with_family
+    await client.post("/events", json={
+        "id": "acc-only", "type": "output",
+        "timestamp": "2024-04-02T10:00:00Z",
+        "metadata": {"diaper_type": "dirty", "location": "accident"},
+    }, headers=headers)
+
+    r = await client.get("/stats/daily", params={
+        "from": "2024-04-02T00:00:00Z",
+        "to":   "2024-04-02T23:59:59Z",
+    }, headers=headers)
+    day = r.json()[0]
+    assert day["potty_wet_count"]   == 0
+    assert day["potty_dirty_count"] == 0
+    assert day["accident_dirty_count"] == 1
