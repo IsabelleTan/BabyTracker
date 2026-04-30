@@ -81,7 +81,7 @@ async def test_leaderboards_returns_204_when_events_are_recent(client_with_famil
     await client.post("/events", json={
         "id": "recent-feed", "type": "feed",
         "timestamp": datetime.now(timezone.utc).isoformat(),
-        "metadata": {"feed_type": "bottle", "amount_ml": 100},
+        "metadata": {"pumped_ml": 100},
     }, headers=headers)
 
     r = await client.get("/leaderboards", headers=headers)
@@ -95,7 +95,7 @@ async def test_leaderboards_returns_200_after_seven_days(client_with_family):
     await client.post("/events", json={
         "id": "old-feed", "type": "feed",
         "timestamp": old_ts,
-        "metadata": {"feed_type": "bottle", "amount_ml": 100},
+        "metadata": {"pumped_ml": 100},
     }, headers=headers)
 
     r = await client.get("/leaderboards", headers=headers)
@@ -108,7 +108,7 @@ async def test_leaderboards_returns_parent_stats(client_with_family):
     await client.post("/events", json={
         "id": "lb-feed", "type": "feed",
         "timestamp": "2024-01-15T10:00:00Z",
-        "metadata": {"feed_type": "bottle", "amount_ml": 100},
+        "metadata": {"pumped_ml": 100},
     }, headers=headers)
 
     r = await client.get("/leaderboards", headers=headers)
@@ -127,12 +127,12 @@ async def test_leaderboards_night_shift_counted(client_with_family):
     await client.post("/events", json={
         "id": "day-feed", "type": "feed",
         "timestamp": "2024-01-15T10:00:00Z",
-        "metadata": {"feed_type": "bottle", "amount_ml": 100},
+        "metadata": {"pumped_ml": 100},
     }, headers=headers)
     await client.post("/events", json={
         "id": "night-feed", "type": "feed",
         "timestamp": "2024-01-15T22:00:00Z",  # 22:00 — counts as night shift
-        "metadata": {"feed_type": "bottle", "amount_ml": 100},
+        "metadata": {"pumped_ml": 100},
     }, headers=headers)
 
     r = await client.get("/leaderboards", headers=headers)
@@ -170,7 +170,7 @@ async def test_leaderboards_most_feeds_record(client_with_family):
         await client.post("/events", json={
             "id": f"rec-feed-{i}", "type": "feed",
             "timestamp": ts.isoformat(),
-            "metadata": {"feed_type": "bottle", "amount_ml": 100},
+            "metadata": {"pumped_ml": 100},
         }, headers=headers)
 
     r = await client.get("/leaderboards", headers=headers)

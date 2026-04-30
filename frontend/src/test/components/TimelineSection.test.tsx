@@ -14,7 +14,7 @@ function makeEvent(overrides: Partial<BabyEvent> & { type: BabyEvent['type'] }):
   }
 }
 
-const FEED = makeEvent({ id: 'feed-1', type: 'feed', metadata: { feed_type: 'breast', left_duration_min: 10, right_duration_min: 8 } })
+const FEED = makeEvent({ id: 'feed-1', type: 'feed', metadata: { breast_left_min: 10, breast_right_min: 8 } })
 const OUTPUT = makeEvent({ id: 'out-1', type: 'output', metadata: { diaper_type: 'wet', location: 'diaper' } })
 const SLEEP_START = makeEvent({ id: 'ss-1', type: 'sleep_start' })
 const SLEEP_END = makeEvent({ id: 'se-1', type: 'sleep_end' })
@@ -72,11 +72,18 @@ describe('TimelineSection — event detail text', () => {
     expect(screen.getByText('Pee')).toBeInTheDocument()
   })
 
-  it('shows bottle feed detail', () => {
-    const bottleFeed = makeEvent({ type: 'feed', metadata: { feed_type: 'bottle', bottle_type: 'formula', amount_ml: 90 } })
-    render(<TimelineSection events={[bottleFeed]} onEditEvent={vi.fn()} />)
+  it('shows formula feed detail', () => {
+    const formulaFeed = makeEvent({ type: 'feed', metadata: { formula_ml: 90 } })
+    render(<TimelineSection events={[formulaFeed]} onEditEvent={vi.fn()} />)
     expect(screen.getByText(/Formula/)).toBeInTheDocument()
     expect(screen.getByText(/90ml/)).toBeInTheDocument()
+  })
+
+  it('shows combined breast+pumped detail with separator', () => {
+    const combined = makeEvent({ type: 'feed', metadata: { breast_left_min: 5, pumped_ml: 60 } })
+    render(<TimelineSection events={[combined]} onEditEvent={vi.fn()} />)
+    expect(screen.getByText(/Breast/)).toBeInTheDocument()
+    expect(screen.getByText(/Pumped/)).toBeInTheDocument()
   })
 })
 
@@ -125,8 +132,8 @@ describe('TimelineSection — feed intervals', () => {
   it('shows elapsed interval between consecutive feeds', () => {
     const t1 = new Date(Date.now() - 4 * 3_600_000).toISOString() // 4 h ago
     const t2 = new Date(Date.now() - 1 * 3_600_000).toISOString() // 1 h ago
-    const feed1 = makeEvent({ id: 'f1', type: 'feed', timestamp: t1, metadata: { feed_type: 'breast' } })
-    const feed2 = makeEvent({ id: 'f2', type: 'feed', timestamp: t2, metadata: { feed_type: 'breast' } })
+    const feed1 = makeEvent({ id: 'f1', type: 'feed', timestamp: t1, metadata: { breast_left_min: null } })
+    const feed2 = makeEvent({ id: 'f2', type: 'feed', timestamp: t2, metadata: { breast_left_min: null } })
     render(<TimelineSection events={[feed1, feed2]} onEditEvent={vi.fn()} />)
     // Interval should be approximately 3h; displayed as "+3h"
     expect(screen.getByText('+3h')).toBeInTheDocument()
@@ -135,8 +142,8 @@ describe('TimelineSection — feed intervals', () => {
   it('does not show an interval for the oldest feed', () => {
     const t1 = new Date(Date.now() - 4 * 3_600_000).toISOString()
     const t2 = new Date(Date.now() - 1 * 3_600_000).toISOString()
-    const feed1 = makeEvent({ id: 'f1', type: 'feed', timestamp: t1, metadata: { feed_type: 'breast' } })
-    const feed2 = makeEvent({ id: 'f2', type: 'feed', timestamp: t2, metadata: { feed_type: 'breast' } })
+    const feed1 = makeEvent({ id: 'f1', type: 'feed', timestamp: t1, metadata: { breast_left_min: null } })
+    const feed2 = makeEvent({ id: 'f2', type: 'feed', timestamp: t2, metadata: { breast_left_min: null } })
     render(<TimelineSection events={[feed1, feed2]} onEditEvent={vi.fn()} />)
     // Only one "+3h" — the oldest feed shows no interval
     expect(screen.getAllByText(/^\+/).length).toBe(1)

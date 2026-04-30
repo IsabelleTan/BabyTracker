@@ -60,7 +60,7 @@ EVENT_PAYLOAD = {
     "id": "evt-001",
     "type": "feed",
     "timestamp": "2024-01-15T10:00:00Z",
-    "metadata": {"feed_type": "bottle", "amount_ml": 120},
+    "metadata": {"pumped_ml": 120},
 }
 
 
@@ -120,28 +120,53 @@ async def test_feed_breast_metadata_round_trip(client, auth_headers):
         "id": "evt-breast",
         "type": "feed",
         "timestamp": "2024-01-15T10:00:00Z",
-        "metadata": {"feed_type": "breast", "left_duration_min": 8, "right_duration_min": 5},
+        "metadata": {"breast_left_min": 8, "breast_right_min": 5},
     }
     r = await client.post("/events", json=payload, headers=auth_headers)
     assert r.status_code == 201
     data = r.json()
-    assert data["metadata"]["feed_type"] == "breast"
-    assert data["metadata"]["left_duration_min"] == 8
-    assert data["metadata"]["right_duration_min"] == 5
+    assert data["metadata"]["breast_left_min"] == 8
+    assert data["metadata"]["breast_right_min"] == 5
 
 
-async def test_feed_bottle_metadata_round_trip(client, auth_headers):
+async def test_feed_pumped_metadata_round_trip(client, auth_headers):
     payload = {
-        "id": "evt-bottle",
+        "id": "evt-pumped",
         "type": "feed",
         "timestamp": "2024-01-15T11:00:00Z",
-        "metadata": {"feed_type": "bottle", "amount_ml": 120},
+        "metadata": {"pumped_ml": 120},
     }
     r = await client.post("/events", json=payload, headers=auth_headers)
     assert r.status_code == 201
     data = r.json()
-    assert data["metadata"]["feed_type"] == "bottle"
-    assert data["metadata"]["amount_ml"] == 120
+    assert data["metadata"]["pumped_ml"] == 120
+
+
+async def test_feed_formula_metadata_round_trip(client, auth_headers):
+    payload = {
+        "id": "evt-formula",
+        "type": "feed",
+        "timestamp": "2024-01-15T11:30:00Z",
+        "metadata": {"formula_ml": 90},
+    }
+    r = await client.post("/events", json=payload, headers=auth_headers)
+    assert r.status_code == 201
+    data = r.json()
+    assert data["metadata"]["formula_ml"] == 90
+
+
+async def test_feed_combined_metadata_round_trip(client, auth_headers):
+    payload = {
+        "id": "evt-combined",
+        "type": "feed",
+        "timestamp": "2024-01-15T12:00:00Z",
+        "metadata": {"breast_left_min": 5, "breast_right_min": None, "pumped_ml": 60},
+    }
+    r = await client.post("/events", json=payload, headers=auth_headers)
+    assert r.status_code == 201
+    data = r.json()
+    assert data["metadata"]["breast_left_min"] == 5
+    assert data["metadata"]["pumped_ml"] == 60
 
 
 async def test_output_metadata_round_trip(client, auth_headers):
@@ -184,7 +209,7 @@ async def test_limit_returns_last_n_events(client, auth_headers):
         await client.post(
             "/events",
             json={"id": f"feed-{i}", "type": "feed", "timestamp": f"2024-01-15T0{i}:00:00Z",
-                  "metadata": {"feed_type": "bottle", "amount_ml": 100}},
+                  "metadata": {"pumped_ml": 100}},
             headers=auth_headers,
         )
     await client.post(
@@ -205,7 +230,7 @@ async def test_limit_with_type_filter(client, auth_headers):
         await client.post(
             "/events",
             json={"id": f"feed-type-{i}", "type": "feed", "timestamp": f"2024-01-15T0{i}:00:00Z",
-                  "metadata": {"feed_type": "bottle", "amount_ml": 100}},
+                  "metadata": {"pumped_ml": 100}},
             headers=auth_headers,
         )
     await client.post(
@@ -266,32 +291,22 @@ async def test_delete_event_by_unrelated_user_is_forbidden(client, auth_headers)
     assert r.status_code == 403
 
 
-async def test_bottle_event_with_invalid_bottle_type_rejected(client, auth_headers):
-    """bottle_type must be 'pumped' or 'formula'; anything else should return 422."""
+async def test_feed_event_empty_metadata_rejected(client, auth_headers):
     r = await client.post(
         "/events",
-        json={"id": "bad-bottle", "type": "feed", "timestamp": "2024-01-15T10:00:00Z",
-              "metadata": {"feed_type": "bottle", "amount_ml": 100, "bottle_type": "banana"}},
+        json={"id": "empty-feed", "type": "feed", "timestamp": "2024-01-15T10:00:00Z",
+              "metadata": {}},
         headers=auth_headers,
     )
     assert r.status_code == 422
 
 
-async def test_bottle_event_with_valid_pumped_type_accepted(client, auth_headers):
+async def test_feed_event_unknown_field_ignored(client, auth_headers):
+    """Extra fields in feed metadata are silently ignored by pydantic (extra='ignore')."""
     r = await client.post(
         "/events",
-        json={"id": "pumped-bottle", "type": "feed", "timestamp": "2024-01-15T10:00:00Z",
-              "metadata": {"feed_type": "bottle", "amount_ml": 120, "bottle_type": "pumped"}},
-        headers=auth_headers,
-    )
-    assert r.status_code == 201
-
-
-async def test_bottle_event_with_valid_formula_type_accepted(client, auth_headers):
-    r = await client.post(
-        "/events",
-        json={"id": "formula-bottle", "type": "feed", "timestamp": "2024-01-15T10:00:00Z",
-              "metadata": {"feed_type": "bottle", "amount_ml": 90, "bottle_type": "formula"}},
+        json={"id": "extra-feed", "type": "feed", "timestamp": "2024-01-15T10:00:00Z",
+              "metadata": {"pumped_ml": 100, "unknown_field": "x"}},
         headers=auth_headers,
     )
     assert r.status_code == 201

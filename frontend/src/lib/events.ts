@@ -3,19 +3,12 @@ import { MS_PER_DAY } from './time'
 
 export type EventType = 'feed' | 'sleep_start' | 'sleep_end' | 'output' | 'vitamin_d'
 
-export interface BottleFeedMeta {
-  feed_type: 'bottle'
-  amount_ml: number | null
-  bottle_type?: 'pumped' | 'formula' | null
+export interface FeedMeta {
+  breast_left_min?: number | null
+  breast_right_min?: number | null
+  pumped_ml?: number | null
+  formula_ml?: number | null
 }
-
-export interface BreastFeedMeta {
-  feed_type: 'breast'
-  left_duration_min?: number | null
-  right_duration_min?: number | null
-}
-
-export type FeedMeta = BottleFeedMeta | BreastFeedMeta
 
 export interface OutputMeta {
   diaper_type: 'wet' | 'dirty' | 'both'

@@ -71,16 +71,16 @@ function buildDetail(event: BabyEvent): string | null {
   if (!m) return null
   if (event.type === 'feed') {
     const fm = m as FeedMeta
-    if (fm.feed_type === 'breast') {
-      const parts: string[] = []
-      if (fm.left_duration_min)  parts.push(`L${fm.left_duration_min}m`)
-      if (fm.right_duration_min) parts.push(`R${fm.right_duration_min}m`)
-      return parts.length > 0 ? `Breast ${parts.join(' ')}` : 'Breast'
+    const parts: string[] = []
+    if (fm.breast_left_min != null || fm.breast_right_min != null) {
+      const bParts: string[] = []
+      if (fm.breast_left_min) bParts.push(`L${fm.breast_left_min}m`)
+      if (fm.breast_right_min) bParts.push(`R${fm.breast_right_min}m`)
+      parts.push(bParts.length > 0 ? `Breast ${bParts.join(' ')}` : 'Breast')
     }
-    if (fm.feed_type === 'bottle') {
-      const label = fm.bottle_type === 'formula' ? 'Formula' : 'Pumped'
-      return `${label} ${fm.amount_ml ?? '?'}ml`
-    }
+    if (fm.pumped_ml) parts.push(`Pumped ${fm.pumped_ml}ml`)
+    if (fm.formula_ml) parts.push(`Formula ${fm.formula_ml}ml`)
+    return parts.length > 0 ? parts.join(' · ') : null
   }
   if (event.type === 'output') {
     const om = m as OutputMeta

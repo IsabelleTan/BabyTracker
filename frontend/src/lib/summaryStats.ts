@@ -42,6 +42,17 @@ function computeSleepMins(events: BabyEvent[], windowStart: Date, capAt: Date): 
   return totalMs / MS_PER_MIN
 }
 
+function accumulateFeedMeta(
+  m: FeedMeta,
+  add: (breastMin: number, pumpedMl: number, formulaMl: number) => void,
+) {
+  add(
+    (m.breast_left_min ?? 0) + (m.breast_right_min ?? 0),
+    m.pumped_ml ?? 0,
+    m.formula_ml ?? 0,
+  )
+}
+
 function diaperType(e: BabyEvent): 'wet' | 'dirty' | 'both' | undefined {
   return (e.metadata as OutputMeta | null)?.diaper_type
 }
@@ -66,12 +77,8 @@ export function computeStats(events: BabyEvent[], now = new Date()): SummaryStat
   let formulaMlTotal = 0
   for (const e of todayEvents.filter((e) => e.type === 'feed')) {
     const m = e.metadata as FeedMeta | null
-    if (m?.feed_type === 'breast') {
-      breastMinTotal += (m.left_duration_min ?? 0) + (m.right_duration_min ?? 0)
-    } else if (m?.feed_type === 'bottle') {
-      const ml = m.amount_ml ?? 0
-      if (m.bottle_type === 'formula') formulaMlTotal += ml
-      else pumpedMlTotal += ml
+    if (m) {
+      accumulateFeedMeta(m, (b, p, f) => { breastMinTotal += b; pumpedMlTotal += p; formulaMlTotal += f })
     }
   }
 
@@ -107,12 +114,8 @@ export function computeStats(events: BabyEvent[], now = new Date()): SummaryStat
     let dFormulaMl = 0
     for (const e of dayEvents.filter((e) => e.type === 'feed')) {
       const m = e.metadata as FeedMeta | null
-      if (m?.feed_type === 'breast') {
-        dBreastMin += (m.left_duration_min ?? 0) + (m.right_duration_min ?? 0)
-      } else if (m?.feed_type === 'bottle') {
-        const ml = m.amount_ml ?? 0
-        if (m.bottle_type === 'formula') dFormulaMl += ml
-        else dPumpedMl += ml
+      if (m) {
+        accumulateFeedMeta(m, (b, p, f) => { dBreastMin += b; dPumpedMl += p; dFormulaMl += f })
       }
     }
     dailyBreastMins.push(dBreastMin)

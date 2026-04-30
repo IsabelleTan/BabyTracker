@@ -131,15 +131,9 @@ async def get_daily_stats(
         meta = e.metadata_ or {}
         if e.type == "feed":
             feeds_by_day[day].append(ts)
-            ft = meta.get("feed_type")
-            if ft == "breast":
-                breast_min_by_day[day] += (meta.get("left_duration_min") or 0) + (meta.get("right_duration_min") or 0)
-            elif ft == "bottle":
-                ml = meta.get("amount_ml") or 0
-                if meta.get("bottle_type") == "formula":
-                    formula_ml_by_day[day] += ml
-                else:
-                    pumped_ml_by_day[day] += ml  # "pumped" or legacy entries without bottle_type
+            breast_min_by_day[day] += (meta.get("breast_left_min") or 0) + (meta.get("breast_right_min") or 0)
+            pumped_ml_by_day[day] += meta.get("pumped_ml") or 0
+            formula_ml_by_day[day] += meta.get("formula_ml") or 0
         elif e.type == "output":
             outputs_by_day[day].append(ts)
             if output_wet(meta):
