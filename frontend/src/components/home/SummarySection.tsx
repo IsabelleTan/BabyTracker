@@ -1,10 +1,10 @@
-import { useMemo, useEffect, useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Milk, Moon, Droplet, CirclePile, CircleDot, Cylinder, Sparkles, Users, type LucideIcon } from 'lucide-react'
-import { getEventsSince, type BabyEvent } from '@/lib/events'
+import { type BabyEvent } from '@/lib/events'
 import { getUser } from '@/lib/auth'
 import { useLeaderboardData } from '@/contexts/LeaderboardContext'
 import { isNightHours, formatDuration } from '@/lib/time'
-import { computeStats, type TrackedStat } from '@/lib/summaryStats'
+import { getSummaryStats, type SummaryStats } from '@/lib/stats'
 import {
   getPartnerMessage,
   partnerMessageAllowed,
@@ -14,24 +14,18 @@ import {
 
 interface Props {
   events: BabyEvent[]
+  lastSynced: Date | null
 }
 
-export default function SummarySection({ events }: Props) {
-  // Fetch 8 days of history for 7-day averages; merge with live events for optimistic updates
-  const [historyEvents, setHistoryEvents] = useState<BabyEvent[]>([])
-  useEffect(() => {
-    getEventsSince(8).then(setHistoryEvents).catch(() => {})
-  }, [])
-  const allEvents = useMemo(() => {
-    const map = new Map(historyEvents.map((e) => [e.id, e]))
-    events.forEach((e) => map.set(e.id, e))
-    return Array.from(map.values())
-  }, [historyEvents, events])
+export default function SummarySection({ events, lastSynced }: Props) {
+  const [stats, setStats] = useState<SummaryStats | null>(null)
 
-  const stats = useMemo(() => computeStats(allEvents), [allEvents])
+  useEffect(() => {
+    getSummaryStats().then(setStats).catch(() => {})
+  }, [lastSynced])
+
   const { notifications } = useLeaderboardData()
 
-  // Partner message: compute once on first data load; suppress at night and within 3-day gate
   const [partnerMsg, setPartnerMsg] = useState<PartnerMessageResult | null>(null)
   const partnerMsgInitDone = useRef(false)
   useEffect(() => {
@@ -46,37 +40,47 @@ export default function SummarySection({ events }: Props) {
     // eslint-disable-next-line react-hooks/set-state-in-effect -- one-shot init; partnerMsg is not a dep so no cascade
     if (msg) setPartnerMsg(msg)
   }, [events])
-  // Record the impression separately so it only fires when the message actually appears
+
   useEffect(() => {
     if (partnerMsg) recordPartnerMessageShown()
   }, [partnerMsg])
 
+  if (!stats) return null
+
+  const sleepMins = Math.round(stats.sleep_min.current)
+  const sleepAvg = Math.round(stats.sleep_min.average)
+  const sleepMax = Math.max(sleepMins, sleepAvg, 1)
+
+  const breast = { current: Math.round(stats.breast_min.current), average: Math.round(stats.breast_min.average), scale: Math.max(stats.breast_min.current, stats.breast_min.average, 1) }
+  const pumped = { current: Math.round(stats.pumped_ml.current), average: Math.round(stats.pumped_ml.average), scale: Math.max(stats.pumped_ml.current, stats.pumped_ml.average, stats.formula_ml.current, stats.formula_ml.average, 1) }
+  const formula = { current: Math.round(stats.formula_ml.current), average: Math.round(stats.formula_ml.average), scale: pumped.scale }
+  const wet = { current: Math.round(stats.wet.current), average: Math.round(stats.wet.average), scale: Math.max(stats.wet.current, stats.wet.average, stats.dirty.current, stats.dirty.average, 1) }
+  const dirty = { current: Math.round(stats.dirty.current), average: Math.round(stats.dirty.average), scale: wet.scale }
+  const sleep = { current: sleepMins, average: sleepAvg, scale: sleepMax }
+
   return (
     <div className="flex flex-col gap-1">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
-        Past 24h
+        Today
       </h2>
       <div className="rounded-xl border border-primary/35 bg-surface p-4 flex flex-col gap-3">
         <div className="flex flex-col gap-3">
-          {/* Feed section */}
           <div className="flex flex-col gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Feed</span>
-            <StatBar icon={CircleDot} label="Breast"  stat={stats.breast}  format={(v) => v > 0 ? `${v} min` : '—'} />
-            <StatBar icon={Milk}      label="Pumped"  stat={stats.pumped}  format={(v) => v > 0 ? `${v} ml`  : '—'} />
-            <StatBar icon={Cylinder}  label="Formula" stat={stats.formula} format={(v) => v > 0 ? `${v} ml`  : '—'} />
+            <StatBar icon={CircleDot} label="Breast"  stat={breast}  format={(v) => v > 0 ? `${v} min` : '—'} />
+            <StatBar icon={Milk}      label="Pumped"  stat={pumped}  format={(v) => v > 0 ? `${v} ml`  : '—'} />
+            <StatBar icon={Cylinder}  label="Formula" stat={formula} format={(v) => v > 0 ? `${v} ml`  : '—'} />
           </div>
 
-          {/* Output section */}
           <div className="flex flex-col gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Output</span>
-            <StatBar icon={Droplet}    label="Pee" stat={stats.wet}   format={String} />
-            <StatBar icon={CirclePile} label="Poo" stat={stats.dirty} format={String} />
+            <StatBar icon={Droplet}    label="Pee" stat={wet}   format={String} />
+            <StatBar icon={CirclePile} label="Poo" stat={dirty} format={String} />
           </div>
 
-          {/* Sleep section */}
           <div className="flex flex-col gap-3">
             <span className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">Sleep</span>
-            <StatBar icon={Moon} label="Sleep" stat={stats.sleep} format={(v) => v > 0 ? formatDuration(v) : '—'} />
+            <StatBar icon={Moon} label="Sleep" stat={sleep} format={(v) => v > 0 ? formatDuration(v) : '—'} />
           </div>
         </div>
         <p className="text-[10px] text-muted-foreground/60">│ 7-day rolling avg</p>
@@ -102,6 +106,12 @@ export default function SummarySection({ events }: Props) {
   )
 }
 
+interface StatValue {
+  current: number
+  average: number
+  scale: number
+}
+
 function StatBar({
   icon: Icon,
   label,
@@ -110,14 +120,11 @@ function StatBar({
 }: {
   icon: LucideIcon
   label: string
-  stat: TrackedStat
+  stat: StatValue
   format: (v: number) => string
 }) {
-  const rv = Math.round(stat.current)
-  const ra = Math.round(stat.average)
-  const rm = Math.round(stat.scale)
-  const pct = rm > 0 ? Math.min((rv / rm) * 100, 100) : 0
-  const avgPct = rm > 0 ? Math.min((ra / rm) * 100, 100) : 0
+  const pct = stat.scale > 0 ? Math.min((stat.current / stat.scale) * 100, 100) : 0
+  const avgPct = stat.scale > 0 ? Math.min((stat.average / stat.scale) * 100, 100) : 0
 
   return (
     <div className="flex items-center gap-3">
@@ -130,7 +137,7 @@ function StatBar({
           className="h-full bg-primary/50 rounded-full"
           style={{ width: `${pct}%` }}
         />
-        {ra > 0 && (
+        {stat.average > 0 && (
           <div
             className="absolute top-1/2 -translate-y-1/2 w-[2px] h-5 bg-primary/70 rounded-full"
             style={{ left: `${avgPct}%` }}
@@ -138,12 +145,12 @@ function StatBar({
             <span
               className="absolute bottom-full mb-0.5 left-1/2 -translate-x-1/2 text-[10px] leading-none text-primary/70 whitespace-nowrap"
             >
-              {format(ra)}
+              {format(stat.average)}
             </span>
           </div>
         )}
       </div>
-      <span className="text-sm font-semibold w-16 text-right shrink-0">{format(rv)}</span>
+      <span className="text-sm font-semibold w-16 text-right shrink-0">{format(stat.current)}</span>
     </div>
   )
 }

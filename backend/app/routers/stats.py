@@ -55,6 +55,18 @@ class DailyStat(BaseModel):
     formula_ml: float
 
 
+class SummaryValue(BaseModel):
+    current: float
+    average: float
+
+class SummaryStatsResponse(BaseModel):
+    breast_min: SummaryValue
+    pumped_ml: SummaryValue
+    formula_ml: SummaryValue
+    wet: SummaryValue
+    dirty: SummaryValue
+    sleep_min: SummaryValue
+
 class StatsRange(BaseModel):
     earliest: datetime | None
 
@@ -73,6 +85,98 @@ async def get_stats_range(
     if earliest and earliest.tzinfo is None:
         earliest = earliest.replace(tzinfo=timezone.utc)
     return StatsRange(earliest=earliest)
+
+
+@router.get("/summary", response_model=SummaryStatsResponse)
+@limiter.limit(settings.rate_limit_read)
+async def get_summary_stats(
+    request: Request,
+    tz: str = Query(default="UTC"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    baby_ids = baby_ids_for_user(current_user.id)
+    zone = safe_zone(tz)
+    now = datetime.now(timezone.utc)
+    today = local_date(now, zone)
+    from_day = today - timedelta(days=7)
+
+    # Fetch one extra day before to catch cross-day sleep sessions
+    from_utc = datetime(from_day.year, from_day.month, from_day.day, tzinfo=zone).astimezone(timezone.utc)
+    result = await db.execute(
+        select(Event)
+        .where(
+            Event.baby_id.in_(baby_ids),
+            Event.timestamp >= from_utc - timedelta(days=1),
+            Event.timestamp < now + timedelta(days=1),
+        )
+        .order_by(Event.timestamp)
+    )
+    events = result.scalars().all()
+
+    breast_by_day: dict[date, float] = defaultdict(float)
+    pumped_by_day: dict[date, float] = defaultdict(float)
+    formula_by_day: dict[date, float] = defaultdict(float)
+    wet_by_day: dict[date, int] = defaultdict(int)
+    dirty_by_day: dict[date, int] = defaultdict(int)
+    raw_sleep_events: list[tuple[str, datetime]] = []
+
+    for e in events:
+        ts = _utc(e.timestamp)
+        day = local_date(ts, zone)
+        meta = e.metadata_ or {}
+        if e.type == "feed":
+            breast_by_day[day] += (meta.get("breast_left_min") or 0) + (meta.get("breast_right_min") or 0)
+            pumped_by_day[day] += meta.get("pumped_ml") or 0
+            formula_by_day[day] += meta.get("formula_ml") or 0
+        elif e.type == "output":
+            if output_wet(meta):
+                wet_by_day[day] += 1
+            if output_dirty(meta):
+                dirty_by_day[day] += 1
+        elif e.type in ("sleep_start", "sleep_end"):
+            raw_sleep_events.append((e.type, ts))
+
+    sleep_sessions = pair_sleep_sessions(raw_sleep_events)
+    sleep_by_day: dict[date, float] = defaultdict(float)
+    for start, end in sleep_sessions:
+        current = start.astimezone(zone).date()
+        end_date = end.astimezone(zone).date()
+        while current <= end_date:
+            if from_day <= current <= today:
+                next_day = current + timedelta(days=1)
+                window_start = datetime(current.year, current.month, current.day, tzinfo=zone)
+                window_end = datetime(next_day.year, next_day.month, next_day.day, tzinfo=zone)
+                clamped_start = max(start, window_start)
+                clamped_end = min(end, window_end)
+                if clamped_start < clamped_end:
+                    sleep_by_day[current] += (clamped_end - clamped_start).total_seconds() / 60
+            current += timedelta(days=1)
+
+    # Determine how many previous days have any data (up to 7) to avoid diluting
+    # averages with empty days before the user started logging.
+    if events:
+        oldest_day = min(local_date(_utc(e.timestamp), zone) for e in events)
+        history_len = min((today - oldest_day).days, 7)
+    else:
+        history_len = 0
+
+    prev_days = [today - timedelta(days=i) for i in range(1, history_len + 1)]
+
+    def _avg(vals: list[float]) -> float:
+        return round(sum(vals) / len(vals), 1) if vals else 0.0
+
+    def prev(d: dict, key) -> list[float]:
+        return [float(d.get(day, 0)) for day in prev_days]
+
+    return SummaryStatsResponse(
+        breast_min=SummaryValue(current=round(breast_by_day.get(today, 0.0), 1), average=_avg(prev(breast_by_day, today))),
+        pumped_ml=SummaryValue(current=round(pumped_by_day.get(today, 0.0), 1), average=_avg(prev(pumped_by_day, today))),
+        formula_ml=SummaryValue(current=round(formula_by_day.get(today, 0.0), 1), average=_avg(prev(formula_by_day, today))),
+        wet=SummaryValue(current=float(wet_by_day.get(today, 0)), average=_avg(prev(wet_by_day, today))),
+        dirty=SummaryValue(current=float(dirty_by_day.get(today, 0)), average=_avg(prev(dirty_by_day, today))),
+        sleep_min=SummaryValue(current=round(sleep_by_day.get(today, 0.0), 1), average=_avg(prev(sleep_by_day, today))),
+    )
 
 
 MAX_STATS_RANGE_DAYS = 366

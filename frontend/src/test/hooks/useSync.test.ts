@@ -86,6 +86,7 @@ describe('useSync.log — pending count behaviour', () => {
     vi.clearAllMocks()
     vi.mocked(db.getAllPending).mockResolvedValue([])
     vi.mocked(events.getLast24HoursEvents).mockResolvedValue([])
+    vi.mocked(events.getNightSessionEvents).mockResolvedValue([])
   })
 
   it('does not increment pendingCount when the API call succeeds (online)', async () => {
@@ -103,9 +104,11 @@ describe('useSync.log — pending count behaviour', () => {
     expect(db.addPending).not.toHaveBeenCalled()
   })
 
-  it('adds event to nightSessionEvents optimistically when isInNightSession returns true', async () => {
+  it('adds event to nightSessionEvents after sync when isInNightSession returns true', async () => {
     vi.mocked(events.isInNightSession).mockReturnValue(true)
     vi.mocked(events.logEvent).mockResolvedValue(MOCK_RESPONSE as events.BabyEvent)
+    // Simulate backend returning the event in the night session after successful POST
+    vi.mocked(events.getNightSessionEvents).mockResolvedValue([MOCK_RESPONSE as events.BabyEvent])
 
     const { result } = renderHook(() => useSync())
     await waitFor(() => expect(result.current.lastSynced).not.toBeNull())
