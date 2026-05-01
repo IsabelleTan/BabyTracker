@@ -363,6 +363,79 @@ async def test_stats_accident_counts_breakdown(client_with_family):
 
 
 @pytest.mark.asyncio
+async def test_stats_summary_empty(client_with_family):
+    """Summary returns zeros with no events."""
+    client, headers = client_with_family
+    r = await client.get("/stats/summary", headers=headers)
+    assert r.status_code == 200
+    data = r.json()
+    for key in ("breast_min", "pumped_ml", "formula_ml", "wet", "dirty", "sleep_min"):
+        assert data[key]["current"] == 0.0
+        assert data[key]["average"] == 0.0
+
+
+@pytest.mark.asyncio
+async def test_stats_summary_recent_events_in_current(client_with_family):
+    """Events within the past 24h appear in current; no history means average is 0."""
+    from datetime import datetime, timezone
+    client, headers = client_with_family
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    await client.post("/events", json={
+        "id": "sum-feed", "type": "feed", "timestamp": now,
+        "metadata": {"pumped_ml": 100, "breast_left_min": 10, "breast_right_min": 5},
+    }, headers=headers)
+    await client.post("/events", json={
+        "id": "sum-wet", "type": "output", "timestamp": now,
+        "metadata": {"diaper_type": "wet", "location": "diaper"},
+    }, headers=headers)
+
+    r = await client.get("/stats/summary", headers=headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["pumped_ml"]["current"] == 100.0
+    assert data["breast_min"]["current"] == 15.0
+    assert data["wet"]["current"] == 1.0
+    assert data["dirty"]["current"] == 0.0
+    assert data["pumped_ml"]["average"] == 0.0  # no history yet
+
+
+@pytest.mark.asyncio
+async def test_stats_summary_old_events_excluded_from_current(client_with_family):
+    """Events older than 24h are excluded from current but counted in average."""
+    from datetime import datetime, timezone, timedelta
+    client, headers = client_with_family
+    old_ts = (datetime.now(timezone.utc) - timedelta(hours=25)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    await client.post("/events", json={
+        "id": "sum-old", "type": "feed", "timestamp": old_ts,
+        "metadata": {"pumped_ml": 80},
+    }, headers=headers)
+
+    r = await client.get("/stats/summary", headers=headers)
+    data = r.json()
+    assert data["pumped_ml"]["current"] == 0.0
+    assert data["pumped_ml"]["average"] == 80.0  # falls in the d=1 history window
+
+
+@pytest.mark.asyncio
+async def test_stats_summary_cross_family_isolation(client_with_family):
+    """user-3 must not see user-1's events in their summary."""
+    from app.auth import create_access_token
+    from datetime import datetime, timezone
+    client, headers = client_with_family
+    user3_headers = {"Authorization": f"Bearer {create_access_token('user-3')}"}
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    await client.post("/events", json={
+        "id": "sum-iso", "type": "feed", "timestamp": now,
+        "metadata": {"pumped_ml": 200},
+    }, headers=headers)
+
+    r = await client.get("/stats/summary", headers=user3_headers)
+    assert r.status_code == 200
+    assert r.json()["pumped_ml"]["current"] == 0.0
+
+
+@pytest.mark.asyncio
 async def test_stats_accident_does_not_appear_in_potty_counts(client_with_family):
     """An accident event must not be counted in potty_wet_count or potty_dirty_count."""
     client, headers = client_with_family

@@ -34,6 +34,25 @@ export async function getDailyStats(from: Date, to: Date): Promise<DailyStat[]> 
   return data
 }
 
+export interface SummaryValue {
+  current: number
+  average: number
+}
+
+export interface SummaryStats {
+  breast_min: SummaryValue
+  pumped_ml: SummaryValue
+  formula_ml: SummaryValue
+  wet: SummaryValue
+  dirty: SummaryValue
+  sleep_min: SummaryValue
+}
+
+export async function getSummaryStats(): Promise<SummaryStats> {
+  const { data } = await api.get<SummaryStats>('/stats/summary')
+  return data
+}
+
 export async function getEarliestEventDate(): Promise<Date | null> {
   const { data } = await api.get<{ earliest: string | null }>('/stats/range')
   return data.earliest ? new Date(data.earliest) : null

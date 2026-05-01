@@ -77,8 +77,10 @@ export function useSync() {
 
   async function log(payload: LogEventPayload): Promise<void> {
     let event: BabyEvent
+    let synced = false
     try {
       event = await apiLogEvent(payload)
+      synced = true
     } catch {
       // Offline — queue for later and build a local stand-in for optimistic UI
       const entry = {
@@ -102,7 +104,7 @@ export function useSync() {
       }
     }
 
-    // Optimistic update
+    // Optimistic update for immediate timeline/action-card feedback
     setEvents((prev) =>
       [...prev, event].sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
     )
@@ -111,6 +113,9 @@ export function useSync() {
         [...prev, event].sort((a, b) => a.timestamp.localeCompare(b.timestamp)),
       )
     }
+
+    // If online, immediately fetch authoritative state so summary stats update
+    if (synced) sync()
   }
 
   function removeEvent(id: string) {

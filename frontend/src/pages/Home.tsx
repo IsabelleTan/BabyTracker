@@ -257,7 +257,7 @@ export default function Home() {
 
         <VitaminDWidget events={events} onLog={log} />
 
-        {loaded && <SummarySection events={events} />}
+        {loaded && <SummarySection events={events} lastSynced={lastSynced} />}
 
         {/* Potty streak — shown when ≥2 consecutive days with potty events */}
         {pottyStreak >= 2 && (

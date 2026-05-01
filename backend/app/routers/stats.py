@@ -55,6 +55,18 @@ class DailyStat(BaseModel):
     formula_ml: float
 
 
+class SummaryValue(BaseModel):
+    current: float
+    average: float
+
+class SummaryStatsResponse(BaseModel):
+    breast_min: SummaryValue
+    pumped_ml: SummaryValue
+    formula_ml: SummaryValue
+    wet: SummaryValue
+    dirty: SummaryValue
+    sleep_min: SummaryValue
+
 class StatsRange(BaseModel):
     earliest: datetime | None
 
@@ -73,6 +85,96 @@ async def get_stats_range(
     if earliest and earliest.tzinfo is None:
         earliest = earliest.replace(tzinfo=timezone.utc)
     return StatsRange(earliest=earliest)
+
+
+@router.get("/summary", response_model=SummaryStatsResponse)
+@limiter.limit(settings.rate_limit_read)
+async def get_summary_stats(
+    request: Request,
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    """
+    Returns rolling-window stats matching the frontend 'Past 24h' display.
+    current = the most recent 24h window [now-24h, now].
+    average = mean across 7 non-overlapping 24h windows going back 8 days,
+              capped to however many days of history actually exist.
+    """
+    baby_ids = baby_ids_for_user(current_user.id)
+    now = datetime.now(timezone.utc)
+
+    # Fetch 8+ days so we have data for 7 historical windows; extra day for sleep sessions
+    # that started before the oldest window boundary.
+    fetch_from = now - timedelta(days=9)
+    result = await db.execute(
+        select(Event)
+        .where(
+            Event.baby_id.in_(baby_ids),
+            Event.timestamp >= fetch_from,
+            Event.timestamp <= now,
+        )
+        .order_by(Event.timestamp)
+    )
+    events = result.scalars().all()
+
+    raw_sleep_events: list[tuple[str, datetime]] = [(e.type, _utc(e.timestamp))
+                                                     for e in events
+                                                     if e.type in ("sleep_start", "sleep_end")]
+    sleep_sessions = pair_sleep_sessions(raw_sleep_events)
+
+    def window_totals(win_start: datetime, win_end: datetime) -> tuple[float, float, float, float, float, float]:
+        breast = pumped = formula = wet = dirty = 0.0
+        for e in events:
+            ts = _utc(e.timestamp)
+            if not (win_start <= ts < win_end):
+                continue
+            meta = e.metadata_ or {}
+            if e.type == "feed":
+                breast += (meta.get("breast_left_min") or 0) + (meta.get("breast_right_min") or 0)
+                pumped += meta.get("pumped_ml") or 0
+                formula += meta.get("formula_ml") or 0
+            elif e.type == "output":
+                if output_wet(meta):
+                    wet += 1
+                if output_dirty(meta):
+                    dirty += 1
+        sleep = 0.0
+        for start, end in sleep_sessions:
+            clamped_start = max(start, win_start)
+            clamped_end = min(end, win_end)
+            if clamped_start < clamped_end:
+                sleep += (clamped_end - clamped_start).total_seconds() / 60
+        return breast, pumped, formula, wet, dirty, sleep
+
+    # current = last 24h
+    current = window_totals(now - timedelta(days=1), now)
+
+    # historical windows: d=1 → [now-48h, now-24h], d=2 → [now-72h, now-48h], ...
+    if events:
+        oldest_ts = min(_utc(e.timestamp) for e in events)
+        history_len = min(int((now - oldest_ts).total_seconds() / 86400), 7)
+    else:
+        history_len = 0
+
+    history: list[tuple[float, ...]] = []
+    for d in range(1, history_len + 1):
+        win_end = now - timedelta(days=d)
+        win_start = now - timedelta(days=d + 1)
+        history.append(window_totals(win_start, win_end))
+
+    def _avg(idx: int) -> float:
+        if not history:
+            return 0.0
+        return round(sum(h[idx] for h in history) / len(history), 1)
+
+    return SummaryStatsResponse(
+        breast_min=SummaryValue(current=round(current[0], 1), average=_avg(0)),
+        pumped_ml=SummaryValue(current=round(current[1], 1), average=_avg(1)),
+        formula_ml=SummaryValue(current=round(current[2], 1), average=_avg(2)),
+        wet=SummaryValue(current=current[3], average=_avg(3)),
+        dirty=SummaryValue(current=current[4], average=_avg(4)),
+        sleep_min=SummaryValue(current=round(current[5], 1), average=_avg(5)),
+    )
 
 
 MAX_STATS_RANGE_DAYS = 366
