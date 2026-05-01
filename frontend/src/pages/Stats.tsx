@@ -42,7 +42,7 @@ function groupByWeek<T extends object>(
     monday.setDate(date.getDate() + diff)
     const key = monday.toISOString().slice(0, 10)
     if (!weekMap.has(key)) {
-      weekMap.set(key, { date: `${monday.getMonth() + 1}/${monday.getDate()}`, ...init() })
+      weekMap.set(key, { ...init(), date: `${monday.getMonth() + 1}/${monday.getDate()}` })
     }
     accumulate(weekMap.get(key)!, d)
   }

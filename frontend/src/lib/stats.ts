@@ -49,9 +49,7 @@ export interface SummaryStats {
 }
 
 export async function getSummaryStats(): Promise<SummaryStats> {
-  const { data } = await api.get<SummaryStats>('/stats/summary', {
-    params: { tz: Intl.DateTimeFormat().resolvedOptions().timeZone },
-  })
+  const { data } = await api.get<SummaryStats>('/stats/summary')
   return data
 }
 

@@ -21,7 +21,7 @@ export default function SummarySection({ events, lastSynced }: Props) {
   const [stats, setStats] = useState<SummaryStats | null>(null)
 
   useEffect(() => {
-    getSummaryStats().then(setStats).catch(() => {})
+    getSummaryStats().then(setStats).catch(console.error)
   }, [lastSynced])
 
   const { notifications } = useLeaderboardData()
@@ -61,7 +61,7 @@ export default function SummarySection({ events, lastSynced }: Props) {
   return (
     <div className="flex flex-col gap-1">
       <h2 className="text-xs font-semibold uppercase tracking-wide text-muted-foreground px-1">
-        Today
+        Past 24h
       </h2>
       <div className="rounded-xl border border-primary/35 bg-surface p-4 flex flex-col gap-3">
         <div className="flex flex-col gap-3">

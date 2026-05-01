@@ -375,8 +375,8 @@ async def test_stats_summary_empty(client_with_family):
 
 
 @pytest.mark.asyncio
-async def test_stats_summary_current_day(client_with_family):
-    """Events logged today appear in current; no history means average is 0."""
+async def test_stats_summary_recent_events_in_current(client_with_family):
+    """Events within the past 24h appear in current; no history means average is 0."""
     from datetime import datetime, timezone
     client, headers = client_with_family
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
@@ -397,6 +397,23 @@ async def test_stats_summary_current_day(client_with_family):
     assert data["wet"]["current"] == 1.0
     assert data["dirty"]["current"] == 0.0
     assert data["pumped_ml"]["average"] == 0.0  # no history yet
+
+
+@pytest.mark.asyncio
+async def test_stats_summary_old_events_excluded_from_current(client_with_family):
+    """Events older than 24h are excluded from current but counted in average."""
+    from datetime import datetime, timezone, timedelta
+    client, headers = client_with_family
+    old_ts = (datetime.now(timezone.utc) - timedelta(hours=25)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    await client.post("/events", json={
+        "id": "sum-old", "type": "feed", "timestamp": old_ts,
+        "metadata": {"pumped_ml": 80},
+    }, headers=headers)
+
+    r = await client.get("/stats/summary", headers=headers)
+    data = r.json()
+    assert data["pumped_ml"]["current"] == 0.0
+    assert data["pumped_ml"]["average"] == 80.0  # falls in the d=1 history window
 
 
 @pytest.mark.asyncio
