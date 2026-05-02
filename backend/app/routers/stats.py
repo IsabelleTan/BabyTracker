@@ -76,7 +76,6 @@ class StreakStats(BaseModel):
     days_logged_total: int
 
 
-
 @router.get("/streaks", response_model=StreakStats)
 @limiter.limit(settings.rate_limit_read)
 async def get_streak_stats(
@@ -87,29 +86,36 @@ async def get_streak_stats(
 ):
     baby_ids = baby_ids_for_user(current_user.id)
     zone = safe_zone(tz)
-
-    result = await db.execute(
-        select(Event)
-        .where(Event.baby_id.in_(baby_ids))
-        .order_by(Event.timestamp)
-    )
-    events = result.scalars().all()
-
     today = local_date(datetime.now(timezone.utc), zone)
     yesterday = today - timedelta(days=1)
 
-    potty_days: set[date] = set()
-    total_potty_events = 0
-    event_days: set[date] = set()
+    # Count total potty events directly in the DB
+    potty_count_result = await db.execute(
+        select(func.count(Event.id)).where(
+            Event.baby_id.in_(baby_ids),
+            Event.type == "output",
+            func.json_extract(Event.metadata_, "$.location") == "potty",
+        )
+    )
+    total_potty_events: int = potty_count_result.scalar() or 0
 
-    for e in events:
-        day = local_date(e.timestamp, zone)
-        event_days.add(day)
-        if e.type == "output":
-            meta = e.metadata_ or {}
-            if output_at_potty(meta):
-                potty_days.add(day)
-                total_potty_events += 1
+    # Count distinct logged days in the DB (UTC calendar day — close enough for milestone thresholds)
+    days_count_result = await db.execute(
+        select(func.count(func.distinct(func.date(Event.timestamp)))).where(
+            Event.baby_id.in_(baby_ids)
+        )
+    )
+    days_logged_total: int = days_count_result.scalar() or 0
+
+    # Fetch only potty-event timestamps for timezone-aware streak computation
+    potty_ts_result = await db.execute(
+        select(Event.timestamp).where(
+            Event.baby_id.in_(baby_ids),
+            Event.type == "output",
+            func.json_extract(Event.metadata_, "$.location") == "potty",
+        )
+    )
+    potty_days: set[date] = {local_date(ts, zone) for ts in potty_ts_result.scalars()}
 
     current_potty_streak = 0
     if potty_days:
@@ -127,7 +133,7 @@ async def get_streak_stats(
     return StreakStats(
         current_potty_streak=current_potty_streak,
         total_potty_events=total_potty_events,
-        days_logged_total=len(event_days),
+        days_logged_total=days_logged_total,
     )
 
 

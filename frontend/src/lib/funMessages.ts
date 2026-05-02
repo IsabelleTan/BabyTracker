@@ -135,7 +135,6 @@ export interface PartnerMessageResult {
 // ── baby voice context detection ──────────────────────────────────────────────
 
 export function getBabyVoiceContext(events: BabyEvent[], pottyStreak: number): BabyVoiceContext {
-  // Potty streak message: shown when ≥2 consecutive days with potty events
   if (pottyStreak >= 2) return 'potty_streak'
 
   // First potty ever: shown on the day it happens, before the milestone is dismissed

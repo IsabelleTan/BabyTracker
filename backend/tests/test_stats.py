@@ -11,6 +11,7 @@ async def test_streaks_no_events(client_with_family):
     assert r.status_code == 200
     data = r.json()
     assert data["current_potty_streak"] == 0
+
     assert data["total_potty_events"] == 0
     assert data["days_logged_total"] == 0
 
@@ -29,6 +30,7 @@ async def test_streaks_single_potty_today(client_with_family):
     assert r.status_code == 200
     data = r.json()
     assert data["current_potty_streak"] == 1
+
     assert data["total_potty_events"] == 1
     assert data["days_logged_total"] == 1
 
@@ -48,6 +50,7 @@ async def test_streaks_two_consecutive_days(client_with_family):
     r = await client.get("/stats/streaks", headers=headers)
     data = r.json()
     assert data["current_potty_streak"] == 2
+
     assert data["total_potty_events"] == 2
 
 
@@ -65,6 +68,7 @@ async def test_streaks_expired_streak(client_with_family):
     r = await client.get("/stats/streaks", headers=headers)
     data = r.json()
     assert data["current_potty_streak"] == 0
+
     assert data["total_potty_events"] == 1
 
 
