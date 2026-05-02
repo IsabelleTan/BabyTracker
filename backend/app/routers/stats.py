@@ -70,6 +70,65 @@ class SummaryStatsResponse(BaseModel):
 class StatsRange(BaseModel):
     earliest: datetime | None
 
+class StreakStats(BaseModel):
+    current_potty_streak: int
+    total_potty_events: int
+    days_logged_total: int
+
+
+
+@router.get("/streaks", response_model=StreakStats)
+@limiter.limit(settings.rate_limit_read)
+async def get_streak_stats(
+    request: Request,
+    tz: str = Query(default="UTC"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    baby_ids = baby_ids_for_user(current_user.id)
+    zone = safe_zone(tz)
+
+    result = await db.execute(
+        select(Event)
+        .where(Event.baby_id.in_(baby_ids))
+        .order_by(Event.timestamp)
+    )
+    events = result.scalars().all()
+
+    today = local_date(datetime.now(timezone.utc), zone)
+    yesterday = today - timedelta(days=1)
+
+    potty_days: set[date] = set()
+    total_potty_events = 0
+    event_days: set[date] = set()
+
+    for e in events:
+        day = local_date(e.timestamp, zone)
+        event_days.add(day)
+        if e.type == "output":
+            meta = e.metadata_ or {}
+            if output_at_potty(meta):
+                potty_days.add(day)
+                total_potty_events += 1
+
+    current_potty_streak = 0
+    if potty_days:
+        past_days = {d for d in potty_days if d <= today}
+        if past_days:
+            most_recent = max(past_days)
+            if most_recent >= yesterday:
+                streak = 1
+                check = most_recent - timedelta(days=1)
+                while check in potty_days:
+                    streak += 1
+                    check -= timedelta(days=1)
+                current_potty_streak = streak
+
+    return StreakStats(
+        current_potty_streak=current_potty_streak,
+        total_potty_events=total_potty_events,
+        days_logged_total=len(event_days),
+    )
 
 
 @router.get("/range", response_model=StatsRange)

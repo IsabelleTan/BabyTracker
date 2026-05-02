@@ -22,6 +22,12 @@ vi.mock('@/lib/auth', () => ({
   getUser: vi.fn().mockReturnValue({ user_id: 'u1', display_name: 'Parent 1' }),
 }))
 
+vi.mock('@/lib/api', () => ({
+  api: {
+    get: vi.fn().mockResolvedValue({ data: { current_potty_streak: 0, total_potty_events: 0, days_logged_total: 0 } }),
+  },
+}))
+
 const PAYLOAD = {
   id: 'evt-001',
   type: 'feed' as const,
