@@ -3,7 +3,7 @@ from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 from pydantic import BaseModel
-from sqlalchemy import select, func
+from sqlalchemy import case, select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.auth import get_current_user
@@ -70,6 +70,53 @@ class SummaryStatsResponse(BaseModel):
 class StatsRange(BaseModel):
     earliest: datetime | None
 
+class StreakStats(BaseModel):
+    current_potty_streak: int | None
+    total_potty_events: int
+    days_logged_total: int
+
+
+@router.get("/streaks", response_model=StreakStats)
+@limiter.limit(settings.rate_limit_read)
+async def get_streak_stats(
+    request: Request,
+    tz: str = Query(default="UTC"),
+    current_user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+):
+    baby_ids = baby_ids_for_user(current_user.id)
+    zone = safe_zone(tz)
+    today = local_date(datetime.now(timezone.utc), zone)
+    yesterday = today - timedelta(days=1)
+
+    # TODO I think this is only needed once somewhere in the code. Maybe as a seperate endpoints?
+    result = await db.execute(
+        select(func.count(func.distinct(func.date(Event.timestamp)))).where(Event.baby_id.in_(baby_ids))                                                                                                                                        
+    )
+    days_logged_total: int = result.scalar_one()   
+
+    is_potty = (Event.type == "output") & (func.json_extract(Event.metadata_, "$.location") == "potty")
+    potty_ts_result = await db.execute(
+        select(Event.timestamp).where(Event.baby_id.in_(baby_ids), is_potty)
+    )
+    potty_days: set[date] = {local_date(_utc(ts), zone) for ts in potty_ts_result.scalars()}
+    total_potty_events: int = len(potty_days)
+
+    current_potty_streak = 0
+    past_days = sorted((d for d in potty_days if d <= today), reverse=True)
+    if past_days and past_days[0] >= yesterday:
+        streak = 1
+        for prev, curr in zip(past_days, past_days[1:]):
+            if (prev - curr).days > 1:
+                break
+            streak += 1
+        current_potty_streak = streak
+
+    return StreakStats(
+        current_potty_streak=current_potty_streak if current_potty_streak >= 2 else None,
+        total_potty_events=total_potty_events,
+        days_logged_total=days_logged_total,
+    )
 
 
 @router.get("/range", response_model=StatsRange)

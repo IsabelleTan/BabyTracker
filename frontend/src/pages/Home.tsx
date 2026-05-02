@@ -26,10 +26,9 @@ import {
   recordMilestoneShownToday,
   type MilestoneKey,
 } from '@/lib/funMessages'
-import { getPottyStreak, updatePottyStreak, trackPottyCount, trackDailyLogging, resetPottyStreak } from '@/lib/streaks'
 
 export default function Home() {
-  const { events, nightSessionEvents, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent } =
+  const { events, nightSessionEvents, streakStats, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent } =
     useSync()
   const [sheetType, setSheetType] = useState<EventType | null>(null)
   const [editEvent, setEditEvent] = useState<BabyEvent | null>(null)
@@ -116,7 +115,7 @@ export default function Home() {
   const [nightCardVisible, setNightCardVisible] = useState(false)
   const [babyVoiceVisible, setBabyVoiceVisible] = useState(false)
   const [milestone, setMilestone] = useState<MilestoneKey | null>(null)
-  const [pottyStreak, setPottyStreak] = useState(() => getPottyStreak())
+  const pottyStreak = streakStats?.current_potty_streak ?? 0
   const isNight = isNightHours()
 
   // Night event count spans the full 22:00–06:00 session (includes pre-midnight events)
@@ -133,23 +132,7 @@ export default function Home() {
   // On every sync: update potty streak, check for new milestones.
   // Per-day gates in each function prevent repeated triggers across syncs.
   const babyVoiceInitDone = useRef(false)
-  const streakPressTimer = useRef<ReturnType<typeof setTimeout> | null>(null)
 
-  function onStreakPressStart() {
-    streakPressTimer.current = setTimeout(() => {
-      if (window.confirm('Reset potty streak?')) {
-        resetPottyStreak()
-        setPottyStreak(0)
-      }
-    }, 600)
-  }
-
-  function onStreakPressEnd() {
-    if (streakPressTimer.current) {
-      clearTimeout(streakPressTimer.current)
-      streakPressTimer.current = null
-    }
-  }
   useEffect(() => {
     if (events.length === 0) return
 
@@ -158,23 +141,24 @@ export default function Home() {
       if (babyVoiceShouldShow()) setBabyVoiceVisible(true) // eslint-disable-line react-hooks/set-state-in-effect
     }
 
-    trackDailyLogging()
-    trackPottyCount(events)
-    setPottyStreak(updatePottyStreak(events))
     if (milestoneAllowedToday()) {
-      const key = getNewMilestone(events)
+      const key = getNewMilestone(
+        events,
+        streakStats?.total_potty_events ?? 0,
+        streakStats?.days_logged_total ?? 0,
+      )
       if (key) {
         setMilestone(key)
         recordMilestoneShownToday()
       }
     }
-  }, [events])
+  }, [events, streakStats])
 
   const nightMsg = useMemo(() => getNightMessage(), [])
   const babyVoiceMsg = useMemo(() => {
-    const ctx = getBabyVoiceContext(events)
+    const ctx = getBabyVoiceContext(events, streakStats?.current_potty_streak ?? null)
     return getBabyVoiceMessage(ctx)
-  }, [events])
+  }, [events, streakStats])
 
   // During night hours: only night card shown; baby voice + milestone suppressed.
   // During day: max 1 dismissable card — baby voice first, milestone only after
@@ -261,13 +245,7 @@ export default function Home() {
 
         {/* Potty streak — shown when ≥2 consecutive days with potty events */}
         {pottyStreak >= 2 && (
-          <div
-            className="flex items-center gap-1.5 px-1 select-none"
-            onPointerDown={onStreakPressStart}
-            onPointerUp={onStreakPressEnd}
-            onPointerLeave={onStreakPressEnd}
-            onPointerCancel={onStreakPressEnd}
-          >
+          <div className="flex items-center gap-1.5 px-1">
             <Flame className="w-3.5 h-3.5 text-primary/70" />
             <span className="text-xs font-medium text-primary/70">{pottyStreak}-day potty streak</span>
           </div>

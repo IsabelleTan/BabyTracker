@@ -1,6 +1,5 @@
 import type { BabyEvent, OutputMeta } from './events'
 import { isNightHours } from './time'
-import { getPottyStreak, getPottyTotal, getDaysLogged } from './streaks'
 
 // ── message banks ─────────────────────────────────────────────────────────────
 
@@ -135,9 +134,8 @@ export interface PartnerMessageResult {
 
 // ── baby voice context detection ──────────────────────────────────────────────
 
-export function getBabyVoiceContext(events: BabyEvent[]): BabyVoiceContext {
-  // Potty streak message: shown when ≥2 consecutive days with potty events
-  if (getPottyStreak() >= 2) return 'potty_streak'
+export function getBabyVoiceContext(events: BabyEvent[], pottyStreak: number | null): BabyVoiceContext {
+  if (pottyStreak !== null) return 'potty_streak'
 
   // First potty ever: shown on the day it happens, before the milestone is dismissed
   const hasPottyToday = events.some(
@@ -237,7 +235,7 @@ export function recordPartnerMessageShown(): void {
 // ── milestone detection ───────────────────────────────────────────────────────
 
 /** Returns the first milestone unlocked today that hasn't been shown before, or null. */
-export function getNewMilestone(events: BabyEvent[]): MilestoneKey | null {
+export function getNewMilestone(events: BabyEvent[], pottyTotal: number, daysLogged: number): MilestoneKey | null {
   const unseen = (key: MilestoneKey) =>
     localStorage.getItem(`milestone_${key}`) !== 'true'
 
@@ -313,10 +311,9 @@ export function getNewMilestone(events: BabyEvent[]): MilestoneKey | null {
   if (new Set(events.map((e) => e.logged_by)).size >= 2 && unseen('both_partners_first'))
     candidates.push('both_partners_first')
 
-  // ── consistency (localStorage-tracked) ────────────────────────────────────
-  const days = getDaysLogged()
-  if (days >= 30 && unseen('logging_days_30'))     candidates.push('logging_days_30')
-  else if (days >= 7 && unseen('logging_days_7'))  candidates.push('logging_days_7')
+  // ── consistency ────────────────────────────────────────────────────────────
+  if (daysLogged >= 30 && unseen('logging_days_30'))     candidates.push('logging_days_30')
+  else if (daysLogged >= 7 && unseen('logging_days_7'))  candidates.push('logging_days_7')
 
   // ── potty training ─────────────────────────────────────────────────────────
   const pottyEvents = events.filter(
@@ -336,7 +333,7 @@ export function getNewMilestone(events: BabyEvent[]): MilestoneKey | null {
   })
   if (hasPottyPoo && unseen('potty_first_poo')) candidates.push('potty_first_poo')
 
-  if (getPottyTotal() >= 10 && unseen('potty_10')) candidates.push('potty_10')
+  if (pottyTotal >= 10 && unseen('potty_10')) candidates.push('potty_10')
 
   if (
     pottyEvents.length > 0 && diaperEvents.length > 0 &&

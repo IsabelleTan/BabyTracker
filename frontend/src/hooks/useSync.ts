@@ -10,12 +10,26 @@ import {
   type EventType,
 } from '@/lib/events'
 import { getUser } from '@/lib/auth'
+import { api } from '@/lib/api'
+
+export interface StreakStats {
+  current_potty_streak: number | null
+  total_potty_events: number
+  days_logged_total: number
+}
+
+async function fetchStreaks(): Promise<StreakStats> {
+  const tz = Intl.DateTimeFormat().resolvedOptions().timeZone
+  const r = await api.get<StreakStats>('/stats/streaks', { params: { tz } })
+  return r.data
+}
 
 const REFRESH_INTERVAL = 30_000
 
 export function useSync() {
   const [events, setEvents] = useState<BabyEvent[]>([])
   const [nightSessionEvents, setNightSessionEvents] = useState<BabyEvent[]>([])
+  const [streakStats, setStreakStats] = useState<StreakStats | null>(null)
   const [pendingCount, setPendingCount] = useState(0)
   const [lastSynced, setLastSynced] = useState<Date | null>(null)
   const [isRefreshing, setIsRefreshing] = useState(false)
@@ -39,12 +53,14 @@ export function useSync() {
       }
 
       // Re-fetch authoritative state from server
-      const [today, nightSession] = await Promise.all([
+      const [today, nightSession, streaks] = await Promise.all([
         getLast24HoursEvents(),
         getNightSessionEvents(),
+        fetchStreaks(),
       ])
       setEvents(today)
       setNightSessionEvents(nightSession)
+      setStreakStats(streaks)
       setLastSynced(new Date())
     } catch {
       // Network unavailable — silently ignore
@@ -123,5 +139,5 @@ export function useSync() {
     setNightSessionEvents((prev) => prev.filter((e) => e.id !== id))
   }
 
-  return { events, nightSessionEvents, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent }
+  return { events, nightSessionEvents, streakStats, pendingCount, lastSynced, isRefreshing, sync, log, removeEvent }
 }

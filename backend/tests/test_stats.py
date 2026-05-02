@@ -2,6 +2,90 @@ from datetime import datetime, timezone, timedelta
 import pytest
 
 
+# ── /stats/streaks ─────────────────────────────────────────────────────────────
+
+@pytest.mark.asyncio
+async def test_streaks_no_events(client_with_family):
+    client, headers = client_with_family
+    r = await client.get("/stats/streaks", headers=headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["current_potty_streak"] is None
+    assert data["total_potty_events"] == 0
+    assert data["days_logged_total"] == 0
+
+
+@pytest.mark.asyncio
+async def test_streaks_single_potty_today(client_with_family):
+    client, headers = client_with_family
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    await client.post("/events", json={
+        "id": "streak-potty-1", "type": "output",
+        "timestamp": now,
+        "metadata": {"diaper_type": "wet", "location": "potty"},
+    }, headers=headers)
+
+    r = await client.get("/stats/streaks", headers=headers)
+    assert r.status_code == 200
+    data = r.json()
+    assert data["current_potty_streak"] is None  # single day — no multi-day streak yet
+    assert data["total_potty_events"] == 1
+    assert data["days_logged_total"] == 1
+
+
+@pytest.mark.asyncio
+async def test_streaks_two_consecutive_days(client_with_family):
+    client, headers = client_with_family
+    today = datetime.now(timezone.utc)
+    yesterday = today - timedelta(days=1)
+    for ts, eid in [(yesterday, "streak-potty-y"), (today, "streak-potty-t")]:
+        await client.post("/events", json={
+            "id": eid, "type": "output",
+            "timestamp": ts.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "metadata": {"diaper_type": "wet", "location": "potty"},
+        }, headers=headers)
+
+    r = await client.get("/stats/streaks", headers=headers)
+    data = r.json()
+    assert data["current_potty_streak"] == 2
+
+    assert data["total_potty_events"] == 2
+
+
+@pytest.mark.asyncio
+async def test_streaks_expired_streak(client_with_family):
+    """Potty event 2+ days ago → streak is 0 but event still counts in total."""
+    client, headers = client_with_family
+    two_days_ago = (datetime.now(timezone.utc) - timedelta(days=2)).strftime("%Y-%m-%dT%H:%M:%SZ")
+    await client.post("/events", json={
+        "id": "streak-potty-old", "type": "output",
+        "timestamp": two_days_ago,
+        "metadata": {"diaper_type": "wet", "location": "potty"},
+    }, headers=headers)
+
+    r = await client.get("/stats/streaks", headers=headers)
+    data = r.json()
+    assert data["current_potty_streak"] is None  # expired — no active streak
+    assert data["total_potty_events"] == 1
+
+
+@pytest.mark.asyncio
+async def test_streaks_days_logged_distinct(client_with_family):
+    """Multiple events on the same day count as one logged day."""
+    client, headers = client_with_family
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    for i in range(3):
+        await client.post("/events", json={
+            "id": f"streak-feed-{i}", "type": "feed",
+            "timestamp": now,
+            "metadata": {"pumped_ml": 100},
+        }, headers=headers)
+
+    r = await client.get("/stats/streaks", headers=headers)
+    data = r.json()
+    assert data["days_logged_total"] == 1
+
+
 @pytest.mark.asyncio
 async def test_stats_zero_events(client_with_family):
     client, headers = client_with_family
