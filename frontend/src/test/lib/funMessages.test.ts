@@ -45,18 +45,18 @@ describe('getBabyVoiceContext', () => {
       makeEvent('output', today(8)),  makeEvent('output', today(11)), makeEvent('output', today(15)),
       makeEvent('sleep_start', today(9)), makeEvent('sleep_end', today(10)),
     ]
-    expect(getBabyVoiceContext(events, 0)).toBe('normal')
+    expect(getBabyVoiceContext(events, null)).toBe('normal')
   })
 
   it('returns "many_feeds" when feed count is ≥ 9', () => {
     expect(getBabyVoiceContext(
       Array.from({ length: 9 }, (_, i) => makeEvent('feed', today(6 + i))),
-      0,
+      null,
     )).toBe('many_feeds')
   })
 
   it('returns "quiet" when there are ≤ 8 events', () => {
-    expect(getBabyVoiceContext([makeEvent('feed', today(9)), makeEvent('output', today(10))], 0)).toBe('quiet')
+    expect(getBabyVoiceContext([makeEvent('feed', today(9)), makeEvent('output', today(10))], null)).toBe('quiet')
   })
 
   it('returns "long_nap" for a completed sleep block ≥ 3 hours', () => {
@@ -64,7 +64,7 @@ describe('getBabyVoiceContext', () => {
       makeEvent('sleep_start', today(10, 0)), makeEvent('sleep_end', today(13, 30)),
       makeEvent('feed', today(8)), makeEvent('feed', today(14)),
     ]
-    expect(getBabyVoiceContext(events, 0)).toBe('long_nap')
+    expect(getBabyVoiceContext(events, null)).toBe('long_nap')
   })
 
   it('does not return "long_nap" for a sleep block under 3 hours', () => {
@@ -72,7 +72,7 @@ describe('getBabyVoiceContext', () => {
       makeEvent('sleep_start', today(10, 0)), makeEvent('sleep_end', today(12, 59)),
       makeEvent('feed', today(8)), makeEvent('feed', today(13)),
     ]
-    expect(getBabyVoiceContext(events, 0)).not.toBe('long_nap')
+    expect(getBabyVoiceContext(events, null)).not.toBe('long_nap')
   })
 
   it('returns "cluster" for ≥ 2 short-gap evening feeds', () => {
@@ -80,7 +80,7 @@ describe('getBabyVoiceContext', () => {
       makeEvent('feed', today(19, 0)), makeEvent('feed', today(19, 30)),
       makeEvent('feed', today(20, 0)), makeEvent('feed', today(9)),
     ]
-    expect(getBabyVoiceContext(events, 0)).toBe('cluster')
+    expect(getBabyVoiceContext(events, null)).toBe('cluster')
   })
 
   it('does not return "cluster" when evening gaps are ≥ 45 min', () => {
@@ -88,7 +88,7 @@ describe('getBabyVoiceContext', () => {
       makeEvent('feed', today(19, 0)), makeEvent('feed', today(19, 50)),
       makeEvent('feed', today(20, 40)),
     ]
-    expect(getBabyVoiceContext(events, 0)).not.toBe('cluster')
+    expect(getBabyVoiceContext(events, null)).not.toBe('cluster')
   })
 
   it('returns "chaotic" when there are ≥ 20 events with no other trigger', () => {
@@ -96,7 +96,7 @@ describe('getBabyVoiceContext', () => {
       Array.from({ length: 20 }, (_, i) =>
         makeEvent('output', today(6 + Math.floor(i / 2), (i % 2) * 30)),
       ),
-      0,
+      null,
     )).toBe('chaotic')
   })
 
@@ -105,7 +105,7 @@ describe('getBabyVoiceContext', () => {
       ...Array.from({ length: 6 }, (_, i) => makeEvent('feed', today(7 + i))),
       makeEvent('feed', today(19, 0)), makeEvent('feed', today(19, 30)), makeEvent('feed', today(20, 0)),
     ]
-    expect(getBabyVoiceContext(events, 0)).toBe('cluster')
+    expect(getBabyVoiceContext(events, null)).toBe('cluster')
   })
 })
 
@@ -557,12 +557,12 @@ describe('getBabyVoiceContext — potty contexts', () => {
   })
 
   it('returns potty_first when there is a potty event and milestone not yet seen', () => {
-    expect(getBabyVoiceContext([pottyEvent()], 0)).toBe('potty_first')
+    expect(getBabyVoiceContext([pottyEvent()], null)).toBe('potty_first')
   })
 
   it('does not return potty_first once milestone_potty_first is seen', () => {
     localStorage.setItem('milestone_potty_first', 'true')
-    expect(getBabyVoiceContext([pottyEvent()], 0)).not.toBe('potty_first')
+    expect(getBabyVoiceContext([pottyEvent()], null)).not.toBe('potty_first')
   })
 
   it('potty_streak takes priority over potty_first', () => {

@@ -134,8 +134,8 @@ export interface PartnerMessageResult {
 
 // ── baby voice context detection ──────────────────────────────────────────────
 
-export function getBabyVoiceContext(events: BabyEvent[], pottyStreak: number): BabyVoiceContext {
-  if (pottyStreak >= 2) return 'potty_streak'
+export function getBabyVoiceContext(events: BabyEvent[], pottyStreak: number | null): BabyVoiceContext {
+  if (pottyStreak !== null) return 'potty_streak'
 
   // First potty ever: shown on the day it happens, before the milestone is dismissed
   const hasPottyToday = events.some(

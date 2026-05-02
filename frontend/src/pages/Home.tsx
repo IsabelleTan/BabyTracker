@@ -156,7 +156,7 @@ export default function Home() {
 
   const nightMsg = useMemo(() => getNightMessage(), [])
   const babyVoiceMsg = useMemo(() => {
-    const ctx = getBabyVoiceContext(events, streakStats?.current_potty_streak ?? 0)
+    const ctx = getBabyVoiceContext(events, streakStats?.current_potty_streak ?? null)
     return getBabyVoiceMessage(ctx)
   }, [events, streakStats])
 

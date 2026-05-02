@@ -89,35 +89,28 @@ async def get_streak_stats(
     today = local_date(datetime.now(timezone.utc), zone)
     yesterday = today - timedelta(days=1)
 
-    is_potty = (Event.type == "output") & (func.json_extract(Event.metadata_, "$.location") == "potty")
-
-    agg_result = await db.execute(
-        select(
-            func.count(case((is_potty, 1))).label("total_potty"),
-            func.count(func.distinct(func.date(Event.timestamp))).label("days_logged"),
-        ).where(Event.baby_id.in_(baby_ids))
+    # TODO I think this is only needed once somewhere in the code. Maybe as a seperate endpoints?
+    result = await db.execute(
+        select(func.count(func.distinct(func.date(Event.timestamp)))).where(Event.baby_id.in_(baby_ids))                                                                                                                                        
     )
-    agg = agg_result.one()
-    total_potty_events: int = agg.total_potty
-    days_logged_total: int = agg.days_logged
+    days_logged_total: int = result.scalar_one()   
 
+    is_potty = (Event.type == "output") & (func.json_extract(Event.metadata_, "$.location") == "potty")
     potty_ts_result = await db.execute(
         select(Event.timestamp).where(Event.baby_id.in_(baby_ids), is_potty)
     )
     potty_days: set[date] = {local_date(_utc(ts), zone) for ts in potty_ts_result.scalars()}
+    total_potty_events: int = len(potty_days)
 
     current_potty_streak = 0
-    if potty_days:
-        past_days = {d for d in potty_days if d <= today}
-        if past_days:
-            most_recent = max(past_days)
-            if most_recent >= yesterday:
-                streak = 1
-                check = most_recent - timedelta(days=1)
-                while check in potty_days:
-                    streak += 1
-                    check -= timedelta(days=1)
-                current_potty_streak = streak
+    past_days = sorted((d for d in potty_days if d <= today), reverse=True)
+    if past_days and past_days[0] >= yesterday:
+        streak = 1
+        for prev, curr in zip(past_days, past_days[1:]):
+            if (prev - curr).days > 1:
+                break
+            streak += 1
+        current_potty_streak = streak
 
     return StreakStats(
         current_potty_streak=current_potty_streak if current_potty_streak >= 2 else None,
