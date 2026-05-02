@@ -9,6 +9,7 @@ export interface DailyStat {
   sleep_session_count: number
   median_sleep_session_min: number | null
   sleep_session_durations_min: number[]
+  sleep_sessions_hours: [number, number][]
   median_wake_min: number | null
   wake_durations_min: number[]
   output_count: number

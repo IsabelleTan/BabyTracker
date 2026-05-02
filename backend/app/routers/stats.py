@@ -41,6 +41,7 @@ class DailyStat(BaseModel):
     sleep_session_count: int
     median_sleep_session_min: float | None
     sleep_session_durations_min: list[float]
+    sleep_sessions_hours: list[list[float]]
     median_wake_min: float | None
     wake_durations_min: list[float]
     output_count: int
@@ -351,6 +352,15 @@ async def get_daily_stats(
         sessions = sleep_by_day.get(day, [])
         session_durations = [(e - s).total_seconds() / 60 for s, e in sessions]
         total_sleep_min = sum(session_durations)
+        midnight = datetime(day.year, day.month, day.day, tzinfo=zone)
+        sleep_sessions_hours = [
+            [
+                round(max(0.0, (s - midnight).total_seconds() / 3600), 4),
+                round(min(24.0, (e - midnight).total_seconds() / 3600), 4),
+            ]
+            for s, e in sessions
+            if (e - midnight).total_seconds() > 0 and (s - midnight).total_seconds() < 86400
+        ]
 
         wakes = wake_by_day.get(day, [])
 
@@ -368,6 +378,7 @@ async def get_daily_stats(
                 sleep_session_count=len(sessions),
                 median_sleep_session_min=median_session,
                 sleep_session_durations_min=session_durations,
+                sleep_sessions_hours=sleep_sessions_hours,
                 median_wake_min=median_wake,
                 wake_durations_min=wakes,
                 output_count=len(outputs_by_day.get(day, [])),
