@@ -28,14 +28,17 @@ export function computeYTicksMulti(
   return { ticks, domain: [0, domainMax] }
 }
 
-export function computeXTicks(data: Record<string, unknown>[], maxLabels = 7): string[] {
-  const n = data.length
+export function pickTicks(dates: string[], maxLabels = 7): string[] {
+  const n = dates.length
   if (n === 0) return []
-  const dates = data.map((d) => d.date as string)
   if (n <= maxLabels + 1) return dates
   const indices = new Set<number>()
   for (let i = 0; i < maxLabels; i++) indices.add(Math.round((i * (n - 1)) / (maxLabels - 1)))
   return [...indices].sort((a, b) => a - b).map((i) => dates[i])
+}
+
+export function computeXTicks(data: Record<string, unknown>[], maxLabels = 7): string[] {
+  return pickTicks(data.map((d) => d.date as string), maxLabels)
 }
 
 export function computeYTicks(

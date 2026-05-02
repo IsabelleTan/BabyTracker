@@ -12,7 +12,7 @@ import {
 import { getDailyStats, getEarliestEventDate, type DailyStat } from '@/lib/stats'
 import { currentDayStart } from '@/lib/events'
 import { timeAxisFormatter, formatDateAxis } from '@/lib/time'
-import { computeYTicksMulti, computeYTicks, computeXTicks } from '@/lib/chartUtils'
+import { computeYTicksMulti, computeYTicks, computeXTicks, pickTicks } from '@/lib/chartUtils'
 
 type Range = '7d' | '30d' | 'all'
 
@@ -321,7 +321,7 @@ function SleepTimelineChart({ data }: { data: (DailyStat & { date: string })[] }
     return () => ro.disconnect()
   }, [])
 
-  const xTickDates = useMemo(() => new Set(computeXTicks(data as unknown as Record<string, unknown>[])), [data])
+  const xTickDates = useMemo(() => new Set(pickTicks(data.map((d) => d.date))), [data])
 
   const svgH = 220
   const ml = 36   // left margin for y-axis labels
