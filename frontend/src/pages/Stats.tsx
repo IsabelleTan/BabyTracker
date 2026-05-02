@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
 import NightToggle from '@/components/NightToggle'
 import {
   LineChart,
@@ -12,7 +12,7 @@ import {
 import { getDailyStats, getEarliestEventDate, type DailyStat } from '@/lib/stats'
 import { currentDayStart } from '@/lib/events'
 import { timeAxisFormatter, formatDateAxis } from '@/lib/time'
-import { computeYTicksMulti, computeYTicks, computeXTicks } from '@/lib/chartUtils'
+import { computeYTicksMulti, computeYTicks, computeXTicks, pickTicks } from '@/lib/chartUtils'
 
 type Range = '7d' | '30d' | 'all'
 
@@ -151,6 +151,7 @@ export default function Stats() {
       {status === 'success' && data.length > 0 && (
         <>
           <Section title="Sleep">
+            <SleepTimelineChart data={chartData} />
             <ChartCard
               title="Total sleep"
               data={chartData}
@@ -303,6 +304,112 @@ export default function Stats() {
           </Section>
         </>
       )}
+    </div>
+  )
+}
+
+function SleepTimelineChart({ data }: { data: (DailyStat & { date: string })[] }) {
+  const containerRef = useRef<HTMLDivElement>(null)
+  const [containerWidth, setContainerWidth] = useState(0)
+
+  useEffect(() => {
+    const el = containerRef.current
+    if (!el) return
+    setContainerWidth(el.offsetWidth)
+    const ro = new ResizeObserver(() => setContainerWidth(el.offsetWidth))
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [])
+
+  const xTickDates = useMemo(() => new Set(pickTicks(data.map((d) => d.date))), [data])
+
+  const svgH = 220
+  const ml = 36   // left margin for y-axis labels
+  const mr = 8
+  const mt = 4
+  const mb = 20   // bottom margin for x-axis labels
+
+  const chartW = Math.max(containerWidth - ml - mr, 0)
+  const chartH = svgH - mt - mb
+
+  const n = data.length
+  const bandW = n > 0 ? chartW / n : 0
+
+  // 0:00 at top, 24:00 at bottom
+  const toY = (h: number) => mt + (h / 24) * chartH
+  const toX = (i: number) => ml + i * bandW
+
+  const gridColor = 'oklch(0.7 0.02 27 / 40%)'
+  const tickFill = 'oklch(0.55 0.01 27)'
+
+  return (
+    <div className="w-full rounded-xl border border-primary/35 bg-card px-3 py-3 flex flex-col gap-2">
+      <span className="text-sm font-medium">Sleep timeline</span>
+      <div ref={containerRef} className="w-full">
+        {containerWidth > 0 && (
+          <svg width={containerWidth} height={svgH} style={{ display: 'block' }}>
+            <defs>
+              <clipPath id="sleep-timeline-bars">
+                <rect x={ml} y={mt} width={chartW} height={chartH} />
+              </clipPath>
+            </defs>
+
+            {[0, 6, 12, 18, 24].map((h) => (
+              <g key={h}>
+                <line
+                  x1={ml} x2={ml + chartW}
+                  y1={toY(h)} y2={toY(h)}
+                  stroke={gridColor} strokeDasharray="3 3"
+                />
+                <text x={ml - 4} y={toY(h) + 4} textAnchor="end" fontSize={10} fill={tickFill}>
+                  {h}:00
+                </text>
+              </g>
+            ))}
+
+            {data.map((d, i) => {
+              if (!xTickDates.has(d.date)) return null
+              const cx = toX(i) + bandW / 2
+              return (
+                <g key={d.date}>
+                  <line
+                    x1={cx} x2={cx}
+                    y1={mt} y2={mt + chartH}
+                    stroke={gridColor} strokeDasharray="3 3"
+                  />
+                  <text x={cx} y={svgH - 4} textAnchor="middle" fontSize={10} fill={tickFill}>
+                    {d.date}
+                  </text>
+                </g>
+              )
+            })}
+
+            <g clipPath="url(#sleep-timeline-bars)">
+              {data.map((d, i) => {
+                const x = toX(i)
+                const pad = bandW * 0.1
+                return (d.sleep_sessions_hours ?? []).map(([start, end], j) => {
+                  const s = Math.max(0, Math.min(24, start))
+                  const e = Math.max(0, Math.min(24, end))
+                  if (s >= e) return null
+                  return (
+                    <rect
+                      key={`${i}-${j}`}
+                      x={x + pad}
+                      y={toY(s)}
+                      width={bandW - pad * 2}
+                      height={Math.max(toY(e) - toY(s), 2)}
+                      fill={COLORS.sleep}
+                      opacity={0.75}
+                      rx={2}
+                    />
+                  )
+                })
+              })}
+            </g>
+          </svg>
+        )}
+      </div>
     </div>
   )
 }
