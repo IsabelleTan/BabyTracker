@@ -1,6 +1,8 @@
 import type { BabyEvent, OutputMeta } from './events'
 import { isNightHours } from './time'
 
+const DAY_IN_MS = 86_400_000
+
 // ── message banks ─────────────────────────────────────────────────────────────
 
 const NIGHT_MESSAGES = [
@@ -225,7 +227,7 @@ const PARTNER_MSG_KEY = 'partner_msg_last_shown'
 export function partnerMessageAllowed(): boolean {
   const last = localStorage.getItem(PARTNER_MSG_KEY)
   if (!last) return true
-  return Math.floor((parseLocalDate(todayDate()) - parseLocalDate(last)) / 86_400_000) >= 3
+  return Math.floor((parseLocalDate(todayDate()) - parseLocalDate(last)) / DAY_IN_MS) >= 3
 }
 
 export function recordPartnerMessageShown(): void {
@@ -238,8 +240,6 @@ export function recordPartnerMessageShown(): void {
 export function getNewMilestone(events: BabyEvent[], pottyTotal: number, daysLogged: number): MilestoneKey | null {
   const unseen = (key: MilestoneKey) =>
     localStorage.getItem(`milestone_${key}`) !== 'true'
-
-  const candidates: MilestoneKey[] = []
 
   // ── sleep ──────────────────────────────────────────────────────────────────
   const sleepSorted = events
@@ -266,33 +266,30 @@ export function getNewMilestone(events: BabyEvent[], pottyTotal: number, daysLog
     }
   }
 
-  if (longestStretchMin >= 480 && unseen('sleep_8h'))        candidates.push('sleep_8h')
-  else if (longestStretchMin >= 300 && unseen('sleep_5h'))   candidates.push('sleep_5h')
-  if (longestDaytimeMin >= 120 && unseen('nap_2h'))          candidates.push('nap_2h')
-  if (totalSleepMin >= 840 && unseen('sleep_total_14h'))     candidates.push('sleep_total_14h')
+  if (longestStretchMin >= 480 && unseen('sleep_8h')) return 'sleep_8h'
+  if (longestStretchMin >= 300 && unseen('sleep_5h')) return 'sleep_5h'
+  if (longestDaytimeMin >= 120 && unseen('nap_2h')) return 'nap_2h'
+  if (totalSleepMin >= 840 && unseen('sleep_total_14h')) return 'sleep_total_14h'
 
   // ── feeds ──────────────────────────────────────────────────────────────────
   const feedCount = events.filter((e) => e.type === 'feed').length
-  if (feedCount >= 12 && unseen('feeds_12'))  candidates.push('feeds_12')
-  else if (feedCount >= 8 && unseen('feeds_8')) candidates.push('feeds_8')
+  if (feedCount >= 12 && unseen('feeds_12')) return 'feeds_12'
+  if (feedCount >= 8 && unseen('feeds_8')) return 'feeds_8'
 
   // ── diapers ────────────────────────────────────────────────────────────────
-  if (events.filter((e) => e.type === 'output').length >= 8 && unseen('diaper_8'))
-    candidates.push('diaper_8')
+  if (events.filter((e) => e.type === 'output').length >= 8 && unseen('diaper_8')) return 'diaper_8'
 
   // ── variety ────────────────────────────────────────────────────────────────
   const types = new Set(events.map((e) => e.type))
-  if (
-    types.has('feed') && types.has('sleep_start') && types.has('output') &&
-    unseen('all_event_types')
-  ) candidates.push('all_event_types')
+  if (types.has('feed') && types.has('sleep_start') && types.has('output') && unseen('all_event_types'))
+    return 'all_event_types'
 
   // ── time of day ────────────────────────────────────────────────────────────
   const hasDeepNight = events.some((e) => {
     const h = new Date(e.timestamp).getHours()
     return h >= 2 && h < 4
   })
-  if (hasDeepNight && unseen('night_survived')) candidates.push('night_survived')
+  if (hasDeepNight && unseen('night_survived')) return 'night_survived'
 
   // Cluster: ≥2 short evening feed gaps (same logic as getBabyVoiceContext)
   const eveningFeeds = events
@@ -305,15 +302,15 @@ export function getNewMilestone(events: BabyEvent[], pottyTotal: number, daysLog
       new Date(eveningFeeds[i - 1].timestamp).getTime()) / 60_000
     if (gap < 45) shortGaps++
   }
-  if (shortGaps >= 2 && unseen('cluster_first')) candidates.push('cluster_first')
+  if (shortGaps >= 2 && unseen('cluster_first')) return 'cluster_first'
 
   // ── teamwork ───────────────────────────────────────────────────────────────
   if (new Set(events.map((e) => e.logged_by)).size >= 2 && unseen('both_partners_first'))
-    candidates.push('both_partners_first')
+    return 'both_partners_first'
 
   // ── consistency ────────────────────────────────────────────────────────────
-  if (daysLogged >= 30 && unseen('logging_days_30'))     candidates.push('logging_days_30')
-  else if (daysLogged >= 7 && unseen('logging_days_7'))  candidates.push('logging_days_7')
+  if (daysLogged >= 30 && unseen('logging_days_30')) return 'logging_days_30'
+  if (daysLogged >= 7 && unseen('logging_days_7')) return 'logging_days_7'
 
   // ── potty training ─────────────────────────────────────────────────────────
   const pottyEvents = events.filter(
@@ -325,25 +322,25 @@ export function getNewMilestone(events: BabyEvent[], pottyTotal: number, daysLog
       ((e.metadata as OutputMeta | null)?.location ?? 'diaper') === 'diaper',
   )
 
-  if (pottyEvents.length >= 1 && unseen('potty_first')) candidates.push('potty_first')
+  if (pottyEvents.length >= 1 && unseen('potty_first')) return 'potty_first'
 
   const hasPottyPoo = pottyEvents.some((e) => {
     const t = (e.metadata as OutputMeta | null)?.diaper_type
     return t === 'dirty' || t === 'both'
   })
-  if (hasPottyPoo && unseen('potty_first_poo')) candidates.push('potty_first_poo')
+  if (hasPottyPoo && unseen('potty_first_poo')) return 'potty_first_poo'
 
-  if (pottyTotal >= 10 && unseen('potty_10')) candidates.push('potty_10')
+  if (pottyTotal >= 10 && unseen('potty_10')) return 'potty_10'
 
   if (
     pottyEvents.length > 0 && diaperEvents.length > 0 &&
     pottyEvents.length >= diaperEvents.length && unseen('potty_big_kid_day')
-  ) candidates.push('potty_big_kid_day')
+  ) return 'potty_big_kid_day'
 
   if (pottyEvents.length > 0 && diaperEvents.length === 0 && unseen('potty_fully_trained'))
-    candidates.push('potty_fully_trained')
+    return 'potty_fully_trained'
 
-  return candidates[0] ?? null
+  return null
 }
 
 export function getMilestoneMessage(key: MilestoneKey): string {
@@ -354,7 +351,7 @@ export function getMilestoneMessage(key: MilestoneKey): string {
 export function milestoneAllowedToday(): boolean {
   const last = localStorage.getItem('milestone_shown_date')
   if (!last) return true
-  return Math.floor((parseLocalDate(todayDate()) - parseLocalDate(last)) / 86_400_000) >= 3
+  return Math.floor((parseLocalDate(todayDate()) - parseLocalDate(last)) / DAY_IN_MS) >= 3
 }
 
 /** Call when a milestone card is first shown (not on dismiss). */
@@ -370,7 +367,7 @@ export function markMilestoneSeen(key: MilestoneKey): void {
 
 function dayOfYear(): number {
   const now = new Date()
-  return Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / 86_400_000)
+  return Math.floor((now.getTime() - new Date(now.getFullYear(), 0, 0).getTime()) / DAY_IN_MS)
 }
 
 function pickByDay<T>(bank: T[]): T {
@@ -408,7 +405,7 @@ function parseLocalDate(dateStr: string): number {
 function nightsSinceLastShown(): number {
   const last = localStorage.getItem('night_msg_last_shown')
   if (!last) return 999
-  return Math.floor((parseLocalDate(todayDate()) - parseLocalDate(last)) / 86_400_000)
+  return Math.floor((parseLocalDate(todayDate()) - parseLocalDate(last)) / DAY_IN_MS)
 }
 
 const NIGHT_SHOWN_KEY = 'night_msg_shown'
@@ -436,7 +433,7 @@ const BABY_VOICE_LAST_KEY = 'baby_voice_last_shown'
 export function babyVoiceShouldShow(): boolean {
   const last = localStorage.getItem(BABY_VOICE_LAST_KEY)
   if (!last) return true
-  return Math.floor((parseLocalDate(todayDate()) - parseLocalDate(last)) / 86_400_000) >= 3
+  return Math.floor((parseLocalDate(todayDate()) - parseLocalDate(last)) / DAY_IN_MS) >= 3
 }
 
 export function dismissBabyVoice(): void {
