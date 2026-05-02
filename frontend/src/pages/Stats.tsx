@@ -321,7 +321,7 @@ function SleepTimelineChart({ data }: { data: (DailyStat & { date: string })[] }
     return () => ro.disconnect()
   }, [])
 
-  const xTickDates = useMemo(() => new Set(computeXTicks(data)), [data])
+  const xTickDates = useMemo(() => new Set(computeXTicks(data as unknown as Record<string, unknown>[])), [data])
 
   const svgH = 220
   const ml = 36   // left margin for y-axis labels
