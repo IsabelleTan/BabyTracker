@@ -13,7 +13,7 @@ import { getUser } from '@/lib/auth'
 import { api } from '@/lib/api'
 
 export interface StreakStats {
-  current_potty_streak: number
+  current_potty_streak: number | null
   total_potty_events: number
   days_logged_total: number
 }

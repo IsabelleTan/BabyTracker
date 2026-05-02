@@ -24,7 +24,7 @@ vi.mock('@/lib/auth', () => ({
 
 vi.mock('@/lib/api', () => ({
   api: {
-    get: vi.fn().mockResolvedValue({ data: { current_potty_streak: 0, total_potty_events: 0, days_logged_total: 0 } }),
+    get: vi.fn().mockResolvedValue({ data: { current_potty_streak: null, total_potty_events: 0, days_logged_total: 0 } }),
   },
 }))
 
