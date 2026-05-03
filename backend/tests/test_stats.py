@@ -179,7 +179,7 @@ async def test_stats_sleep_midpoint_attribution(client_with_family):
     r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-16T00:00:00Z"}, headers=headers)
     days = {d["date"]: d for d in r.json()}
     assert days["2024-01-15"]["sleep_session_count"] == 2
-    assert days["2024-01-15"]["total_sleep_min"] == 600  # 480 + 120
+    assert days["2024-01-15"]["total_sleep_min"] == 480 + 120
     assert days["2024-01-16"]["sleep_session_count"] == 1
     assert days["2024-01-16"]["total_sleep_min"] == 150
 
@@ -375,7 +375,7 @@ async def test_stats_wet_dirty_breakdown(client_with_family):
         "to":   "2024-03-05T23:59:59Z",
     }, headers=headers)
     day = r.json()[0]
-    assert day["wet_count"]   == 2  # "wet" + "both"
+    assert day["wet_count"] == 2  # "wet" + "both"
     assert day["dirty_count"] == 2  # "dirty" + "both"
 
 
@@ -405,9 +405,9 @@ async def test_stats_breast_min_and_bottle_ml(client_with_family):
         "to":   "2024-03-06T23:59:59Z",
     }, headers=headers)
     day = r.json()[0]
-    assert day["breast_min"]  == 23.0   # 10+8 + 5+0
-    assert day["pumped_ml"]   == 120.0
-    assert day["formula_ml"]  == 90.0
+    assert day["breast_min"] == 10+8 + 5+0
+    assert day["pumped_ml"] == 120.0
+    assert day["formula_ml"] == 90.0
 
 
 @pytest.mark.asyncio
@@ -454,7 +454,7 @@ async def test_stats_combined_feed_event(client_with_family):
         "to":   "2024-03-07T23:59:59Z",
     }, headers=headers)
     day = r.json()[0]
-    assert day["breast_min"] == 13.0   # 8 + 5
+    assert day["breast_min"] == 8 + 5
     assert day["pumped_ml"]  == 60.0
     assert day["formula_ml"] == 0.0
     assert day["feed_count"] == 1
@@ -480,11 +480,11 @@ async def test_stats_accident_counts_breakdown(client_with_family):
         "to":   "2024-04-01T23:59:59Z",
     }, headers=headers)
     day = r.json()[0]
-    assert day["output_count"]        == 2
-    assert day["accident_wet_count"]  == 2  # wet + both
+    assert day["output_count"] == 2
+    assert day["accident_wet_count"] == 2  # wet + both
     assert day["accident_dirty_count"] == 1  # both only
-    assert day["wet_count"]           == 2  # accidents roll into the total
-    assert day["dirty_count"]         == 1
+    assert day["wet_count"] == 2  # accidents roll into the total
+    assert day["dirty_count"] == 1
 
 
 @pytest.mark.asyncio
@@ -575,6 +575,6 @@ async def test_stats_accident_does_not_appear_in_potty_counts(client_with_family
         "to":   "2024-04-02T23:59:59Z",
     }, headers=headers)
     day = r.json()[0]
-    assert day["potty_wet_count"]   == 0
+    assert day["potty_wet_count"] == 0
     assert day["potty_dirty_count"] == 0
     assert day["accident_dirty_count"] == 1
