@@ -1,4 +1,5 @@
 from collections import defaultdict
+from itertools import pairwise
 from datetime import date, datetime, timedelta, timezone
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
@@ -309,8 +310,7 @@ async def get_daily_stats(
 
     all_feed_times.sort()
     feed_intervals_by_day: dict[date, list[float]] = defaultdict(list)
-    for i in range(1, len(all_feed_times)):
-        prev, curr = all_feed_times[i - 1], all_feed_times[i]
+    for prev, curr in pairwise(all_feed_times):
         interval_min = (curr - prev).total_seconds() / 60
         midpoint = prev + (curr - prev) / 2
         feed_intervals_by_day[local_date(midpoint, zone)].append(interval_min)
