@@ -17,9 +17,6 @@ import asyncio
 import getpass
 import uuid
 from datetime import date
-from dotenv import load_dotenv
-load_dotenv()
-
 from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker
 from sqlalchemy import select
 from app.db.database import Base
