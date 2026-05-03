@@ -193,21 +193,24 @@ function resolveOverlaps(naturalYs: number[]): number[] {
 export default function TimelineSection({ events, onEditEvent }: Props) {
   const [tab, setTab] = useState<'timeline' | 'list'>('timeline')
 
-  // eslint-disable-next-line react-hooks/purity
-  const nowMs = Date.now()
+  // eslint-disable-next-line react-hooks/purity, react-hooks/exhaustive-deps
+  const nowMs = useMemo(() => Date.now(), [events])
 
-  const hourLabels: { label: string; y: number }[] = []
-  const cursorBase = new Date(nowMs)
-  cursorBase.setMinutes(0, 0, 0)
-  for (let i = 0; i <= 24; i++) {
-    const t = new Date(cursorBase.getTime() - i * 3_600_000)
-    const y = msToY(t.getTime(), nowMs)
-    if (y > TOTAL_H) break
-    hourLabels.push({ label: formatHour(t), y })
-  }
+  const hourLabels = useMemo(() => {
+    const labels: { label: string; y: number }[] = []
+    const cursorBase = new Date(nowMs)
+    cursorBase.setMinutes(0, 0, 0)
+    for (let i = 0; i <= 24; i++) {
+      const t = new Date(cursorBase.getTime() - i * 3_600_000)
+      const y = msToY(t.getTime(), nowMs)
+      if (y > TOTAL_H) break
+      labels.push({ label: formatHour(t), y })
+    }
+    return labels
+  }, [nowMs])
 
   const { segments: sleepSegments, warnings: sleepWarnings } =
-    useMemo(() => computeSleepSegments(events, nowMs), [events]) // eslint-disable-line react-hooks/exhaustive-deps
+    useMemo(() => computeSleepSegments(events, nowMs), [events, nowMs])
 
   const markerEvents = useMemo(
     () => [...events]
@@ -218,8 +221,9 @@ export default function TimelineSection({ events, onEditEvent }: Props) {
 
   const feedIntervals = useMemo(() => buildFeedIntervals(events), [events])
 
-  const adjustedYs = resolveOverlaps(
-    markerEvents.map(e => msToY(new Date(e.timestamp).getTime(), nowMs)),
+  const adjustedYs = useMemo(
+    () => resolveOverlaps(markerEvents.map(e => msToY(new Date(e.timestamp).getTime(), nowMs))),
+    [markerEvents, nowMs],
   )
 
   const topPad = adjustedYs.length > 0 ? Math.max(0, MARKER_R - Math.min(...adjustedYs)) : 0
