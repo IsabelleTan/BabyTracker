@@ -82,7 +82,7 @@ function WheelPicker({
   const currentOffRef  = useRef(toVirtual(selectedIndex) * ITEM_H)
   const isDraggingRef  = useRef(false)
   const onChangeRef    = useRef(onChange)
-  onChangeRef.current  = onChange // eslint-disable-line react-hooks/refs -- event-handler ref; onChange is never called during render
+  onChangeRef.current  = onChange // event-handler ref; onChange is never called during render
 
   // Velocity tracking: ring buffer of recent {y, t} samples
   const moveHistoryRef = useRef<{ y: number; t: number }[]>([])
@@ -109,6 +109,7 @@ function WheelPicker({
       currentOffRef.current = clamped
       setDisplayOffset(clamped)
     }
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- cyclic, n, and virtualValues.length are all transitively captured by maxOffset; if any of them change, maxOffset changes and the effect re-fires
   }, [selectedIndex, maxOffset])
 
   function cancelMomentum() {
@@ -209,7 +210,8 @@ function WheelPicker({
       window.removeEventListener('mouseup',   onMouseUp)
       cancelMomentum()
     }
-  }, []) // refs only — no stale closures
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- moveDrag/endDrag read all mutable state through refs so they never go stale; empty deps is intentional to avoid re-registering listeners on every render
+  }, [])
 
   const translateY = 1 * ITEM_H - displayOffset
 
@@ -228,7 +230,7 @@ function WheelPicker({
           className="absolute top-0 left-0 right-0 z-10"
           style={{
             transform:  `translateY(${translateY}px)`,
-            transition: (dragging || momentumRef.current) ? 'none' : 'transform 150ms ease-out', // eslint-disable-line react-hooks/refs -- intentional: reads animation state ref to skip CSS transition during momentum
+            transition: (dragging || momentumRef.current) ? 'none' : 'transform 150ms ease-out', // reads ref to skip CSS transition during momentum
           }}
         >
           {virtualValues.map((v, i) => {
@@ -470,7 +472,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
   // Clamp day when month / year changes
   useEffect(() => {
     if (selDay >= days.length) setSelDay(days.length - 1) // eslint-disable-line react-hooks/set-state-in-effect
-  }, [days.length])
+  }, [days.length, selDay])
 
   // Reset / pre-fill form when the sheet opens or the target event changes
   useEffect(() => {

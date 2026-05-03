@@ -114,7 +114,7 @@ export default function Stats() {
     run().then((d) => { setData(d); setStatus('success') }).catch(() => setStatus('error'))
   }, [range])
 
-  const chartData = data.map((d) => ({ ...d, date: formatDateAxis(d.date) }))
+  const chartData = useMemo(() => data.map((d) => ({ ...d, date: formatDateAxis(d.date) })), [data])
 
   const weeklyPottyData = useMemo(() => groupPottyByWeek(data), [data])
   const weeklyAccidentData = useMemo(() => groupAccidentsByWeek(data), [data])
