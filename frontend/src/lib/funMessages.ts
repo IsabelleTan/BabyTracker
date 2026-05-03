@@ -1,4 +1,5 @@
 import type { BabyEvent, OutputMeta } from './events'
+import { isSleepEvent } from './events'
 import { isNightHours } from './time'
 
 const DAY_IN_MS = 86_400_000
@@ -162,7 +163,7 @@ export function getBabyVoiceContext(events: BabyEvent[], pottyStreak: number | n
 
   // Long nap: any completed sleep block ≥ 3 hours
   const sleepSorted = events
-    .filter((e) => e.type === 'sleep_start' || e.type === 'sleep_end')
+    .filter(isSleepEvent)
     .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
   let openStart: Date | null = null
   for (const e of sleepSorted) {
@@ -243,7 +244,7 @@ export function getNewMilestone(events: BabyEvent[], pottyTotal: number, daysLog
 
   // ── sleep ──────────────────────────────────────────────────────────────────
   const sleepSorted = events
-    .filter((e) => e.type === 'sleep_start' || e.type === 'sleep_end')
+    .filter(isSleepEvent)
     .sort((a, b) => a.timestamp.localeCompare(b.timestamp))
 
   let openStart: Date | null = null

@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react'
+import { useTimer } from '@/hooks/useTimer'
 import {
   Drawer,
   DrawerContent,
@@ -447,22 +448,8 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
   const [outputLocation, setOutputLocation] = useState<'diaper' | 'potty' | 'accident'>('diaper')
 
   // Breastfeed timers
-  const [leftRunning,    setLeftRunning]    = useState(false)
-  const [rightRunning,   setRightRunning]   = useState(false)
-  const [leftElapsedMs,  setLeftElapsedMs]  = useState(0)
-  const [rightElapsedMs, setRightElapsedMs] = useState(0)
-  const leftStartMsRef    = useRef(0)
-  const rightStartMsRef   = useRef(0)
-  const leftIntervalRef   = useRef<ReturnType<typeof setInterval> | null>(null)
-  const rightIntervalRef  = useRef<ReturnType<typeof setInterval> | null>(null)
-
-  // Cleanup intervals on unmount
-  useEffect(() => {
-    return () => {
-      if (leftIntervalRef.current)  clearInterval(leftIntervalRef.current)
-      if (rightIntervalRef.current) clearInterval(rightIntervalRef.current)
-    }
-  }, [])
+  const leftTimer  = useTimer((minutes) => setLeftMin(String(minutes)))
+  const rightTimer = useTimer((minutes) => setRightMin(String(minutes)))
 
   const days = useMemo(
     () => daysArray(selMonth, Number(years[selYear])),
@@ -483,12 +470,8 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
       setBaseYear(freshBaseYear) // eslint-disable-line react-hooks/set-state-in-effect
 
       // Reset timers unconditionally
-      if (leftIntervalRef.current)  { clearInterval(leftIntervalRef.current);  leftIntervalRef.current  = null }
-      if (rightIntervalRef.current) { clearInterval(rightIntervalRef.current); rightIntervalRef.current = null }
-      setLeftRunning(false)
-      setRightRunning(false)
-      setLeftElapsedMs(0)
-      setRightElapsedMs(0)
+      leftTimer.reset()
+      rightTimer.reset()
 
       if (initialEvent) {
         // Edit mode — pre-fill from the existing event
@@ -547,49 +530,13 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
     setSelMinute(Math.floor(now.getMinutes() / 5))
   }
 
-  function toggleLeftTimer() {
-    if (leftRunning) {
-      if (leftIntervalRef.current) { clearInterval(leftIntervalRef.current); leftIntervalRef.current = null }
-      setLeftRunning(false)
-      const elapsed = Date.now() - leftStartMsRef.current
-      setLeftElapsedMs(elapsed)
-      setLeftMin(String(Math.round(elapsed / 60000)))
-    } else {
-      leftStartMsRef.current = Date.now()
-      setLeftRunning(true)
-      leftIntervalRef.current = setInterval(() => {
-        setLeftElapsedMs(Date.now() - leftStartMsRef.current)
-      }, 100)
-    }
-  }
-
-  function toggleRightTimer() {
-    if (rightRunning) {
-      if (rightIntervalRef.current) { clearInterval(rightIntervalRef.current); rightIntervalRef.current = null }
-      setRightRunning(false)
-      const elapsed = Date.now() - rightStartMsRef.current
-      setRightElapsedMs(elapsed)
-      setRightMin(String(Math.round(elapsed / 60000)))
-    } else {
-      rightStartMsRef.current = Date.now()
-      setRightRunning(true)
-      rightIntervalRef.current = setInterval(() => {
-        setRightElapsedMs(Date.now() - rightStartMsRef.current)
-      }, 100)
-    }
-  }
-
-  const feedEmpty = type === 'feed' && !leftMin && !rightMin && !leftRunning && !rightRunning && !pumpedMl && !formulaMl
+  const feedEmpty = type === 'feed' && !leftMin && !rightMin && !leftTimer.running && !rightTimer.running && !pumpedMl && !formulaMl
 
   function buildMetadata(): EventMeta {
     if (type === 'feed') {
       // If a timer is still running when saving, use its current elapsed value
-      const lMin = leftRunning
-        ? Math.round((Date.now() - leftStartMsRef.current) / 60000)
-        : (leftMin ? Number(leftMin) : null)
-      const rMin = rightRunning
-        ? Math.round((Date.now() - rightStartMsRef.current) / 60000)
-        : (rightMin ? Number(rightMin) : null)
+      const lMin = leftTimer.running  ? leftTimer.getElapsedMinutes()  : (leftMin  ? Number(leftMin)  : null)
+      const rMin = rightTimer.running ? rightTimer.getElapsedMinutes() : (rightMin ? Number(rightMin) : null)
       return {
         breast_left_min:  lMin,
         breast_right_min: rMin,
@@ -692,9 +639,9 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
                 <BreastFeedForm
                   leftMin={leftMin}          setLeftMin={setLeftMin}
                   rightMin={rightMin}        setRightMin={setRightMin}
-                  leftRunning={leftRunning}  rightRunning={rightRunning}
-                  leftElapsedMs={leftElapsedMs} rightElapsedMs={rightElapsedMs}
-                  onToggleLeft={toggleLeftTimer} onToggleRight={toggleRightTimer}
+                  leftRunning={leftTimer.running}   rightRunning={rightTimer.running}
+                  leftElapsedMs={leftTimer.elapsedMs} rightElapsedMs={rightTimer.elapsedMs}
+                  onToggleLeft={leftTimer.toggle}   onToggleRight={rightTimer.toggle}
                 />
               </div>
               <div className="space-y-1.5">

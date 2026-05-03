@@ -8,7 +8,8 @@ import { ActionCard, MessageCard, TopBar } from '@/components/home/HomeCards'
 import { usePullToRefresh, PULL_THRESHOLD } from '@/hooks/usePullToRefresh'
 import { useSync } from '@/hooks/useSync'
 import { useTick } from '@/hooks/useTimeSince'
-import { deleteEvent, type EventType, type BabyEvent, type EventMeta } from '@/lib/events'
+import { deleteEvent, isSleepEvent, type EventType, type BabyEvent, type EventMeta } from '@/lib/events'
+import { type HttpError } from '@/lib/api'
 import { generateId } from '@/lib/uuid'
 import { formatTime as fmt, formatAgo as ago, formatDuration as duration, isNightHours } from '@/lib/time'
 import {
@@ -61,7 +62,7 @@ export default function Home() {
       await deleteEvent(id)
       removeEvent(id)
     } catch (err) {
-      const status = (err as { response?: { status?: number } })?.response?.status
+      const status = (err as HttpError).status
       if (status === 403) showToast("Can't delete — not your family's event")
       else if (status === 404) showToast('Event already deleted')
       else showToast('Delete failed — are you online?')
@@ -96,7 +97,7 @@ export default function Home() {
     let lastOutput: BabyEvent | undefined
     for (const e of events) {
       if (e.type === 'feed') lastFeed = e
-      else if (e.type === 'sleep_start' || e.type === 'sleep_end') lastSleepEvent = e
+      else if (isSleepEvent(e)) lastSleepEvent = e
       else if (e.type === 'output') lastOutput = e
     }
     return {

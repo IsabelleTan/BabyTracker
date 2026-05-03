@@ -1,3 +1,7 @@
+export interface HttpError extends Error {
+  status: number
+}
+
 type Params = Record<string, string | number | boolean | undefined>
 
 export type ApiResponse<T> = {
