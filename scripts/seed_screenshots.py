@@ -153,7 +153,7 @@ def feed_bottle_at(ts: datetime, amount_ml: int, uid_tag: str) -> dict:
         "id": deterministic_id("feed", iso(ts), uid_tag),
         "type": "feed",
         "timestamp": iso(ts),
-        "metadata": {"feed_type": "bottle", "amount_ml": amount_ml},
+        "metadata": {"pumped_ml": amount_ml},
     }
 
 
@@ -162,7 +162,7 @@ def feed_breast_at(ts: datetime, left: int, right: int, uid_tag: str) -> dict:
         "id": deterministic_id("feed", iso(ts), uid_tag),
         "type": "feed",
         "timestamp": iso(ts),
-        "metadata": {"feed_type": "breast", "left_duration_min": left, "right_duration_min": right},
+        "metadata": {"breast_left_min": left, "breast_right_min": right},
     }
 
 
@@ -201,7 +201,7 @@ def feed_bottle(day_str: str, hour: int, minute: int, amount_ml: int, user_tag: 
         "id": deterministic_id("feed", day_str, str(hour), str(minute), user_tag),
         "type": "feed",
         "timestamp": iso(ts),
-        "metadata": {"feed_type": "bottle", "amount_ml": amount_ml},
+        "metadata": {"pumped_ml": amount_ml},
     }
 
 
