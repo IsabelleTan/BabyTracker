@@ -263,13 +263,13 @@ def scenario_realistic() -> list[dict]:
             ft = feed_cursor + timedelta(minutes=random.gauss(0, interval * 0.12))
             if day_base <= ft < day_base + timedelta(hours=24):
                 if random.random() < 0.5:
-                    meta = {"feed_type": "bottle", "amount_ml": round(_rng(60, 150) / 5) * 5}
+                    meta = {"pumped_ml": round(_rng(60, 150) / 5) * 5}
                 else:
-                    meta = {
-                        "feed_type": "breast",
-                        "left_duration_min":  random.randint(5, 20) if random.random() > 0.3 else None,
-                        "right_duration_min": random.randint(5, 20) if random.random() > 0.3 else None,
-                    }
+                    left  = random.randint(5, 20) if random.random() > 0.3 else None
+                    right = random.randint(5, 20) if random.random() > 0.3 else None
+                    if left is None and right is None:
+                        left = random.randint(5, 20)
+                    meta = {"breast_left_min": left, "breast_right_min": right}
                 add("feed", ft, meta)
             feed_cursor += timedelta(minutes=interval + random.gauss(0, 10))
 
