@@ -24,12 +24,13 @@ async function request<T>(method: string, path: string, body?: unknown, params?:
   const token = localStorage.getItem('token')
   const headers: Record<string, string> = {}
   if (token) headers['Authorization'] = `Bearer ${token}`
-  if (body !== undefined) headers['Content-Type'] = 'application/json'
+  if (body instanceof URLSearchParams) headers['Content-Type'] = 'application/x-www-form-urlencoded'
+  else if (body !== undefined) headers['Content-Type'] = 'application/json'
 
   const res = await fetch(buildUrl(path, params), {
     method,
     headers,
-    body: body !== undefined ? JSON.stringify(body) : undefined,
+    body: body instanceof URLSearchParams ? body.toString() : body !== undefined ? JSON.stringify(body) : undefined,
   })
 
   if (res.status === 401) {
@@ -44,7 +45,10 @@ async function request<T>(method: string, path: string, body?: unknown, params?:
   }
 
   const contentType = res.headers.get('content-type')
-  const data = contentType?.includes('application/json') ? (await res.json() as T) : (undefined as T)
+  // Starlette 1.x incorrectly includes content-type: application/json on 204/304 responses.
+  // Guard by status code — these must never have a body per the HTTP spec.
+  const hasBody = res.status !== 204 && res.status !== 304
+  const data = (hasBody && contentType?.includes('application/json')) ? (await res.json() as T) : (undefined as T)
 
   return { status: res.status, data }
 }
