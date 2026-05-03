@@ -8,7 +8,7 @@ export interface AuthUser {
 
 export async function login(email: string, password: string): Promise<AuthUser> {
   const form = new URLSearchParams({ username: email, password })
-  const { data } = await api.post('/auth/login', form)
+  const { data } = await api.post<{ access_token: string; user_id: string; display_name: string; baby_id: string | null }>('/auth/login', form)
   localStorage.setItem('token', data.access_token)
   const user: AuthUser = { user_id: data.user_id, display_name: data.display_name, baby_id: data.baby_id ?? null }
   localStorage.setItem('user', JSON.stringify(user))
