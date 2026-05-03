@@ -1,13 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 
-export interface UseTimerReturn {
-  elapsedMs: number | null  // null = not running; number = running, value is elapsed time
-  toggle: () => void
-  reset: () => void
-  getElapsedMinutes: () => number
-}
-
-export function useTimer(onStop: (minutes: number) => void): UseTimerReturn {
+export function useTimer(onStop: (minutes: number) => void) {
   const [elapsedMs, setElapsedMs] = useState<number | null>(null)
   const startMsRef = useRef(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
@@ -37,9 +30,5 @@ export function useTimer(onStop: (minutes: number) => void): UseTimerReturn {
     setElapsedMs(null)
   }
 
-  function getElapsedMinutes() {
-    return Math.round((Date.now() - startMsRef.current) / 60000)
-  }
-
-  return { elapsedMs, toggle, reset, getElapsedMinutes }
+  return { elapsedMs, toggle, reset }
 }

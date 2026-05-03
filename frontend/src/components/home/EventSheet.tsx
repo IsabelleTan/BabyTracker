@@ -534,8 +534,8 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
   function buildMetadata(): EventMeta {
     if (type === 'feed') {
       // If a timer is still running when saving, use its current elapsed value
-      const lMin = leftTimer.elapsedMs !== null  ? leftTimer.getElapsedMinutes()  : (leftMin  ? Number(leftMin)  : null)
-      const rMin = rightTimer.elapsedMs !== null ? rightTimer.getElapsedMinutes() : (rightMin ? Number(rightMin) : null)
+      const lMin = leftTimer.elapsedMs !== null  ? Math.round(leftTimer.elapsedMs  / 60000) : (leftMin  ? Number(leftMin)  : null)
+      const rMin = rightTimer.elapsedMs !== null ? Math.round(rightTimer.elapsedMs / 60000) : (rightMin ? Number(rightMin) : null)
       return {
         breast_left_min:  lMin,
         breast_right_min: rMin,
