@@ -185,6 +185,34 @@ async def test_stats_sleep_midpoint_attribution(client_with_family):
 
 
 @pytest.mark.asyncio
+async def test_stats_sleep_sessions_hours_cross_midnight(client_with_family):
+    """sleep_sessions_hours should reflect actual clock hours per calendar day.
+
+    A 23:00 Jan 15 → 01:30 Jan 16 session is attributed to Jan 16 by midpoint,
+    but the sleep that occurred on Jan 15 (23:00–24:00) must still appear in
+    Jan 15's sleep_sessions_hours so the timeline visualisation can render it.
+    """
+    client, headers = client_with_family
+    await client.post("/events", json={
+        "id": "sx", "type": "sleep_start", "timestamp": "2024-01-15T23:00:00Z",
+    }, headers=headers)
+    await client.post("/events", json={
+        "id": "ex", "type": "sleep_end", "timestamp": "2024-01-16T01:30:00Z",
+    }, headers=headers)
+
+    r = await client.get(
+        "/stats/daily",
+        params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-16T00:00:00Z"},
+        headers=headers,
+    )
+    days = {d["date"]: d for d in r.json()}
+    # Jan 15: sleep started at 23:00 and ran to midnight → should show [23.0, 24.0]
+    assert days["2024-01-15"]["sleep_sessions_hours"] == [[23.0, 24.0]]
+    # Jan 16: the session continued from midnight to 01:30 → should show [0.0, 1.5]
+    assert days["2024-01-16"]["sleep_sessions_hours"] == [[0.0, 1.5]]
+
+
+@pytest.mark.asyncio
 async def test_stats_wake_time_between_sessions(client_with_family):
     """Two sessions with a 60-minute gap → avg_wake_min = 60."""
     client, headers = client_with_family
