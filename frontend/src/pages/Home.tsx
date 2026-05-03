@@ -63,9 +63,17 @@ export default function Home() {
       removeEvent(id)
     } catch (err) {
       const status = (err as HttpError).status
-      if (status === 403) showToast("Can't delete — not your family's event")
-      else if (status === 404) showToast('Event already deleted')
-      else showToast('Delete failed — are you online?')
+      if (status === 403) {
+        showToast("Can't delete — not your family's event")
+      } else if (status === 404) {
+        // Event already gone on server — remove from UI too
+        showToast('Event already deleted')
+        removeEvent(id)
+      } else {
+        // Network error: delete may have succeeded on the server
+        showToast('Delete failed — are you online?')
+        sync()
+      }
     }
   }
 
