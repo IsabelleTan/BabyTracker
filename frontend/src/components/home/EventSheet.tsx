@@ -7,6 +7,16 @@ import {
   DrawerTitle,
   DrawerFooter,
 } from '@/components/ui/drawer'
+import {
+  AlertDialog,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from '@/components/ui/alert-dialog'
 import { Droplet, Droplets, CirclePile, Baby, Toilet, Trash2, Moon, Sun, AlertTriangle } from 'lucide-react'
 import { fromDateTimeLocal, type EventType, type BabyEvent, type EventMeta, type FeedMeta, type OutputMeta } from '@/lib/events'
 
@@ -449,6 +459,15 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
   // Breastfeed timers
   const leftTimer  = useTimer((minutes) => setLeftMin(String(minutes)))
   const rightTimer = useTimer((minutes) => setRightMin(String(minutes)))
+  const [confirmDismiss, setConfirmDismiss] = useState(false)
+
+  function handleDismiss() {
+    if (leftTimer.elapsedMs !== null || rightTimer.elapsedMs !== null) {
+      setConfirmDismiss(true)
+    } else {
+      onDismiss()
+    }
+  }
 
   const days = useMemo(
     () => daysArray(selMonth, Number(years[selYear])),
@@ -468,9 +487,6 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
       const freshYears = [String(freshBaseYear - 1), String(freshBaseYear), String(freshBaseYear + 1)]
       setBaseYear(freshBaseYear) // eslint-disable-line react-hooks/set-state-in-effect
 
-      // Reset timers unconditionally
-      leftTimer.reset()
-      rightTimer.reset()
 
       if (initialEvent) {
         // Edit mode — pre-fill from the existing event
@@ -557,7 +573,8 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
   }
 
   return (
-    <Drawer open={type !== null} onClose={onDismiss}>
+    <>
+    <Drawer open={type !== null} onClose={handleDismiss}>
       <DrawerContent>
         <DrawerHeader className="pb-2">
           <DrawerTitle>{type ? TITLES[type] : ''}</DrawerTitle>
@@ -709,5 +726,21 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
         </DrawerFooter>
       </DrawerContent>
     </Drawer>
+
+    <AlertDialog open={confirmDismiss} onOpenChange={setConfirmDismiss}>
+      <AlertDialogContent>
+        <AlertDialogHeader>
+          <AlertDialogTitle>Discard timer?</AlertDialogTitle>
+          <AlertDialogDescription>A timer is still running. Dismiss anyway?</AlertDialogDescription>
+        </AlertDialogHeader>
+        <AlertDialogFooter>
+          <AlertDialogCancel>Keep timing</AlertDialogCancel>
+          <AlertDialogAction onClick={() => { leftTimer.cancel(); rightTimer.cancel(); setConfirmDismiss(false); onDismiss() }}>
+            Discard
+          </AlertDialogAction>
+        </AlertDialogFooter>
+      </AlertDialogContent>
+    </AlertDialog>
+    </>
   )
 }

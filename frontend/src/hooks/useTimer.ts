@@ -1,5 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 
+const MAX_MS = 60 * 60 * 1000
+
 export function useTimer(onStop: (minutes: number) => void) {
   const [elapsedMs, setElapsedMs] = useState<number | null>(null)
   const startMsRef = useRef(0)
@@ -20,15 +22,22 @@ export function useTimer(onStop: (minutes: number) => void) {
     } else {
       startMsRef.current = Date.now()
       intervalRef.current = setInterval(() => {
-        setElapsedMs(Date.now() - startMsRef.current)
+        const elapsed = Date.now() - startMsRef.current
+        if (elapsed >= MAX_MS) {
+          clearInterval(intervalRef.current!); intervalRef.current = null
+          setElapsedMs(null)
+          onStop(60)
+        } else {
+          setElapsedMs(elapsed)
+        }
       }, 100)
     }
   }
 
-  function reset() {
+  function cancel() {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
     setElapsedMs(null)
   }
 
-  return { elapsedMs, toggle, reset }
+  return { elapsedMs, toggle, cancel }
 }
