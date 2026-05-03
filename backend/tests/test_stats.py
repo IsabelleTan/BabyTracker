@@ -160,29 +160,28 @@ async def test_stats_sleep_spanning_midnight(client_with_family):
 
 
 @pytest.mark.asyncio
-async def test_stats_sleep_spanning_range_boundary(client_with_family):
-    """A session that starts before the query range is attributed by midpoint.
-    Jan 14 23:00 → Jan 15 07:00 (midpoint Jan 15 03:00) → full 480 min counted for Jan 15."""
-    client, headers = client_with_family
-    # Overnight session: Jan 14 23:00 → Jan 15 07:00 = 480 min, midpoint Jan 15 03:00.
-    await client.post("/events", json={
-        "id": "s-pre", "type": "sleep_start", "timestamp": "2024-01-14T23:00:00Z",
-    }, headers=headers)
-    await client.post("/events", json={
-        "id": "e-pre", "type": "sleep_end", "timestamp": "2024-01-15T07:00:00Z",
-    }, headers=headers)
-    # A normal session on Jan 15: 10:00–12:00 = 120 min.
-    await client.post("/events", json={
-        "id": "s-day", "type": "sleep_start", "timestamp": "2024-01-15T10:00:00Z",
-    }, headers=headers)
-    await client.post("/events", json={
-        "id": "e-day", "type": "sleep_end", "timestamp": "2024-01-15T12:00:00Z",
-    }, headers=headers)
+async def test_stats_sleep_midpoint_attribution(client_with_family):
+    """Overnight sessions are attributed to the day of their midpoint, both directions.
 
-    r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-15T00:00:00Z"}, headers=headers)
-    day = r.json()[0]
-    assert day["sleep_session_count"] == 2
-    assert day["total_sleep_min"] == 600  # 480 (full overnight session) + 120
+    Jan 14 23:00→Jan 15 07:00 (midpoint Jan 15 03:00): all 480 min on Jan 15.
+    Jan 15 10:00→12:00: 120 min on Jan 15 (control).
+    Jan 15 23:00→Jan 16 01:30 (midpoint Jan 16 00:15): all 150 min on Jan 16, zero on Jan 15.
+    """
+    client, headers = client_with_family
+    for sid, start, end in [
+        ("s1", "2024-01-14T23:00:00Z", "2024-01-15T07:00:00Z"),
+        ("s2", "2024-01-15T10:00:00Z", "2024-01-15T12:00:00Z"),
+        ("s3", "2024-01-15T23:00:00Z", "2024-01-16T01:30:00Z"),
+    ]:
+        await client.post("/events", json={"id": sid, "type": "sleep_start", "timestamp": start}, headers=headers)
+        await client.post("/events", json={"id": f"e{sid}", "type": "sleep_end", "timestamp": end}, headers=headers)
+
+    r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-16T00:00:00Z"}, headers=headers)
+    days = {d["date"]: d for d in r.json()}
+    assert days["2024-01-15"]["sleep_session_count"] == 2
+    assert days["2024-01-15"]["total_sleep_min"] == 600  # 480 + 120
+    assert days["2024-01-16"]["sleep_session_count"] == 1
+    assert days["2024-01-16"]["total_sleep_min"] == 150
 
 
 @pytest.mark.asyncio
@@ -219,26 +218,6 @@ async def test_stats_sleep_session_durations(client_with_family):
     assert day["median_sleep_session_min"] == 60.0
     assert day["wake_durations_min"] == [90.0, 120.0]
     assert day["median_wake_min"] == 105.0
-
-
-@pytest.mark.asyncio
-async def test_stats_sleep_midpoint_attribution(client_with_family):
-    """A session spanning midnight is attributed entirely to the day of its midpoint.
-    23:00–01:30 (2.5 h, midpoint 00:15 on Jan 16) → all 150 min count for Jan 16, zero for Jan 15."""
-    client, headers = client_with_family
-    await client.post("/events", json={
-        "id": "s-mp", "type": "sleep_start", "timestamp": "2024-01-15T23:00:00Z",
-    }, headers=headers)
-    await client.post("/events", json={
-        "id": "e-mp", "type": "sleep_end", "timestamp": "2024-01-16T01:30:00Z",
-    }, headers=headers)
-
-    r = await client.get("/stats/daily", params={"from": "2024-01-15T00:00:00Z", "to": "2024-01-16T00:00:00Z"}, headers=headers)
-    days = {d["date"]: d for d in r.json()}
-    assert days["2024-01-15"]["sleep_session_count"] == 0
-    assert days["2024-01-15"]["total_sleep_min"] == 0
-    assert days["2024-01-16"]["sleep_session_count"] == 1
-    assert days["2024-01-16"]["total_sleep_min"] == 150
 
 
 @pytest.mark.asyncio
