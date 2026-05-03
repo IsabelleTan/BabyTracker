@@ -263,6 +263,7 @@ async def get_daily_stats(
     events = result.scalars().all()
 
     feeds_by_day: dict[date, list[datetime]] = defaultdict(list)
+    all_feed_times: list[datetime] = []
     outputs_by_day: dict[date, list[datetime]] = defaultdict(list)
     wet_by_day: dict[date, int] = defaultdict(int)
     dirty_by_day: dict[date, int] = defaultdict(int)
@@ -281,6 +282,7 @@ async def get_daily_stats(
         meta = e.metadata_ or {}
         if e.type == "feed":
             feeds_by_day[day].append(ts)
+            all_feed_times.append(ts)
             breast_min_by_day[day] += (meta.get("breast_left_min") or 0) + (meta.get("breast_right_min") or 0)
             pumped_ml_by_day[day] += meta.get("pumped_ml") or 0
             formula_ml_by_day[day] += meta.get("formula_ml") or 0
@@ -305,36 +307,38 @@ async def get_daily_stats(
 
     sleep_sessions = pair_sleep_sessions(raw_sleep_events)
 
+    all_feed_times.sort()
+    feed_intervals_by_day: dict[date, list[float]] = defaultdict(list)
+    for i in range(1, len(all_feed_times)):
+        prev, curr = all_feed_times[i - 1], all_feed_times[i]
+        interval_min = (curr - prev).total_seconds() / 60
+        midpoint = prev + (curr - prev) / 2
+        feed_intervals_by_day[local_date(midpoint, zone)].append(interval_min)
+
     from_utc = _utc(from_)
     to_utc = _utc(to)
     from_day = local_date(from_utc, zone)
     to_day   = local_date(to_utc,   zone)
 
-    # Split each session at calendar-day boundaries so each day only counts the
-    # portion of sleep that actually fell within its 00:00–24:00 window.
+    # Attribute each session to the day of its midpoint so overnight sessions
+    # are not split across two days.
     sleep_by_day: dict[date, list[tuple[datetime, datetime]]] = defaultdict(list)
     for start, end in sleep_sessions:
-        current = start.astimezone(zone).date()
-        end_date = end.astimezone(zone).date()
-        while current <= end_date:
-            if from_day <= current <= to_day:
-                next_day = current + timedelta(days=1)
-                window_start = datetime(current.year, current.month, current.day, tzinfo=zone)
-                window_end   = datetime(next_day.year, next_day.month, next_day.day, tzinfo=zone)
-                clamped_start = max(start, window_start)
-                clamped_end   = min(end,   window_end)
-                if clamped_start < clamped_end:
-                    sleep_by_day[current].append((clamped_start, clamped_end))
-            current += timedelta(days=1)
+        midpoint = start + (end - start) / 2
+        day = local_date(midpoint, zone)
+        if from_day <= day <= to_day:
+            sleep_by_day[day].append((start, end))
 
-    # Wake periods = gap between consecutive sessions
+    # Wake periods = gap between consecutive sessions, attributed to the day of
+    # the gap's midpoint so cross-midnight gaps land on the right day.
     wake_by_day: dict[date, list[float]] = defaultdict(list)
     for i in range(1, len(sleep_sessions)):
         prev_end   = sleep_sessions[i - 1][1]
         curr_start = sleep_sessions[i][0]
         wake_min   = (curr_start - prev_end).total_seconds() / 60
         if wake_min >= 0:
-            wake_by_day[local_date(curr_start, zone)].append(wake_min)
+            midpoint = prev_end + (curr_start - prev_end) / 2
+            wake_by_day[local_date(midpoint, zone)].append(wake_min)
 
     results: list[DailyStat] = []
     current = from_day
@@ -342,12 +346,7 @@ async def get_daily_stats(
         day = current
 
         feed_times = feeds_by_day.get(day, [])
-        feed_intervals: list[float] = []
-        if len(feed_times) >= 2:
-            feed_intervals = [
-                (feed_times[i] - feed_times[i - 1]).total_seconds() / 60
-                for i in range(1, len(feed_times))
-            ]
+        feed_intervals = feed_intervals_by_day.get(day, [])
 
         sessions = sleep_by_day.get(day, [])
         session_durations = [(e - s).total_seconds() / 60 for s, e in sessions]
