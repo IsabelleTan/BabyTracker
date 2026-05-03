@@ -340,6 +340,23 @@ async def get_daily_stats(
             midpoint = prev_end + (curr_start - prev_end) / 2
             wake_by_day[local_date(midpoint, zone)].append(wake_min)
 
+    # Timeline hours: each session contributes to every calendar day it overlaps,
+    # clamped to [0, 24]. This is independent of midpoint attribution so that a
+    # session starting at 23:00 shows up on both the day it starts and the day it ends.
+    sleep_hours_by_day: dict[date, list[list[float]]] = defaultdict(list)
+    for start, end in sleep_sessions:
+        s_day = local_date(start, zone)
+        e_day = local_date(end, zone)
+        cur = s_day
+        while cur <= e_day:
+            if from_day <= cur <= to_day:
+                midnight = datetime(cur.year, cur.month, cur.day, tzinfo=zone)
+                h_start = round(max(0.0, (start - midnight).total_seconds() / 3600), 4)
+                h_end = round(min(24.0, (end - midnight).total_seconds() / 3600), 4)
+                if h_start < h_end:
+                    sleep_hours_by_day[cur].append([h_start, h_end])
+            cur += timedelta(days=1)
+
     results: list[DailyStat] = []
     current = from_day
     while current <= to_day:
@@ -351,15 +368,7 @@ async def get_daily_stats(
         sessions = sleep_by_day.get(day, [])
         session_durations = [(e - s).total_seconds() / 60 for s, e in sessions]
         total_sleep_min = sum(session_durations)
-        midnight = datetime(day.year, day.month, day.day, tzinfo=zone)
-        sleep_sessions_hours = [
-            [
-                round(max(0.0, (s - midnight).total_seconds() / 3600), 4),
-                round(min(24.0, (e - midnight).total_seconds() / 3600), 4),
-            ]
-            for s, e in sessions
-            if (e - midnight).total_seconds() > 0 and (s - midnight).total_seconds() < 86400
-        ]
+        sleep_sessions_hours = sleep_hours_by_day.get(day, [])
 
         wakes = wake_by_day.get(day, [])
 
