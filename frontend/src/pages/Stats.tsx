@@ -666,7 +666,7 @@ function ChartCard({
             <Tooltip
               content={(props) => {
                 if (!props.active || !props.payload?.length) return null
-                const entry = props.payload.find((p: { name?: string | number; value?: number; color?: string }) => p.name === '__median__')
+                const entry = props.payload.find((p) => p.name === '__median__')
                 if (!entry || entry.value == null) return null
                 const formatted = resolvedFormatTick(entry.value as number)
                 return (
