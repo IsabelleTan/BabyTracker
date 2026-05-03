@@ -12,8 +12,6 @@ The first weeks with a newborn are a blur of feeds, diaper changes, and broken s
 [![CI](https://github.com/IsabelleTan/BabyTracker/actions/workflows/ci.yml/badge.svg)](https://github.com/IsabelleTan/BabyTracker/actions/workflows/ci.yml)
 [![codecov](https://codecov.io/gh/IsabelleTan/BabyTracker/branch/main/graph/badge.svg?token=T4UOKMWPJH&flag=backend)](https://codecov.io/gh/IsabelleTan/BabyTracker)
 
-See [CHANGELOG.md](CHANGELOG.md) for release history.
-
 ## Stack
 
 | Layer | Technology |
