@@ -311,13 +311,12 @@ function formatTimer(ms: number): string {
 
 function BreastFeedForm({
   leftMin, setLeftMin, rightMin, setRightMin,
-  leftRunning, rightRunning, leftElapsedMs, rightElapsedMs,
+  leftElapsedMs, rightElapsedMs,
   onToggleLeft, onToggleRight,
 }: {
   leftMin: string; setLeftMin: (v: string) => void
   rightMin: string; setRightMin: (v: string) => void
-  leftRunning: boolean; rightRunning: boolean
-  leftElapsedMs: number; rightElapsedMs: number
+  leftElapsedMs: number | null; rightElapsedMs: number | null
   onToggleLeft: () => void; onToggleRight: () => void
 }) {
   return (
@@ -338,12 +337,12 @@ function BreastFeedForm({
             type="button"
             onClick={onToggleLeft}
             className={`h-11 px-2.5 rounded-md text-sm font-medium border transition-colors flex flex-col items-center justify-center ${
-              leftRunning
+              leftElapsedMs !== null
                 ? 'bg-primary text-primary-foreground border-primary'
                 : 'bg-background border-input text-foreground'
             }`}
           >
-            {leftRunning ? (
+            {leftElapsedMs !== null ? (
               <><span>Stop</span><span className="text-[10px] tabular-nums leading-none">{formatTimer(leftElapsedMs)}</span></>
             ) : 'Start'}
           </button>
@@ -365,12 +364,12 @@ function BreastFeedForm({
             type="button"
             onClick={onToggleRight}
             className={`h-11 px-2.5 rounded-md text-sm font-medium border transition-colors flex flex-col items-center justify-center ${
-              rightRunning
+              rightElapsedMs !== null
                 ? 'bg-primary text-primary-foreground border-primary'
                 : 'bg-background border-input text-foreground'
             }`}
           >
-            {rightRunning ? (
+            {rightElapsedMs !== null ? (
               <><span>Stop</span><span className="text-[10px] tabular-nums leading-none">{formatTimer(rightElapsedMs)}</span></>
             ) : 'Start'}
           </button>
@@ -530,13 +529,13 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
     setSelMinute(Math.floor(now.getMinutes() / 5))
   }
 
-  const feedEmpty = type === 'feed' && !leftMin && !rightMin && !leftTimer.running && !rightTimer.running && !pumpedMl && !formulaMl
+  const feedEmpty = type === 'feed' && !leftMin && !rightMin && leftTimer.elapsedMs === null && rightTimer.elapsedMs === null && !pumpedMl && !formulaMl
 
   function buildMetadata(): EventMeta {
     if (type === 'feed') {
       // If a timer is still running when saving, use its current elapsed value
-      const lMin = leftTimer.running  ? leftTimer.getElapsedMinutes()  : (leftMin  ? Number(leftMin)  : null)
-      const rMin = rightTimer.running ? rightTimer.getElapsedMinutes() : (rightMin ? Number(rightMin) : null)
+      const lMin = leftTimer.elapsedMs !== null  ? leftTimer.getElapsedMinutes()  : (leftMin  ? Number(leftMin)  : null)
+      const rMin = rightTimer.elapsedMs !== null ? rightTimer.getElapsedMinutes() : (rightMin ? Number(rightMin) : null)
       return {
         breast_left_min:  lMin,
         breast_right_min: rMin,
@@ -639,9 +638,8 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
                 <BreastFeedForm
                   leftMin={leftMin}          setLeftMin={setLeftMin}
                   rightMin={rightMin}        setRightMin={setRightMin}
-                  leftRunning={leftTimer.running}   rightRunning={rightTimer.running}
                   leftElapsedMs={leftTimer.elapsedMs} rightElapsedMs={rightTimer.elapsedMs}
-                  onToggleLeft={leftTimer.toggle}   onToggleRight={rightTimer.toggle}
+                  onToggleLeft={leftTimer.toggle} onToggleRight={rightTimer.toggle}
                 />
               </div>
               <div className="space-y-1.5">

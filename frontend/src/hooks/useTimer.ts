@@ -1,16 +1,14 @@
 import { useState, useRef, useEffect } from 'react'
 
 export interface UseTimerReturn {
-  running: boolean
-  elapsedMs: number
+  elapsedMs: number | null  // null = not running; number = running, value is elapsed time
   toggle: () => void
   reset: () => void
   getElapsedMinutes: () => number
 }
 
 export function useTimer(onStop: (minutes: number) => void): UseTimerReturn {
-  const [running, setRunning] = useState(false)
-  const [elapsedMs, setElapsedMs] = useState(0)
+  const [elapsedMs, setElapsedMs] = useState<number | null>(null)
   const startMsRef = useRef(0)
   const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null)
 
@@ -21,15 +19,13 @@ export function useTimer(onStop: (minutes: number) => void): UseTimerReturn {
   }, [])
 
   function toggle() {
-    if (running) {
+    if (elapsedMs !== null) {
       if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
-      setRunning(false)
       const elapsed = Date.now() - startMsRef.current
-      setElapsedMs(elapsed)
+      setElapsedMs(null)
       onStop(Math.round(elapsed / 60000))
     } else {
       startMsRef.current = Date.now()
-      setRunning(true)
       intervalRef.current = setInterval(() => {
         setElapsedMs(Date.now() - startMsRef.current)
       }, 100)
@@ -38,13 +34,12 @@ export function useTimer(onStop: (minutes: number) => void): UseTimerReturn {
 
   function reset() {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
-    setRunning(false)
-    setElapsedMs(0)
+    setElapsedMs(null)
   }
 
   function getElapsedMinutes() {
     return Math.round((Date.now() - startMsRef.current) / 60000)
   }
 
-  return { running, elapsedMs, toggle, reset, getElapsedMinutes }
+  return { elapsedMs, toggle, reset, getElapsedMinutes }
 }
