@@ -1,3 +1,3 @@
-export function cn(...inputs: (string | undefined | null | false)[]): string {
-  return inputs.filter(Boolean).join(' ')
+export function cn(...inputs: unknown[]): string {
+  return inputs.filter((x): x is string => typeof x === 'string').join(' ')
 }
