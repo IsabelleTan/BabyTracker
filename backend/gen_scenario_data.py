@@ -266,9 +266,7 @@ def scenario_realistic() -> list[dict]:
                     meta = {"pumped_ml": round(_rng(60, 150) / 5) * 5}
                 else:
                     left  = random.randint(5, 20) if random.random() > 0.3 else None
-                    right = random.randint(5, 20) if random.random() > 0.3 else None
-                    if left is None and right is None:
-                        left = random.randint(5, 20)
+                    right = random.randint(5, 20) if left is None else None
                     meta = {"breast_left_min": left, "breast_right_min": right}
                 add("feed", ft, meta)
             feed_cursor += timedelta(minutes=interval + random.gauss(0, 10))
