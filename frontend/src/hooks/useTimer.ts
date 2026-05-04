@@ -34,10 +34,10 @@ export function useTimer(onStop: (minutes: number) => void) {
     }
   }
 
-  function cancel() {
+  function reset() {
     if (intervalRef.current) { clearInterval(intervalRef.current); intervalRef.current = null }
     setElapsedMs(null)
   }
 
-  return { elapsedMs, toggle, cancel }
+  return { elapsedMs, toggle, reset }
 }

@@ -10,10 +10,7 @@ import {
 import {
   AlertDialog,
   AlertDialogContent,
-  AlertDialogHeader,
   AlertDialogTitle,
-  AlertDialogDescription,
-  AlertDialogFooter,
   AlertDialogAction,
   AlertDialogCancel,
 } from '@/components/ui/alert-dialog'
@@ -729,16 +726,13 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
 
     <AlertDialog open={confirmDismiss} onOpenChange={setConfirmDismiss}>
       <AlertDialogContent>
-        <AlertDialogHeader>
-          <AlertDialogTitle>Discard timer?</AlertDialogTitle>
-          <AlertDialogDescription>A timer is still running. Dismiss anyway?</AlertDialogDescription>
-        </AlertDialogHeader>
-        <AlertDialogFooter>
+        <AlertDialogTitle>Discard timer?</AlertDialogTitle>
+        <div className="flex gap-2 justify-end mt-2">
           <AlertDialogCancel>Keep timing</AlertDialogCancel>
-          <AlertDialogAction onClick={() => { leftTimer.cancel(); rightTimer.cancel(); setConfirmDismiss(false); onDismiss() }}>
+          <AlertDialogAction onClick={() => { leftTimer.reset(); rightTimer.reset(); setConfirmDismiss(false); onDismiss() }}>
             Discard
           </AlertDialogAction>
-        </AlertDialogFooter>
+        </div>
       </AlertDialogContent>
     </AlertDialog>
     </>
