@@ -666,8 +666,7 @@ function ChartCard({
             <Tooltip
               content={(props) => {
                 if (!props.active || !props.payload?.length) return null
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                const entry = props.payload.find((p: any) => p.name === '__median__')
+                const entry = props.payload.find((p) => p.name === '__median__')
                 if (!entry || entry.value == null) return null
                 const formatted = resolvedFormatTick(entry.value as number)
                 return (

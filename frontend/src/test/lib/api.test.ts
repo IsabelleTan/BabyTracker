@@ -1,9 +1,12 @@
 import { describe, it, expect, beforeEach, vi, afterEach } from 'vitest'
 import { api } from '@/lib/api'
 
-function mockFetch(status: number, body?: unknown) {
+function mockFetch(status: number, body?: unknown, extraHeaders?: Record<string, string>) {
   const contentType = body !== undefined ? 'application/json' : undefined
-  const headers = new Headers(contentType ? { 'content-type': contentType } : {})
+  const headers = new Headers({
+    ...(contentType ? { 'content-type': contentType } : {}),
+    ...extraHeaders,
+  })
   vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
     status,
     ok: status >= 200 && status < 300,
@@ -77,5 +80,23 @@ describe('API — request behaviour', () => {
     const [url] = vi.mocked(fetch).mock.calls[0]
     expect(url).toContain('limit=10')
     expect(url).toContain('type=feed')
+  })
+
+  it('sends URLSearchParams as form-encoded with correct content-type', async () => {
+    mockFetch(200, { access_token: 'tok' })
+
+    await api.post('/auth/login', new URLSearchParams({ username: 'a@b.com', password: 'pw' }))
+
+    const [, init] = vi.mocked(fetch).mock.calls[0]
+    expect((init?.headers as Record<string, string>)['Content-Type']).toBe('application/x-www-form-urlencoded')
+    expect(init?.body).toBe('username=a%40b.com&password=pw')
+  })
+
+  it('resolves on 204 even when Starlette incorrectly sends content-type: application/json', async () => {
+    // Starlette 1.x sends content-type: application/json on 204 No Content responses.
+    // Calling res.json() on an empty body would throw — ensure we skip parsing instead.
+    mockFetch(204, undefined, { 'content-type': 'application/json' })
+
+    await expect(api.delete('/events/123')).resolves.toMatchObject({ status: 204 })
   })
 })

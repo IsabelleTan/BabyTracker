@@ -33,6 +33,10 @@ export interface LogEventPayload {
   metadata?: EventMeta
 }
 
+export function isSleepEvent(e: BabyEvent): boolean {
+  return e.type === 'sleep_start' || e.type === 'sleep_end'
+}
+
 export async function logEvent(payload: LogEventPayload): Promise<BabyEvent> {
   const { data } = await api.post<BabyEvent>('/events', payload)
   return data

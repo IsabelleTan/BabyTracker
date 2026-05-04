@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react'
 import { Milk, Droplets, Moon, Sun, Pill, TriangleAlert, List, LineDotRightHorizontal, type LucideIcon } from 'lucide-react'
-import { type BabyEvent, type FeedMeta, type OutputMeta } from '@/lib/events'
+import { type BabyEvent, type FeedMeta, type OutputMeta, isSleepEvent } from '@/lib/events'
 import { formatTime } from '@/lib/time'
 
 // ─── Layout constants (px) ────────────────────────────────────────────────────
@@ -113,7 +113,7 @@ function buildFeedIntervals(events: BabyEvent[]): Map<string, string> {
 
 function computeSleepSegments(events: BabyEvent[], nowMs: number): SleepComputed {
   const sleepEvts = [...events]
-    .filter(e => e.type === 'sleep_start' || e.type === 'sleep_end')
+    .filter(isSleepEvent)
     .sort((a, b) => a.timestamp.localeCompare(b.timestamp)) // oldest first
 
   const segs: SleepSegment[] = []

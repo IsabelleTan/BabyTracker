@@ -10,7 +10,7 @@ import {
   type EventType,
 } from '@/lib/events'
 import { getUser } from '@/lib/auth'
-import { api } from '@/lib/api'
+import { api, type HttpError } from '@/lib/api'
 
 export interface StreakStats {
   current_potty_streak: number | null
@@ -48,7 +48,7 @@ export function useSync() {
           await removePending(p.id)
         } catch (err) {
           // Network error (no response) — stop flushing; server errors (4xx/5xx) can be skipped
-          if (!(err as { response?: unknown })?.response) break
+          if (!(err as HttpError).status) break
         }
       }
 

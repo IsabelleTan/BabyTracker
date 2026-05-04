@@ -113,19 +113,19 @@ def ev_breast(ts: datetime, left: float, right: float, tag: str) -> dict:
         "type": "feed",
         "timestamp": iso(ts),
         "metadata": {
-            "feed_type": "breast",
-            "left_duration_min":  round(max(1.0, left),  1),
-            "right_duration_min": round(max(1.0, right), 1),
+            "breast_left_min":  round(max(1.0, left),  1),
+            "breast_right_min": round(max(1.0, right), 1),
         },
     }
 
 
 def ev_bottle(ts: datetime, ml: int, bottle_type: str, tag: str) -> dict:
+    key = "pumped_ml" if bottle_type == "pumped" else "formula_ml"
     return {
         "id": det_id(f"feed-bottle-{bottle_type}", iso(ts), tag),
         "type": "feed",
         "timestamp": iso(ts),
-        "metadata": {"feed_type": "bottle", "bottle_type": bottle_type, "amount_ml": ml},
+        "metadata": {key: ml},
     }
 
 
