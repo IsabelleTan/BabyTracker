@@ -30,6 +30,7 @@ interface SleepSegment {
   orphanTop: boolean
   orphanBottom: boolean
   isConflict: boolean
+  durationMs: number | null
 }
 
 interface SleepWarning {
@@ -87,7 +88,9 @@ function buildDetail(event: BabyEvent): string | null {
     const typeMap: Record<string, string> = { wet: 'Pee', dirty: 'Poo', both: 'Pee+Poo' }
     const label = typeMap[om.diaper_type] ?? null
     if (!label) return null
-    return om.location === 'potty' ? `${label} Potty` : label
+    const locMap: Record<string, string> = { diaper: 'Diaper', potty: 'Potty', accident: 'Accident' }
+    const loc = locMap[om.location]
+    return loc ? `${label} ${loc}` : label
   }
   return null
 }
@@ -131,7 +134,7 @@ function computeSleepSegments(events: BabyEvent[], nowMs: number): SleepComputed
         // Double sleep_start: dashed conflict segment spanning from the second start (top)
         // to the first start (bottom). Warning at the second (newer) start.
         const oldStartY = msToY(openStartMs, nowMs)
-        segs.push({ topY: y, height: oldStartY - y, orphanTop: false, orphanBottom: false, isConflict: true })
+        segs.push({ topY: y, height: oldStartY - y, orphanTop: false, orphanBottom: false, isConflict: true, durationMs: null })
         warnings.push({ y, message: 'Missing wake-up?' })
       }
       openStartMs = ts
@@ -142,17 +145,17 @@ function computeSleepSegments(events: BabyEvent[], nowMs: number): SleepComputed
       if (openStartMs !== null) {
         // Normal paired segment
         const startY = msToY(openStartMs, nowMs)
-        segs.push({ topY: y, height: startY - y, orphanTop: false, orphanBottom: false, isConflict: false })
+        segs.push({ topY: y, height: startY - y, orphanTop: false, orphanBottom: false, isConflict: false, durationMs: ts - openStartMs })
         openStartMs = null
       } else if (hadAnySleepEvent) {
         // sleep_end with no open start but prior sleep events seen → double sleep_end.
         // Dashed conflict segment from this end (top) to the previous sleep event (bottom).
         const prevY = lastSleepEventY ?? TOTAL_H
-        segs.push({ topY: y, height: prevY - y, orphanTop: false, orphanBottom: false, isConflict: true })
+        segs.push({ topY: y, height: prevY - y, orphanTop: false, orphanBottom: false, isConflict: true, durationMs: null })
         warnings.push({ y, message: 'Missing sleep start?' })
       } else {
         // Normal orphanBottom: first event in window is a sleep_end — sleep started before window
-        segs.push({ topY: y, height: TOTAL_H - y, orphanTop: false, orphanBottom: true, isConflict: false })
+        segs.push({ topY: y, height: TOTAL_H - y, orphanTop: false, orphanBottom: true, isConflict: false, durationMs: null })
       }
       hadAnySleepEvent = true
       lastSleepEventY = y
@@ -162,7 +165,7 @@ function computeSleepSegments(events: BabyEvent[], nowMs: number): SleepComputed
   if (openStartMs !== null) {
     // Unclosed sleep_start — currently asleep (or missing sleep_end)
     const startY = msToY(openStartMs, nowMs)
-    segs.push({ topY: 0, height: startY, orphanTop: true, orphanBottom: false, isConflict: false })
+    segs.push({ topY: 0, height: startY, orphanTop: true, orphanBottom: false, isConflict: false, durationMs: nowMs - openStartMs })
   }
 
   const clampedSegs = segs
@@ -344,6 +347,37 @@ export default function TimelineSection({ events, onEditEvent }: Props) {
               <span className="text-xs text-amber-500">{w.message}</span>
             </div>
           ))}
+
+          {/* Sleep duration labels */}
+          {sleepSegments.map((seg, i) => {
+            if (!seg.durationMs || seg.height < 26) return null
+            const naturalY = seg.topY + seg.height / 2
+            const AVOID = MARKER_R + 9
+            let textY = naturalY
+            for (const my of adjustedYs) {
+              if (my < seg.topY - AVOID || my > seg.topY + seg.height + AVOID) continue
+              if (Math.abs(textY - my) < AVOID) {
+                const above = my - AVOID
+                const below = my + AVOID
+                if (above >= seg.topY + 6 && Math.abs(above - naturalY) <= Math.abs(below - naturalY)) {
+                  textY = above
+                } else if (below <= seg.topY + seg.height - 6) {
+                  textY = below
+                }
+              }
+            }
+            return (
+              <div
+                key={`sleep-dur-${i}`}
+                className="absolute pointer-events-none flex items-center"
+                style={{ top: textY, left: LINE_CX + LINE_W / 2 + 6, transform: 'translateY(-50%)' }}
+              >
+                <span className="text-xs text-muted-foreground/60 tabular-nums">
+                  {formatInterval(seg.durationMs)}
+                </span>
+              </div>
+            )
+          })}
 
           {/* Event markers + single-line details */}
           {markerEvents.map((event, idx) => {

@@ -37,7 +37,7 @@ describe('TimelineSection — marker rendering', () => {
   it('renders feed and output events as tappable markers', () => {
     render(<TimelineSection events={[FEED, OUTPUT]} onEditEvent={vi.fn()} />)
     expect(screen.getByText(/Breast/)).toBeInTheDocument()
-    expect(screen.getByText('Pee')).toBeInTheDocument()
+    expect(screen.getByText('Pee Diaper')).toBeInTheDocument()
   })
 
   it('does not render sleep events as markers', () => {
@@ -69,7 +69,7 @@ describe('TimelineSection — event detail text', () => {
 
   it('shows output detail', () => {
     render(<TimelineSection events={[OUTPUT]} onEditEvent={vi.fn()} />)
-    expect(screen.getByText('Pee')).toBeInTheDocument()
+    expect(screen.getByText('Pee Diaper')).toBeInTheDocument()
   })
 
   it('shows formula feed detail', () => {
