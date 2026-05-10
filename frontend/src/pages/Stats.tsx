@@ -90,7 +90,7 @@ function getFixedRangeDates(range: '7d' | '30d'): { from: Date; to: Date } {
 
 
 export default function Stats() {
-  const [range, setRange] = useState<Range>('7d')
+  const [range, setRange] = useState<Range>('all')
   const [data, setData] = useState<DailyStat[]>([])
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
 
@@ -98,15 +98,16 @@ export default function Stats() {
     setStatus('loading') // eslint-disable-line react-hooks/set-state-in-effect
 
     const run = async () => {
+      const earliest = await getEarliestEventDate()
       let from: Date
       let to: Date
       if (range === 'all') {
-        const earliest = await getEarliestEventDate()
         from = currentDayStart(earliest ?? new Date())
         to = new Date()
         to.setHours(23, 59, 59, 999)
       } else {
         ({ from, to } = getFixedRangeDates(range))
+        if (earliest && earliest > from) from = currentDayStart(earliest)
       }
       return getDailyStats(from, to)
     }
