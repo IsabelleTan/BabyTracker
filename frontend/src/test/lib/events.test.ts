@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, afterEach } from 'vitest'
-import { toDateTimeLocal, fromDateTimeLocal, currentDayStart } from '@/lib/events'
+import { toDateTimeLocal, fromDateTimeLocal, currentDayStart, currentDayEnd, getAllEvents } from '@/lib/events'
 
 describe('toDateTimeLocal', () => {
   it('formats a UTC date to a local datetime-local string', () => {
@@ -24,6 +24,55 @@ describe('fromDateTimeLocal', () => {
   it('converts a datetime-local string to a UTC ISO string', () => {
     const result = fromDateTimeLocal('2024-01-15T10:30')
     expect(result).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}.\d{3}Z$/)
+  })
+})
+
+describe('currentDayEnd — end-of-day boundary', () => {
+  afterEach(() => vi.useRealTimers())
+
+  it('returns 23:59:59.999 of the same calendar day', () => {
+    vi.useFakeTimers()
+    vi.setSystemTime(new Date(2024, 5, 20, 10, 0, 0))
+    const d = currentDayEnd()
+    expect(d.getFullYear()).toBe(2024)
+    expect(d.getMonth()).toBe(5)
+    expect(d.getDate()).toBe(20)
+    expect(d.getHours()).toBe(23)
+    expect(d.getMinutes()).toBe(59)
+    expect(d.getSeconds()).toBe(59)
+    expect(d.getMilliseconds()).toBe(999)
+  })
+
+  it('accepts a base date and does not mutate it', () => {
+    const base = new Date(2024, 0, 1, 8, 0, 0)
+    const original = base.getTime()
+    const d = currentDayEnd(base)
+    expect(d.getDate()).toBe(1)
+    expect(d.getHours()).toBe(23)
+    expect(base.getTime()).toBe(original)
+  })
+})
+
+describe('getAllEvents', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('calls /events with from_ and to as ISO strings', async () => {
+    const mockEvents = [{ id: '1', type: 'feed', timestamp: '2024-01-15T10:00:00Z', logged_by: 'u1', display_name: 'Alice', metadata: null }]
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
+      status: 200,
+      ok: true,
+      headers: new Headers({ 'content-type': 'application/json' }),
+      json: () => Promise.resolve(mockEvents),
+    }))
+
+    const from = new Date('2024-01-01T00:00:00.000Z')
+    const to = new Date('2024-01-31T23:59:59.999Z')
+    const result = await getAllEvents(from, to)
+
+    const [url] = vi.mocked(fetch).mock.calls[0]
+    expect(url).toContain('from_=2024-01-01T00%3A00%3A00.000Z')
+    expect(url).toContain('to=2024-01-31T23%3A59%3A59.999Z')
+    expect(result).toEqual(mockEvents)
   })
 })
 

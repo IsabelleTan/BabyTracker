@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, fireEvent, waitFor } from '@testing-library/react'
 import type React from 'react'
 import Stats from '@/pages/Stats'
@@ -24,6 +24,11 @@ vi.mock('@/lib/stats', () => ({
   getDailyStats: vi.fn(),
   getEarliestEventDate: vi.fn(),
 }))
+
+vi.mock('@/lib/events', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@/lib/events')>()
+  return { ...actual, getAllEvents: vi.fn() }
+})
 
 const defaultStat = {
   date: '2024-01-15',
@@ -201,5 +206,105 @@ describe('Stats page', () => {
     sixDaysAgo.setDate(sixDaysAgo.getDate() - 6)
     sixDaysAgo.setHours(0, 0, 0, 0)
     expect(fromArg.toDateString()).toBe(sixDaysAgo.toDateString())
+  })
+})
+
+describe('Stats — export button', () => {
+  let clickSpy: ReturnType<typeof vi.spyOn>
+
+  beforeEach(async () => {
+    vi.resetAllMocks()
+    const { getDailyStats, getEarliestEventDate } = await import('@/lib/stats')
+    vi.mocked(getDailyStats).mockResolvedValue([defaultStat])
+    vi.mocked(getEarliestEventDate).mockResolvedValue(new Date('2024-01-01T00:00:00Z'))
+
+    const { getAllEvents } = await import('@/lib/events')
+    vi.mocked(getAllEvents).mockResolvedValue([])
+
+    // URL.createObjectURL/revokeObjectURL don't exist in jsdom — assign stubs directly
+    Object.assign(URL, {
+      createObjectURL: vi.fn().mockReturnValue('blob:test'),
+      revokeObjectURL: vi.fn(),
+    })
+    clickSpy = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => undefined)
+  })
+
+  afterEach(() => {
+    vi.restoreAllMocks()
+    // @ts-expect-error: cleaning up jsdom stubs
+    delete URL.createObjectURL
+    // @ts-expect-error: cleaning up jsdom stubs
+    delete URL.revokeObjectURL
+  })
+
+  it('renders the export button after data loads', async () => {
+    render(<Stats />)
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Download JSON' })).toBeInTheDocument())
+  })
+
+  it('triggers a download with correct filename and JSON content', async () => {
+    const { getAllEvents } = await import('@/lib/events')
+    const mockEvents = [{ id: '1', type: 'feed' as const, timestamp: '2024-01-15T10:00:00Z', logged_by: 'u1', display_name: 'Alice', metadata: null }]
+    vi.mocked(getAllEvents).mockResolvedValue(mockEvents)
+
+    render(<Stats />)
+    await waitFor(() => screen.getByRole('button', { name: 'Download JSON' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Download JSON' }))
+
+    await waitFor(() => expect(clickSpy).toHaveBeenCalled())
+
+    expect(URL.createObjectURL).toHaveBeenCalledWith(expect.any(Blob))
+    expect(URL.revokeObjectURL).toHaveBeenCalledWith('blob:test')
+
+    const blob = vi.mocked(URL.createObjectURL).mock.calls[0][0] as Blob
+    const text = await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsText(blob)
+    })
+    const parsed = JSON.parse(text)
+    expect(parsed.total_events).toBe(1)
+    expect(parsed.events).toEqual(mockEvents)
+    expect(parsed.exported_at).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+  })
+
+  it('shows "Exporting…" while the fetch is in progress', async () => {
+    const { getAllEvents } = await import('@/lib/events')
+    let resolve!: (v: never[]) => void
+    vi.mocked(getAllEvents).mockReturnValue(new Promise((r) => { resolve = r }))
+
+    render(<Stats />)
+    await waitFor(() => screen.getByRole('button', { name: 'Download JSON' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Download JSON' }))
+
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Exporting…' })).toBeDisabled())
+    resolve([])
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Download JSON' })).not.toBeDisabled())
+  })
+
+  it('shows an error message and re-enables the button when fetch fails', async () => {
+    const { getAllEvents } = await import('@/lib/events')
+    vi.mocked(getAllEvents).mockRejectedValue(new Error('network'))
+
+    render(<Stats />)
+    await waitFor(() => screen.getByRole('button', { name: 'Download JSON' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Download JSON' }))
+
+    await waitFor(() => expect(screen.getByText('Export failed, please try again')).toBeInTheDocument())
+    expect(screen.getByRole('button', { name: 'Download JSON' })).not.toBeDisabled()
+  })
+
+  it('clears the error message on a subsequent export attempt', async () => {
+    const { getAllEvents } = await import('@/lib/events')
+    vi.mocked(getAllEvents).mockRejectedValueOnce(new Error('network')).mockResolvedValueOnce([])
+
+    render(<Stats />)
+    await waitFor(() => screen.getByRole('button', { name: 'Download JSON' }))
+    fireEvent.click(screen.getByRole('button', { name: 'Download JSON' }))
+    await waitFor(() => screen.getByText('Export failed, please try again'))
+
+    fireEvent.click(screen.getByRole('button', { name: 'Download JSON' }))
+    await waitFor(() => expect(screen.queryByText('Export failed, please try again')).not.toBeInTheDocument())
   })
 })

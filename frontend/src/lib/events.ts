@@ -63,6 +63,13 @@ export function currentDayStart(base: Date = new Date()): Date {
   return d
 }
 
+/** 23:59:59.999 of the current calendar day. */
+export function currentDayEnd(base: Date = new Date()): Date {
+  const d = new Date(base)
+  d.setHours(23, 59, 59, 999)
+  return d
+}
+
 /** Events from the past N calendar days (midnight local N days ago → now). */
 export async function getEventsSince(days: number): Promise<BabyEvent[]> {
   const now = new Date()
@@ -93,6 +100,13 @@ export async function getNightSessionEvents(): Promise<BabyEvent[]> {
   const sessionStart = nightSessionStart(now)
   const { data } = await api.get<BabyEvent[]>('/events', {
     params: { from_: sessionStart.toISOString(), to: now.toISOString() },
+  })
+  return data
+}
+
+export async function getAllEvents(from: Date, to: Date): Promise<BabyEvent[]> {
+  const { data } = await api.get<BabyEvent[]>('/events', {
+    params: { from_: from.toISOString(), to: to.toISOString() },
   })
   return data
 }
