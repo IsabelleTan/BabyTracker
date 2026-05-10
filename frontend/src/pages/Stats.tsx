@@ -10,7 +10,7 @@ import {
   ReferenceLine,
 } from 'recharts'
 import { getDailyStats, getEarliestEventDate, type DailyStat } from '@/lib/stats'
-import { currentDayStart } from '@/lib/events'
+import { currentDayStart, currentDayEnd, getAllEvents } from '@/lib/events'
 import { timeAxisFormatter, formatDateAxis } from '@/lib/time'
 import { computeYTicksMulti, computeYTicks, computeXTicks, pickTicks } from '@/lib/chartUtils'
 
@@ -80,12 +80,10 @@ const RANGES: { label: string; value: Range }[] = [
 ]
 
 function getFixedRangeDates(range: '7d' | '30d'): { from: Date; to: Date } {
-  const to = new Date()
   const from = currentDayStart()
   if (range === '7d') from.setDate(from.getDate() - 6)
   else from.setDate(from.getDate() - 29)
-  to.setHours(23, 59, 59, 999)
-  return { from, to }
+  return { from, to: currentDayEnd() }
 }
 
 
@@ -93,6 +91,36 @@ export default function Stats() {
   const [range, setRange] = useState<Range>('all')
   const [data, setData] = useState<DailyStat[]>([])
   const [status, setStatus] = useState<'loading' | 'success' | 'error'>('loading')
+  const [exporting, setExporting] = useState(false)
+  const [exportError, setExportError] = useState(false)
+
+  const handleExport = async () => {
+    setExporting(true)
+    setExportError(false)
+    try {
+      const now = new Date()
+      const earliest = await getEarliestEventDate()
+      const from = currentDayStart(earliest ?? now)
+      const events = await getAllEvents(from, currentDayEnd())
+      const isoNow = now.toISOString()
+      const payload = {
+        exported_at: isoNow,
+        total_events: events.length,
+        events,
+      }
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `babytracker-${isoNow.slice(0, 10)}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch {
+      setExportError(true)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   useEffect(() => {
     setStatus('loading') // eslint-disable-line react-hooks/set-state-in-effect
@@ -103,8 +131,7 @@ export default function Stats() {
       let to: Date
       if (range === 'all') {
         from = currentDayStart(earliest ?? new Date())
-        to = new Date()
-        to.setHours(23, 59, 59, 999)
+        to = currentDayEnd()
       } else {
         ({ from, to } = getFixedRangeDates(range))
         if (earliest && earliest > from) from = currentDayStart(earliest)
@@ -304,6 +331,23 @@ export default function Stats() {
             )}
           </Section>
         </>
+      )}
+
+      {status === 'success' && (
+        <div className="w-full rounded-xl border border-primary/35 bg-card px-4 py-4 flex items-center justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium">Export events</p>
+            <p className="text-xs text-muted-foreground mt-0.5">Download all events as JSON for analysis</p>
+            {exportError && <p className="text-xs text-destructive mt-1">Export failed, please try again</p>}
+          </div>
+          <button
+            onClick={handleExport}
+            disabled={exporting}
+            className="px-4 py-2 rounded-lg text-sm font-medium bg-primary text-primary-foreground disabled:opacity-50 transition-opacity shrink-0"
+          >
+            {exporting ? 'Exporting…' : 'Download JSON'}
+          </button>
+        </div>
       )}
     </div>
   )
