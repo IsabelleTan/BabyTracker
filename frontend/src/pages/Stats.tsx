@@ -388,7 +388,7 @@ function SleepTimelineChart({ data }: { data: (DailyStat & { date: string })[] }
   const tickFill = 'oklch(0.55 0.01 27)'
 
   return (
-    <div className="w-full rounded-xl border border-primary/35 bg-card px-3 py-3 flex flex-col gap-2">
+    <div className="w-full rounded-xl border border-primary/35 bg-card px-3 py-3 flex flex-col gap-2 select-none">
       <span className="text-sm font-medium">Sleep timeline</span>
       <div ref={containerRef} className="w-full">
         {containerWidth > 0 && (
@@ -509,7 +509,7 @@ function MultiLineChartCard({
   const gridDash  = '3 3'
 
   return (
-    <div className="w-full rounded-xl border border-primary/35 bg-card px-3 py-3 flex flex-col gap-2">
+    <div className="w-full rounded-xl border border-primary/35 bg-card px-3 py-3 flex flex-col gap-2 select-none">
       <div className="flex items-center justify-between gap-2">
         <span className="text-sm font-medium">{title}</span>
         <div className="flex items-center gap-3 shrink-0">
@@ -702,7 +702,7 @@ function ChartCard({
   )
 
   return (
-    <div className="w-full rounded-xl border border-primary/35 bg-card px-3 py-3 flex flex-col gap-3">
+    <div className="w-full rounded-xl border border-primary/35 bg-card px-3 py-3 flex flex-col gap-3 select-none">
       <span className="text-sm font-medium">{title}</span>
       <ResponsiveContainer width="100%" height={150}>
         {hasRaw ? (
