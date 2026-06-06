@@ -574,7 +574,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
     <Drawer open={type !== null} onClose={handleDismiss}>
       <DrawerContent>
         <DrawerHeader className="pb-2">
-          <DrawerTitle>{type ? TITLES[type] : ''}</DrawerTitle>
+          <DrawerTitle className="select-none">{type ? TITLES[type] : ''}</DrawerTitle>
         </DrawerHeader>
 
         <div className="px-4 pb-2 space-y-3">
@@ -598,7 +598,7 @@ export default function EventSheet({ type, initialEvent, onSave, onDelete, onDis
             <button
               type="button"
               onClick={resetToNow}
-              className="ml-2 px-3 py-2 text-sm rounded-md bg-card border border-input text-foreground font-medium shadow-sm active:brightness-95"
+              className="ml-2 px-3 py-2 text-sm rounded-md bg-card border border-input text-foreground font-medium shadow-sm active:brightness-95 select-none"
             >
               Now
             </button>
